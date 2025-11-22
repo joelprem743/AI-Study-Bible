@@ -1,0 +1,40 @@
+/* DISCORD STYLE SCROLLBARS */
+
+/* width */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* Track (invisible, like Discord) */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  /* Thumb (subtle gray, rounded) */
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);  /* Discord-like */
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  
+  /* Thumb on hover */
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  
+  /* Firefox (Discord style) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+  
+  /* Dark mode fixes */
+  html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+  
