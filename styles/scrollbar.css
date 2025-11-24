@@ -39,7 +39,7 @@
   /* -------------------------------------------
     MOBILE — NATIVE SCROLLBARS STAY
      ------------------------------------------- */
-  @media (max-width: 767px) {
+  /* @media (max-width: 767px) {
     ::-webkit-scrollbar {
       display: none;
     }
@@ -47,7 +47,7 @@
       scrollbar-width: none;
     }
   }
-  
+   */
   /* -------------------------------------------
     DARK MODE
      ------------------------------------------- */
