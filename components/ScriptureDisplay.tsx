@@ -227,7 +227,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                   <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden">
                     {verse.verse}
                   </span>
-                  <p className="text-base leading-relaxed">
+                  <p className="text-[1.05rem] leading-[1.55]">
                     {englishText}
                   </p>
                 </div>
