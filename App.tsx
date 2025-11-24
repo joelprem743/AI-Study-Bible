@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<FullVerse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [showNav, setShowNav] = useState(true);
   // Controlled Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);

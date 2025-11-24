@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { BIBLE_META } from "../data/bibleMeta";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+import ModalPortal from "./ModalPortal";
 
 interface Props {
   books: string[];
@@ -33,7 +34,6 @@ export default function NavigationPane(props: Props) {
     isLastChapterOfBible,
   } = props;
 
-  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
   const [selectionStep, setSelectionStep] = useState<"BOOK" | "CHAPTER">("BOOK");
@@ -68,23 +68,18 @@ export default function NavigationPane(props: Props) {
 
         {/* UNIFIED BUTTON */}
         <div
-  className="
-    group flex flex-1 items-center justify-between
-    bg-gray-50 dark:bg-gray-700
-    border border-gray-300 dark:border-gray-600
-    rounded-xl px-3 py-2
-    transform-gpu transition-all duration-150 ease-out
-    hover:scale-[1.03] active:scale-[0.985]
+          className="
+            group flex flex-1 items-center justify-between
+            bg-gray-50 dark:bg-gray-700
+            border border-gray-300 dark:border-gray-600
+            rounded-xl px-3 py-2
+            transform-gpu transition-all duration-150 ease-out
+            hover:scale-[1.03] active:scale-[0.985]
+            hover:shadow-[0_0_8px_rgba(59,130,246,0.35)]
+            dark:hover:shadow-[0_0_10px_rgba(59,130,246,0.45)]
+          "
+        >
 
-    /* Glow tuned for long container */
-    hover:shadow-[0_0_8px_rgba(59,130,246,0.35)]
-    dark:hover:shadow-[0_0_10px_rgba(59,130,246,0.45)]
-  "
->
-
-
-
-          {/* LEFT ARROW */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -100,7 +95,6 @@ export default function NavigationPane(props: Props) {
             <i className="fas fa-caret-left no-scale-icon" />
           </button>
 
-          {/* CENTER */}
           <div className="flex-1 h-full flex items-center justify-center z-20">
             <button
               onClick={handleOpenModal}
@@ -115,7 +109,6 @@ export default function NavigationPane(props: Props) {
             </button>
           </div>
 
-          {/* RIGHT ARROW */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -137,8 +130,7 @@ export default function NavigationPane(props: Props) {
         <div
           onClick={() => setIsVersionModalOpen(true)}
           className="
-            relative min-w-[90px]
-            inline-block cursor-pointer
+            relative min-w-[90px] inline-block cursor-pointer
             transform-gpu transition-all duration-200 ease-out
             hover:scale-[1.06] active:scale-[0.96]
             hover:shadow-[0_0_12px_rgba(59,130,246,0.6)]
@@ -160,156 +152,159 @@ export default function NavigationPane(props: Props) {
 
       {/* BOOK + CHAPTER MODAL */}
       {isModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setIsModalOpen(false)}
-        >
+        <ModalPortal>
           <div
-            className="
-              bg-white dark:bg-gray-800 rounded-xl shadow-2xl
-              w-full max-w-2xl h-[80vh] flex flex-col
-              border border-gray-200 dark:border-gray-700
-              overflow-hidden
-            "
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[99999] bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsModalOpen(false)}
           >
+            <div
+              className="
+                relative z-[100000]
+                bg-white dark:bg-gray-800 rounded-xl shadow-2xl
+                w-full max-w-2xl h-[80vh] flex flex-col
+                border border-gray-200 dark:border-gray-700
+                overflow-hidden
+              "
+              onClick={(e) => e.stopPropagation()}
+            >
 
-            {/* HEADER */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
-              {selectionStep === "CHAPTER" ? (
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                {selectionStep === "CHAPTER" ? (
+                  <button
+                    onClick={() => setSelectionStep("BOOK")}
+                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-medium"
+                  >
+                    <i className="fas fa-arrow-left mr-2" /> Books
+                  </button>
+                ) : (
+                  <span className="text-lg font-bold text-gray-800 dark:text-white">
+                    Select Book
+                  </span>
+                )}
+
+                {selectionStep === "CHAPTER" && (
+                  <span className="text-lg font-bold text-gray-800 dark:text-white">
+                    {TELUGU_BOOK_NAMES[tempBook] || tempBook}
+                  </span>
+                )}
+
                 <button
-                  onClick={() => setSelectionStep("BOOK")}
-                  className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-medium"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
                 >
-                  <i className="fas fa-arrow-left mr-2" /> Books
+                  <i className="fas fa-times text-xl"></i>
                 </button>
-              ) : (
-                <span className="text-lg font-bold text-gray-800 dark:text-white">
-                  Select Book
-                </span>
-              )}
+              </div>
 
-              {selectionStep === "CHAPTER" && (
-                <span className="text-lg font-bold text-gray-800 dark:text-white">
-                  {TELUGU_BOOK_NAMES[tempBook] || tempBook}
-                </span>
-              )}
+              <div className="flex-grow overflow-y-auto p-4">
+                {selectionStep === "BOOK" ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {books.map((book) => (
+                      <button
+                        key={book}
+                        onClick={() => handleBookSelect(book)}
+                        className={`
+                          p-3 rounded-lg transition-all text-center
+                          ${
+                            tempBook === book
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                          }
+                        `}
+                      >
+                        <div className="text-sm font-normal truncate">
+                          {TELUGU_BOOK_NAMES[book]}
+                        </div>
+                        <div className="text-xs opacity-80 truncate">{book}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                    {Array.from({ length: tempChapterCount }, (_, i) => i + 1).map(
+                      (ch) => (
+                        <button
+                          key={ch}
+                          onClick={() => handleChapterSelect(ch)}
+                          className="
+                            aspect-square flex items-center justify-center
+                            text-base font-semibold rounded-lg bg-gray-100
+                            hover:bg-blue-600 hover:text-white
+                            dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-blue-600
+                            transition-all border border-gray-200 dark:border-gray-600
+                          "
+                        >
+                          {ch}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
 
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
-              >
-                <i className="fas fa-times text-xl"></i>
-              </button>
             </div>
+          </div>
+        </ModalPortal>
+      )}
 
-            {/* CONTENT */}
-            <div className="flex-grow overflow-y-auto p-4">
-              {selectionStep === "BOOK" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {books.map((book) => (
+      {/* VERSION MODAL */}
+      {isVersionModalOpen && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[99999] bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsVersionModalOpen(false)}
+          >
+            <div
+              className="
+                relative z-[100000]
+                bg-white dark:bg-gray-800 rounded-xl shadow-2xl
+                w-full max-w-sm max-h-[70vh] flex flex-col
+                border border-gray-200 dark:border-gray-700
+                overflow-hidden
+              "
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                <span className="text-lg font-bold text-gray-800 dark:text-white">
+                  Select Version
+                </span>
+                <button
+                  onClick={() => setIsVersionModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
+                >
+                  <i className="fas fa-times text-xl" />
+                </button>
+              </div>
+
+              <div className="flex-grow overflow-y-auto p-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {englishVersions.map((v) => (
                     <button
-                      key={book}
-                      onClick={() => handleBookSelect(book)}
+                      key={v}
+                      onClick={() => {
+                        onEnglishVersionChange(v);
+                        setIsVersionModalOpen(false);
+                      }}
                       className={`
-                        p-3 rounded-lg transition-all text-center
+                        w-full p-3 rounded-lg transition-all text-left
                         ${
-                          tempBook === book
+                          englishVersion === v
                             ? "bg-blue-600 text-white shadow-md"
                             : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         }
                       `}
                     >
-                      <div className="text-sm font-normal truncate">
-                        {TELUGU_BOOK_NAMES[book]}
-                      </div>
-                      <div className="text-xs opacity-80 truncate">{book}</div>
+                      {v}
                     </button>
                   ))}
                 </div>
-              ) : (
-                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
-                  {Array.from({ length: tempChapterCount }, (_, i) => i + 1).map(
-                    (ch) => (
-                      <button
-                        key={ch}
-                        onClick={() => handleChapterSelect(ch)}
-                        className="
-                          aspect-square flex items-center justify-center
-                          text-base font-semibold rounded-lg bg-gray-100
-                          hover:bg-blue-600 hover:text-white
-                          dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-blue-600
-                          transition-all border border-gray-200 dark:border-gray-600
-                        "
-                      >
-                        {ch}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-            {/* VERSION MODAL */}
-            {isVersionModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setIsVersionModalOpen(false)}
-        >
-          <div
-            className="
-              bg-white dark:bg-gray-800 rounded-xl shadow-2xl
-              w-full max-w-sm max-h-[70vh] flex flex-col
-              border border-gray-200 dark:border-gray-700
-              overflow-hidden
-            "
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* HEADER */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
-              <span className="text-lg font-bold text-gray-800 dark:text-white">
-                Select Version
-              </span>
-              <button
-                onClick={() => setIsVersionModalOpen(false)}
-                className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
-              >
-                <i className="fas fa-times text-xl" />
-              </button>
-            </div>
-
-            {/* LIST */}
-            <div className="flex-grow overflow-y-auto p-4">
-              <div className="grid grid-cols-1 gap-3">
-                {englishVersions.map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => {
-                      onEnglishVersionChange(v);
-                      setIsVersionModalOpen(false);
-                    }}
-                    className={`
-                      w-full p-3 rounded-lg transition-all text-left
-                      ${
-                        englishVersion === v
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                      }
-                    `}
-                  >
-                    {v}
-                  </button>
-                ))}
               </div>
-            </div>
 
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
-    </div>  
-  );        
+
+    </div>
+  );
 }

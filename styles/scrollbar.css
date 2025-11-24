@@ -1,40 +1,62 @@
-/* DISCORD STYLE SCROLLBARS */
+/* -------------------------------------------
+  MACOS FLOATING OVERLAY SCROLLBARS (DESKTOP)
+   ------------------------------------------- */
 
-/* width */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  @media (min-width: 768px) {
+
+    /* Base scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+      background: transparent;
+    }
+  
+    /* Transparent track */
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  
+    /* Floating translucent thumb */
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 20px;
+      border: 2px solid transparent; /* makes it float */
+      background-clip: padding-box;
+      transition: background 0.2s ease;
+    }
+  
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.35);
+    }
+  
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0,0,0,0.3) transparent;
+    }
   }
   
-  /* Track (invisible, like Discord) */
-  ::-webkit-scrollbar-track {
-    background: transparent;
+  /* -------------------------------------------
+    MOBILE — NATIVE SCROLLBARS STAY
+     ------------------------------------------- */
+  @media (max-width: 767px) {
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      scrollbar-width: none;
+    }
   }
   
-  /* Thumb (subtle gray, rounded) */
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);  /* Discord-like */
-    border-radius: 10px;
-    transition: background 0.2s ease;
-  }
-  
-  /* Thumb on hover */
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
-  }
-  
-  /* Firefox (Discord style) */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-  }
-  
-  /* Dark mode fixes */
+  /* -------------------------------------------
+    DARK MODE
+     ------------------------------------------- */
   html.dark ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.22);
+    background-clip: padding-box;
   }
   
   html.dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.32);
   }
   
