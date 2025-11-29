@@ -45,8 +45,6 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   englishVersion,
   onVerseSelect,
   selectedVerseRef,
-  onNextChapter,
-  onPreviousChapter,
   onScrollDirectionChange
 }) => {
 
@@ -68,25 +66,6 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     }
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const MIN_SWIPE_DISTANCE = 75;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchEndX.current = 0;
-    touchStartX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-
-
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-  };
   const lastScrollTop = useRef(0);
   const SCROLL_THRESHOLD = 50; // Minimum pixels to scroll before triggering action
 
@@ -142,9 +121,6 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   return (
     <div
       className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       onScroll={handleScroll}
     >
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-
+import React from "react";
 export type Lang = "EN" | "TE";
 
 interface LangContextType {

@@ -11,6 +11,10 @@ let chatInstances = new Map<ChatMode, Chat>();
 const verseCache = new Map<string, string>();
 let globalCooldownUntil = 0;
 
+// *** ADDED: global request throttling ***
+let lastCall = 0;
+const MIN_GAP = 1500; // 1.5s between Gemini calls
+
 class ApiKeyError extends Error {
   constructor(message: string) {
     super(message);
@@ -31,6 +35,15 @@ function getAiInstance() {
  * safeGenerate - wrapper for text-generation calls with basic throttling and error mapping.
  */
 async function safeGenerate(model: string, prompt: string) {
+
+  // *** ADDED: Pre-call throttle gap ***
+  const now = Date.now();
+  const wait = lastCall + MIN_GAP - now;
+  if (wait > 0) {
+    await new Promise(r => setTimeout(r, wait));
+  }
+  lastCall = Date.now();
+
   if (Date.now() < globalCooldownUntil) {
     const secs = Math.ceil((globalCooldownUntil - Date.now()) / 1000);
     throw new Error(`AI cooling down. Try again in ${secs}s.`);
@@ -69,9 +82,10 @@ async function safeGenerate(model: string, prompt: string) {
     }
 
     if (raw.includes("429") || raw.includes("RESOURCE_EXHAUSTED")) {
-      // global cooldown to avoid immediate retries
-      globalCooldownUntil = Date.now() + 30000;
-      throw new Error("AI is busy. Please try again in 30 seconds.");
+      // *** MODIFIED: shorter cooldown + reset lastCall ***
+      lastCall = Date.now() + 4000;      // 4s retry delay
+      globalCooldownUntil = Date.now() + 4000;
+      throw new Error("AI is busy. Please try again in a few seconds.");
     }
 
     throw err;
@@ -135,7 +149,7 @@ function sanitizeModelTranslitOptionB(input: string): string {
 }
 
 /* --------------------------
-   Interlinear prompt builder (OT = Hebrew, NT = Greek)
+   Interlinear prompt builder
    -------------------------- */
 function buildInterlinearPrompt(book: string, chapter: number, verse: number) {
   const ref = `${book} ${chapter}:${verse}`;
@@ -199,8 +213,6 @@ Answer in English.`.trim();
 
 /* --------------------------
    getVerseAnalysis
-   returns canonical English interlinear / crossrefs / historical context
-   verseRef: { book, chapter, verse }
    -------------------------- */
 export const getVerseAnalysis = async (
   verseRef: VerseReference,
@@ -238,7 +250,6 @@ export const getVerseAnalysis = async (
       result = await safeGenerate("gemini-2.5-flash-lite", prompt);
       result = result.replace(/\r\n/g, "\n").trim();
 
-      // Sanitize Section 2 transliteration block (if present)
       const sec2Rx = /(2\.\s*English Transliteration\s*[:\n]*)([\s\S]*?)(?=\n\s*3\.)/i;
       let finalText = result;
       const m = result.match(sec2Rx);
@@ -247,7 +258,6 @@ export const getVerseAnalysis = async (
         finalText = finalText.replace(m[2], sec2Clean);
       }
 
-      // Sanitize parenthetical transliterations in word-by-word lines
       finalText = finalText.replace(/\(([^\)\n]+)\)/g, (m2, p1) => {
         if (/[A-Za-z\u00C0-\u024Fʼʾʿəāēīōūḥṭṣšḏṯḇẓ]/.test(p1)) {
           const clean = sanitizeModelTranslitOptionB(p1);
@@ -270,28 +280,21 @@ export const getVerseAnalysis = async (
 };
 
 /* --------------------------
-   flashGenerate (lightweight generator for single-shot prompts)
+   flashGenerate
    -------------------------- */
 export const flashGenerate = async (prompt: string) => {
   return safeGenerate("gemini-2.5-flash-lite", prompt);
 };
 
 /* --------------------------
-   Chat wrapper for Chatbot.tsx
-   - sendMessageToBot: supports chat-mode or flash-lite fallback
-   - getChat: creates/reuses chat instances (systemInstruction set)
+   Chat wrapper
    -------------------------- */
-
-/**
- * getChat - lazily create chat session objects for chat-based models
- */
 function getChat(mode: ChatMode): Chat {
   if (!chatInstances.has(mode)) {
     const aiInstance = getAiInstance();
-    // The exact API shape may vary; this follows previous usage in your project.
     const newChat = aiInstance.chats.create({
       model: mode,
-      config: {
+      config: { 
         systemInstruction: "You are an expert Bible scholar. Be precise, deep, and context-rich."
       }
     });
@@ -300,15 +303,6 @@ function getChat(mode: ChatMode): Chat {
   return chatInstances.get(mode)!;
 }
 
-/**
- * sendMessageToBot
- * message: string
- * history: Message[] (optional contextual messages)
- * mode: ChatMode (enum)
- * language: "EN" | "TE" (optional)
- *
- * Returns: { text: string, sources: any[] }
- */
 export const sendMessageToBot = async (
   message: string,
   history: any[] = [],
@@ -316,20 +310,21 @@ export const sendMessageToBot = async (
   language: "EN" | "TE" = "EN"
 ) => {
   try {
-    const langInstr = "Answer in English."; // canonical output for service
+    const langInstr =
+      language === "TE"
+        ? "సమాధానం తెలుగులో ఇవ్వండి."
+        : "Answer in English.";
 
-    // When using flash-style modes, call safeGenerate directly
+
     if (mode === "gemini-2.5-flash" || mode === "gemini-2.5-flash-lite") {
       const fullPrompt = `${message}\n\n${langInstr}`;
       const text = await safeGenerate("gemini-2.5-flash-lite", fullPrompt);
       return { text, sources: [] };
     }
 
-    // For chat-based models, use chat instance
     const chat = getChat(mode);
-    // `chat.sendMessage` call shape may vary by SDK version; the surrounding project used result.text previously.
     const result = await chat.sendMessage({ message: `${message}\n\n${langInstr}` });
-    return { text: result.text, sources: result.sources ?? [] };
+    return { text: result.text, sources: [] };
   } catch (err: any) {
     const raw = err?.message || "";
     if (raw.includes("model is overloaded") || raw.includes(`"code":503`) || raw.includes("UNAVAILABLE")) {
@@ -340,7 +335,7 @@ export const sendMessageToBot = async (
 };
 
 /* --------------------------
-   searchBibleByKeyword (lightweight utility)
+   searchBibleByKeyword
    -------------------------- */
 export const searchBibleByKeyword = async (keyword: string): Promise<string> => {
   const prompt = `You are a Bible search engine. Keyword: "${keyword}". Return ONLY valid Bible references.`;

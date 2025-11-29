@@ -331,7 +331,7 @@ const App: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search (e.g., John 3:16 or 'faith')"
+                placeholder="Search (Psalm 23:1, Romans 8:1–4 | యోహాను 3:16) "
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white w-full p-2.5 outline-none"
               />
               <button type="submit" className="px-4 text-white bg-blue-600 hover:bg-blue-700 border border-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">

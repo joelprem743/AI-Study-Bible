@@ -186,33 +186,72 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
   const generateAIFollowUps = async (botResponse: string, history: Message[]) => {
     const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
-
-    const metaInstruction = `You generate ONLY follow-up questions.\n\nGiven the answer below, return EXACTLY 3 short follow-up questions in the same language as requested.\nReturn a JSON array only.\n\n${botResponse}\n\nFormat:\n["q1", "q2", "q3"]`;
-
-    const tempMetaMessage: Message = {
-      id: "meta-" + Date.now(),
-      text: metaInstruction + `\n\n${langInstruction}`,
-      sender: "user",
-    };
-
-    const result = await sendMessageToBot(metaInstruction + `\n\n${langInstruction}`, [...history, tempMetaMessage], ChatMode.FAST);
-
+  
+    const metaInstruction = `Generate exactly 3 follow-up questions based on this answer:
+  
+  ${botResponse}
+  
+  ${langInstruction}
+  
+  Return each question on a new line starting with "- " or a number.`;
+  
+    const result = await sendMessageToBot(
+      metaInstruction, 
+      [...history], 
+      ChatMode.FAST,
+      modelLanguage
+    );
+  
     try {
-      let clean = result.text || "";
-      clean = clean.replace(/```json/gi, "").replace(/```/g, "").trim();
-      clean = clean.replace(/,\s*]/g, "]");
-      // Try to extract the first JSON array occurrence
-      const arrayMatch = clean.match(/\[[\s\S]*?\]/);
-      if (arrayMatch) clean = arrayMatch[0];
-      const parsed = JSON.parse(clean);
-      if (Array.isArray(parsed)) return parsed.map((s) => String(s));
+      const text = result.text || "";
+      
+      // Extract questions using multiple patterns
+      let questions: string[] = [];
+      
+      // Pattern 1: Numbered list (1. question, 2. question)
+      const numberedMatches = text.match(/^\d+\.\s*(.+)$/gm);
+      if (numberedMatches) {
+        questions = numberedMatches.map(m => m.replace(/^\d+\.\s*/, "").trim());
+      }
+      
+      // Pattern 2: Bullet points (- question, * question)
+      if (questions.length === 0) {
+        const bulletMatches = text.match(/^[-*]\s*(.+)$/gm);
+        if (bulletMatches) {
+          questions = bulletMatches.map(m => m.replace(/^[-*]\s*/, "").trim());
+        }
+      }
+      
+      // Pattern 3: JSON array (fallback)
+      if (questions.length === 0) {
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0].replace(/,\s*]/g, "]"));
+            if (Array.isArray(parsed)) {
+              questions = parsed.map(q => String(q).trim());
+            }
+          } catch {}
+        }
+      }
+      
+      // Clean and validate
+      questions = questions
+        .filter(q => q.length > 10 && q.length < 300)
+        .map(q => q.replace(/^["'`]|["'`]$/g, ""))  // Remove surrounding quotes
+        .slice(0, 3);
+      
+      if (questions.length === 0) {
+        console.warn("No follow-up questions extracted from:", text);
+      }
+      
+      return questions;
+      
     } catch (err) {
-      console.error("Follow-up parse failed:", err, result?.text);
+      console.error("Follow-up generation failed:", err);
+      return [];
     }
-
-    return [];
   };
-
   // SEND MESSAGE
   const handleSend = async (forcedInput?: string) => {
     // clear old follow-ups (they belong to previous bot answer)

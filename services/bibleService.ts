@@ -16,23 +16,6 @@ import { greekInterlinearData } from "../data/greekInterlinear";
 
 const API_BASE_URL = 'https://bible-api.com/';
 
-// --- Utilities ---
-const levenshtein = (s1: string, s2: string): number => {
-  if (s1.length < s2.length) { return levenshtein(s2, s1); }
-  if (s2.length === 0) { return s1.length; }
-  let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
-  for (let i = 0; i < s1.length; i++) {
-    let currentRow = [i + 1];
-    for (let j = 0; j < s2.length; j++) {
-      let insertions = previousRow[j + 1] + 1;
-      let deletions = currentRow[j] + 1;
-      let substitutions = previousRow[j] + (s1[i] !== s2[j] ? 1 : 0);
-      currentRow.push(Math.min(insertions, deletions, substitutions));
-    }
-    previousRow = currentRow;
-  }
-  return previousRow[s2.length];
-};
 
 // --- Book metadata & maps ---
 export const BIBLE_META = BIBLE_META_WITH_VERSE_COUNTS.map(book => ({
@@ -115,57 +98,7 @@ export function normalizeTeluguReference(query: string): string {
 
   return cleaned;
 }
-export function getInterlinearData(book: string, chapter: number, verse: number) {
-    const isOT =
-      [
-        "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
-        "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings",
-        "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah",
-        "Esther", "Job", "Psalms", "Proverbs", "Ecclesiastes",
-        "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations",
-        "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah",
-        "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah",
-        "Haggai", "Zechariah", "Malachi"
-      ].includes(book);
   
-    const data = isOT ? hebrewInterlinearData : greekInterlinearData;
-  
-    return (
-      data?.[book]?.[chapter]?.[verse] ||
-      []
-    );
-  }
-  
-// --- Greek interlinear (NT) fetch helper ---
-// NOTE: Implementation is a best-effort fetch to an external dataset (MorphGNT or hosted interlinear).
-// You should replace the URL with your own hosting if you require offline or controlled data.
-export async function fetchGreekInterlinear(book: string, chapter: number): Promise<Record<number, string> | null> {
-  // only NT books
-  const NT = new Set([
-    "Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians",
-    "Galatians","Ephesians","Philippians","Colossians","1 Thessalonians","2 Thessalonians",
-    "1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James","1 Peter","2 Peter",
-    "1 John","2 John","3 John","Jude","Revelation"
-  ]);
-  if (!NT.has(book)) return null;
-
-  try {
-    // Example source — replace with your hosted resource if desired.
-    // This is a sample pattern: a repository containing per-book JSON files.
-    // WARNING: Cross-origin policies apply in browsers; host on your domain or enable CORS.
-    const slug = book.toLowerCase().replace(/\s+/g, '-');
-    const url = `https://raw.githubusercontent.com/your-org/greek-interlinear/master/${slug}-${chapter}.json`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    // expected structure: { "1": "<greek interlinear line>", "2": "...", ... }
-    return data as Record<number, string>;
-  } catch (e) {
-    console.warn('Greek interlinear fetch failed', e);
-    return null;
-  }
-}
-
 // --- Fetch functions using bible-api.com ---
 interface BibleApiResponseVerse {
   book_id: string; book_name: string; chapter: number; verse: number; text: string;
@@ -195,7 +128,6 @@ export const fetchChapter = async (book: string, chapter: number, includeInterli
       throw new Error(`No KJV verses for ${reference}`);
     }
 
-    const interlinear = includeInterlinear ? await fetchGreekInterlinear(book, chapter) : null;
 
     const merged = kjvData.verses.map(kjvVerse => {
       const webVerse = webData.verses.find(v => v.verse === kjvVerse.verse);
@@ -209,7 +141,6 @@ export const fetchChapter = async (book: string, chapter: number, includeInterli
           ESV: webText,
           NIV: webText,
           ...(teluguText && { BSI_TELUGU: teluguText }),
-          ...(interlinear && interlinear[kjvVerse.verse] && { GREEK_INTERLINEAR: interlinear[kjvVerse.verse] })
         }
       } as Verse;
     });

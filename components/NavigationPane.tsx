@@ -7,6 +7,7 @@ interface Props {
   books: string[];
   selectedBook: string;
   selectedChapter: number;
+  chapterCount: number; 
   onBookChange: (book: string) => void;
   onChapterChange: (chapter: number) => void;
   englishVersion: string;

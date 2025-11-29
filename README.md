@@ -1,42 +1,70 @@
-# AI Bible Study Companion
+AI Bible Study Companion
 
-Welcome to the AI Bible Study Companion, a full-featured web application designed for professional and personal Bible study. This tool combines expert-level reference navigation, parallel scripture displays (Telugu/English), and an AI-powered Bible bot to deliver precise, context-rich theological answers.
+A full-featured, AI-enhanced Bible study web application combining fast scripture navigation, parallel Telugu/English display, and a context-aware Bible chatbot powered by Google Gemini.
 
-## Features
+Features
+Parallel Scripture Display
 
--   **Parallel Scripture Display**: Read Telugu and English (ESV, KJV, NIV) translations side-by-side or stacked on mobile.
--   **Intuitive Navigation**: Quickly jump to any book, chapter, and verse with easy-to-use dropdowns.
--   **Advanced AI Chatbot**: Ask complex theological questions and get scholarly answers from Google's Gemini models.
--   **Multiple Chat Modes**:
-    -   **Fast Mode**: For quick, low-latency responses (`gemini-2.5-flash-lite`).
-    -   **Standard Mode**: For balanced answers, enhanced with Google Search grounding for up-to-date information (`gemini-2.5-flash`).
-    -   **Deep Thought Mode**: For your most complex queries, leveraging a larger thinking budget (`gemini-2.5-pro`).
--   **Interactive Verse Tools**: Select any verse to access AI-generated tools:
-    -   **Interlinear**: View the original Hebrew/Greek text with English transliteration and word-by-word breakdown.
-    -   **Cross-references**: Discover thematically related verses.
-    -   **Historical Context**: Understand the cultural and historical background of the text.
--   **Personal Notes**: Take and save your own notes for any verse, stored locally in your browser.
+Read Telugu and English (ESV, KJV, NIV) side-by-side on desktop
 
-## Project Setup
+Mobile-optimized stacked view
 
-To get the application running with all its features, you must complete the following setup steps.
+Fast and Intuitive Navigation
 
-### 1. Add the Telugu Bible Data File (Required)
+Quickly jump to any book, chapter, or verse
 
-This application now uses a local JSON file for all Telugu Bible verses to ensure data completeness and offline availability.
+AI Bible Chatbot
 
-**A. Obtain `telugubible.json`**
+Provides context-aware theological answers
 
-You must provide this file. It should contain the entire Telugu Bible.
+Integrates with multiple Gemini models
 
-**B. Format the JSON File**
+Chat Modes
 
-The file must be a single JSON object with a specific nested structure that follows the pattern: `Book -> Chapter -> Verse`. The root object must have a key named `"Book"`, which is an array of book objects. The order of books and chapters must match the standard Protestant Bible canon (Genesis to Revelation), as this is how the application maps them.
+Fast Mode: Low-latency (gemini-2.5-flash-lite)
 
-Each verse object must have a key `"Verse"` containing the Telugu text. The `"Verseid"` key is present but not used by the application.
+Standard Mode: Balanced + Google Search grounding (gemini-2.5-flash)
 
-**Example Format:**
-```json
+Deep Thought Mode: Large-context reasoning (gemini-2.5-pro)
+
+Interactive Verse Tools
+
+Enabled when selecting any verse:
+
+Interlinear (Hebrew/Greek → Transliteration → Word-by-word meaning)
+
+Cross-references
+
+Historical / Cultural Context
+
+Personal Notes (stored locally in browser)
+
+Keyword & Reference Search
+
+Supports:
+
+Single verses: John 3:16
+
+Ranges: John 3:16–18
+
+Multiple references: John 3:16, Psalm 23:1
+
+Telugu references: యోహాను 3:16
+
+Keywords (AI-assisted)
+
+Project Setup
+1. Add the Telugu Bible JSON (Required)
+
+The app requires a complete telugubible.json file.
+
+Required JSON Structure
+Book → Chapter → Verse
+
+
+Each verse object must contain a "Verse" key.
+
+Example
 {
   "Book": [
     {
@@ -51,14 +79,33 @@ Each verse object must have a key `"Verse"` containing the Telugu text. The `"Ve
     }
   ]
 }
-```
 
-**C. Place the file**
+Placement
 
-Place your formatted `telugubible.json` file inside the `data/` directory of the project.
+Place the file here:
 
-### 2. Configure Your Gemini API Key (Required for AI features)
+/data/telugubible.json
 
-The AI features (chatbot, verse analysis) are powered by the Google Gemini API. Your API key is expected to be available as an environment variable (`process.env.API_KEY`) in the execution environment. The application will use it automatically.
 
-Your AI Bible Study Companion is now ready to use.
+This file is required for Telugu scripture rendering.
+
+2. Configure the Gemini API Key
+
+Set your Gemini API key as an environment variable:
+
+VITE_API_KEY=your_key_here
+
+
+The app automatically reads it via:
+
+import.meta.env.VITE_API_KEY
+
+Ready to Use
+
+Once you have:
+
+Added telugubible.json
+
+Added VITE_API_KEY
+
+the AI Bible Study Companion is fully operational.

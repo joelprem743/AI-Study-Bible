@@ -1,5 +1,5 @@
 // src/components/VerseTools.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { getVerseAnalysis, flashGenerate, isNewTestament } from "../services/geminiService";
 import type { Verse, VerseReference } from "../types";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -114,7 +114,6 @@ export const VerseTools: React.FC<{
   onClose?: () => void;
 }> = ({ verseRef, verseData, englishVersion, onClose }) => {
 
-  /* --------------------  State  ----------------------- */
   const [activeTab, setActiveTab] = useState<Tab>("Interlinear");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
@@ -133,11 +132,9 @@ export const VerseTools: React.FC<{
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // verse-specific notes
   const verseId = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}`;
   const [userNotes, setUserNotes] = useLocalStorage<string>(`${verseId}-notes`, "");
 
-  // local per-verse cache
   const localCache = useRef(new Map<string, string>());
 
   const englishText =
@@ -148,24 +145,21 @@ export const VerseTools: React.FC<{
     `${verseId}::${tab}::${lang}`;
 
   /* ---------------------------------------------------------
-     Load tab
+     loadTab wrapped in useCallback to prevent re-renders
   --------------------------------------------------------- */
-  const loadTab = async (tab: Tab) => {
-    if (tab === "Notes") return;
+
+  const loadTab = useCallback(async (tab: Tab) => {
+    if (tab === "Notes") return "";
 
     const key = buildKey(tab, language);
 
-    // Return cached
     if (localCache.current.has(key)) {
-      setAnalysis((p) => ({ ...p, [tab]: localCache.current.get(key)! }));
-      return;
+      return localCache.current.get(key)!;
     }
 
-    setLoading(true);
     setErrorMsg("");
 
     try {
-      /* -------- Get canonical English (ALWAYS EN first) -------- */
       const enKey = buildKey(tab, "EN");
       let en = localCache.current.get(enKey);
 
@@ -175,14 +169,10 @@ export const VerseTools: React.FC<{
       }
       setOriginalAnalysis((p) => ({ ...p, [tab]: en }));
 
-      /* -------- English mode -------- */
       if (language === "EN") {
         localCache.current.set(key, en);
-        setAnalysis((p) => ({ ...p, [tab]: en }));
-        return;
+        return en;
       }
-
-      /* -------- Telugu mode processing -------- */
 
       const { englishBlock, withoutEnglish } = extractEnglishTranslitBlock(en);
       const sanitized = sanitizeToAsciiOptionB(englishBlock);
@@ -204,7 +194,6 @@ export const VerseTools: React.FC<{
         final = `2. తెలుగు లిప్యంతరీకరణ:\n${teluguLine}\n\n` + working;
       }
 
-      /* -------- Translate English parts ONLY -------- */
       const translatePrompt = `
 Translate to natural Telugu.
 Do NOT translate Hebrew/Greek or Telugu transliteration.
@@ -224,25 +213,26 @@ ${final}
       const output = translated?.trim() || final;
 
       localCache.current.set(key, output);
-      setAnalysis((p) => ({ ...p, [tab]: output }));
+      return output;
     } catch (err: any) {
       setErrorMsg(language === "TE" ? "కంటెంట్ లోడ్ కాలేదు." : "Failed to load content.");
-    } finally {
-      setLoading(false);
+      return "";
     }
-  };
+  }, [verseRef, language]);
 
   /* ---------------------------------------------------------
-     Reset everything when verse changes
+     RESET on verse change (NO loadTab here)
   --------------------------------------------------------- */
   useEffect(() => {
-    localCache.current = new Map(); // Clear cache per verse
+    localCache.current = new Map();
+
     setAnalysis({
       Interlinear: null,
       "Cross-references": null,
       "Historical Context": null,
       Notes: userNotes,
     });
+
     setOriginalAnalysis({
       Interlinear: null,
       "Cross-references": null,
@@ -252,17 +242,33 @@ ${final}
 
     setActiveTab("Interlinear");
     setErrorMsg("");
-
-    // FORCE load Interlinear for the new verse
-    loadTab("Interlinear");
   }, [verseRef]);
 
   /* ---------------------------------------------------------
-     Load whenever language or tab changes
+     Single unified loader (fixes the double API call problem)
   --------------------------------------------------------- */
   useEffect(() => {
-    if (activeTab !== "Notes") loadTab(activeTab);
-  }, [activeTab, language]);
+    if (activeTab === "Notes") return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
+      const text = await loadTab(activeTab);
+      if (!cancelled) {
+        setAnalysis((p) => ({ ...p, [activeTab]: text }));
+      }
+
+      setLoading(false);
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, language, verseRef, loadTab]);
 
   /* ---------------------------------------------------------
      Render
