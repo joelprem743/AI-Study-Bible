@@ -10,9 +10,7 @@ import type { Verse, ParsedReference, FullVerse } from '../types';
 import { BIBLE_META_WITH_VERSE_COUNTS } from '../data/bibleMetaWithVerseCounts';
 import { teluguBibleData } from '../data/telugubible';
 import { TELUGU_BOOK_NAMES } from '../data/teluguBookNames';
-import { TELUGU_TO_ENGLISH_BOOK_MAP } from '../data/teluguToEnglishBookMap';
-import { hebrewInterlinearData } from "../data/hebrewInterlinear";
-import { greekInterlinearData } from "../data/greekInterlinear";
+
 
 const API_BASE_URL = 'https://bible-api.com/';
 
@@ -81,8 +79,8 @@ export function normalizeTeluguReference(query: string): string {
   if (!query) return query;
   let cleaned = query.trim();
 
-  // Try exact startsWith matches using TELUGU_TO_ENGLISH_BOOK_MAP
-  for (const [telugu, english] of Object.entries(TELUGU_TO_ENGLISH_BOOK_MAP)) {
+  // Try exact startsWith matches using TELUGU_BOOK_NAMES
+  for (const [telugu, english] of Object.entries(TELUGU_BOOK_NAMES)) {
     // match when query starts with Telugu name or exact equals
     if (cleaned.startsWith(telugu)) {
       cleaned = cleaned.replace(telugu, english);
@@ -195,31 +193,72 @@ export const fetchVersesByReferences = async (references: ParsedReference[]): Pr
 };
 
 // --- Search utilities ---
-export const findBookMetadata = (query: string): { name: string; chapters: number } | null => {
-  const cleaned = (query || "").trim().toLowerCase();
-  const cleanedNoSpace = cleaned.replace(/\s/g, '');
+export const findBookMetadata = (
+  query: string
+): { name: string; chapters: number } | null => {
+  if (!query) return null;
 
-  // direct full name
-  const full = BIBLE_META.find(b => b.name.toLowerCase() === cleaned);
-  if (full) return full;
+  const cleaned = query.trim().toLowerCase();
+  const cleanedNoSpace = cleaned.replace(/\s+/g, "");
 
-  // abbreviation
-  const abbrMatch = abbreviationToBookName[cleanedNoSpace] || abbreviationToBookName[cleaned];
-  if (abbrMatch) {
-    const meta = BIBLE_META.find(b => b.name === abbrMatch);
-    if (meta) return meta;
+  // ------------------------------------------------------------
+  // 1. Direct English match
+  // ------------------------------------------------------------
+  const direct = BIBLE_META.find(
+    b => b.name.toLowerCase() === cleaned
+  );
+  if (direct) return direct;
+
+  // ------------------------------------------------------------
+  // 2. Abbreviation match ("rom", "jn", etc)
+  // ------------------------------------------------------------
+  const abbr = abbreviationToBookName[cleanedNoSpace]
+    || abbreviationToBookName[cleaned];
+  if (abbr) {
+    const m = BIBLE_META.find(b => b.name === abbr);
+    if (m) return m;
   }
 
-  // check Telugus map (if user passes Telugu; normalizeTeluguReference already tries this but be defensive)
-  for (const [tel, eng] of Object.entries(TELUGU_TO_ENGLISH_BOOK_MAP)) {
-    if (cleaned.startsWith(tel.toLowerCase())) {
-      const meta = BIBLE_META.find(b => b.name === eng);
-      if (meta) return meta;
+  // ------------------------------------------------------------
+  // 3. Telugu match (supports numbered books: 1 రాజులు, 2 రాజులు)
+  // ------------------------------------------------------------
+  // detect prefix "1", "2", "3"
+  const numMatch = cleaned.match(/^([1-3])\s*(.*)$/);
+  const numPrefix = numMatch ? Number(numMatch[1]) : null;
+  const telRoot = numMatch ? numMatch[2].trim() : cleaned;
+
+  // find all Telugu entries that match root
+  const telCandidates = Object.entries(TELUGU_BOOK_NAMES).filter(
+    ([_, tel]) => {
+      const telLower = tel.toLowerCase();
+      const telLowerNoNum = telLower.replace(/^[1-3]\s*/, "").trim();
+      return telLowerNoNum === telRoot;
     }
+  );
+
+  if (telCandidates.length) {
+    // If user included a number: pick exact numbered match
+    if (numPrefix) {
+      const exact = telCandidates.find(([eng, tel]) => {
+        const m = tel.match(/^([1-3])/);
+        return m && Number(m[1]) === numPrefix;
+      });
+      if (exact) {
+        return BIBLE_META.find(b => b.name === exact[0]) || null;
+      }
+    }
+
+    // No number given → pick first logical match
+    const first = telCandidates[0];
+    return BIBLE_META.find(b => b.name === first[0]) || null;
   }
 
-  // starts-with fallback
-  const starts = BIBLE_META.find(b => b.name.toLowerCase().startsWith(cleaned));
+  // ------------------------------------------------------------
+  // 4. starts-with fallback (English)
+  // ------------------------------------------------------------
+  const starts = BIBLE_META.find(b =>
+    b.name.toLowerCase().startsWith(cleaned)
+  );
   if (starts) return starts;
 
   return null;

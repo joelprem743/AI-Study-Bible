@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { getVerseAnalysis, flashGenerate, isNewTestament } from "../services/geminiService";
 import type { Verse, VerseReference } from "../types";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { findBookMetadata, fetchChapter } from "../services/bibleService";
+import ModalPortal from "./ModalPortal";
+import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 /* ---------------------------------------------------------
    Loading Skeleton
@@ -16,9 +19,19 @@ const LoadingSkeleton: React.FC = () => (
 );
 
 /* ---------------------------------------------------------
-   Sanitization + Transliteration Helpers
+   Utility Normalizers (CRITICAL)
 --------------------------------------------------------- */
+function normalizeRef(str: string): string {
+  return str
+    .replace(/[–—-]/g, "-")        // unify dashes
+    .replace(/\u200B|\u200C|\u200D/g, "") // remove invisible chars
+    .replace(/\s+/g, " ")          // collapse spaces
+    .trim();
+}
 
+/* ---------------------------------------------------------
+   Transliteration Helpers
+--------------------------------------------------------- */
 function sanitizeToAsciiOptionB(input: string): string {
   if (!input) return "";
 
@@ -58,11 +71,14 @@ function transliterateLatinToTelugu(input: string): string {
     [/[wW]/g, "వ"], [/[xX]/g, "క్స"], [/[yY]/g, "య"], [/[zZ]/g, "జ"],
 
     [/(aa)/gi, "ా"], [/(ii)/gi, "ీ"], [/(uu)/gi, "ూ"],
-    [/(ai)/gi, "ై"], [/(au)/gi, "ౌ"], [/(e)/g, "ె"], [/(o)/g, "ొ"],
-    [/(i)/g, "ి"], [/(u)/g, "ు"], [/(a)/g, ""],
+    [/(ai)/gi, "ై"], [/(au)/gi, "ౌ"],
+    [/(e)/g, "ె"], [/(o)/g, "ొ"],
+    [/(i)/g, "ి"], [/(u)/g, "ు"],
+    [/(a)/g, ""]
   ];
 
   for (const [rx, repl] of rules) s = s.replace(rx, repl);
+
   s = s.replace(/\s+/g, " ").trim();
 
   return s.replace(/(^|\s)[ాీూెొైౌ]/g, (m) =>
@@ -70,6 +86,7 @@ function transliterateLatinToTelugu(input: string): string {
   );
 }
 
+/* buildTeluguTranslitFromEnglishBlock */
 function extractEnglishTranslitBlock(aiText: string) {
   const rx = /2\.\s*English Transliteration\s*[:\n]*([\s\S]*?)\n(?=3\.)/i;
   const m = aiText.match(rx);
@@ -104,7 +121,6 @@ function buildTeluguTranslitFromEnglishBlock(engBlock: string): string {
 /* ---------------------------------------------------------
    Component
 --------------------------------------------------------- */
-
 type Tab = "Interlinear" | "Cross-references" | "Historical Context" | "Notes";
 
 export const VerseTools: React.FC<{
@@ -113,20 +129,25 @@ export const VerseTools: React.FC<{
   englishVersion: string;
   onClose?: () => void;
 }> = ({ verseRef, verseData, englishVersion, onClose }) => {
+  const [previewRef, setPreviewRef] = useState<string | null>(null);
+  const [previewText, setPreviewText] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<Tab>("Interlinear");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
+
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
     Interlinear: null,
     "Cross-references": null,
     "Historical Context": null,
-    Notes: null,
+    Notes: null
   });
+
   const [originalAnalysis, setOriginalAnalysis] = useState<Record<Tab, string | null>>({
     Interlinear: null,
     "Cross-references": null,
     "Historical Context": null,
-    Notes: null,
+    Notes: null
   });
 
   const [loading, setLoading] = useState(false);
@@ -145,9 +166,62 @@ export const VerseTools: React.FC<{
     `${verseId}::${tab}::${lang}`;
 
   /* ---------------------------------------------------------
-     loadTab wrapped in useCallback to prevent re-renders
+     Cross-reference Loader (FULL FIXED)
   --------------------------------------------------------- */
+  const loadReferenceText = async (refString: string) => {
+    try {
+      const clean = normalizeRef(
+        refString
+          .replace(/^[–\-•\s]+/, "")
+          .replace(/\(.*?\)/g, "")
+      );
 
+      const m = clean.match(
+        /^([\u0C00-\u0C7FA-Za-z\. ]+?)\s+(\d+):(\d+)(?:-(\d+))?$/
+      );
+
+      if (!m) return "";
+
+      let rawBook = m[1].trim();
+      const chapter = Number(m[2]);
+      const startVerse = Number(m[3]);
+      const endVerse = m[4] ? Number(m[4]) : startVerse;
+
+      let meta = findBookMetadata(rawBook);
+
+      if (!meta) {
+        const englishKey = Object.keys(TELUGU_BOOK_NAMES).find(
+          (k) => TELUGU_BOOK_NAMES[k] === rawBook
+        );
+        if (!englishKey) return "";
+        meta = findBookMetadata(englishKey);
+        if (!meta) return "";
+      }
+
+      const chapterData = await fetchChapter(meta.name, chapter);
+      if (!chapterData) return "";
+
+      const selected = chapterData.filter(
+        (v) => v.verse >= startVerse && v.verse <= endVerse
+      );
+
+      if (!selected.length) return "";
+
+      return selected
+        .map((v) =>
+          language === "TE"
+            ? v.text.BSI_TELUGU || v.text.KJV || ""
+            : v.text[englishVersion] || v.text.KJV || ""
+        )
+        .join("\n");
+    } catch {
+      return "";
+    }
+  };
+
+  /* ---------------------------------------------------------
+     loadTab
+  --------------------------------------------------------- */
   const loadTab = useCallback(async (tab: Tab) => {
     if (tab === "Notes") return "";
 
@@ -182,12 +256,14 @@ export const VerseTools: React.FC<{
 
       const isNT = isNewTestament(verseRef.book);
       const origHeading = isNT ? "గ్రీకు వచనం:" : "హీబ్రూ వచనం:";
-      const sec1Rx = /(1\.\s*(Hebrew|Greek)\s*Text\s*[:\n]*)([\s\S]*?)(?=\n\s*2\.|\n\s*3\.|$)/i;
+
+      const sec1Rx =
+        /(1\.\s*(Hebrew|Greek)\s*Text\s*[:\n]*)([\s\S]*?)(?=\n\s*2\.|\n\s*3\.|$)/i;
 
       let final = working;
 
       if (sec1Rx.test(working)) {
-        final = working.replace(sec1Rx, (_m, _h, lang, block) => {
+        final = working.replace(sec1Rx, (_m, _h, _lang, block) => {
           return `1. ${origHeading}\n${block.trim()}\n\n2. తెలుగు లిప్యంతరీకరణ:\n${teluguLine}\n\n`;
         });
       } else {
@@ -214,15 +290,13 @@ ${final}
 
       localCache.current.set(key, output);
       return output;
-    } catch (err: any) {
+    } catch {
       setErrorMsg(language === "TE" ? "కంటెంట్ లోడ్ కాలేదు." : "Failed to load content.");
       return "";
     }
   }, [verseRef, language]);
 
-  /* ---------------------------------------------------------
-     RESET on verse change (NO loadTab here)
-  --------------------------------------------------------- */
+  /* reset on verse change */
   useEffect(() => {
     localCache.current = new Map();
 
@@ -230,39 +304,33 @@ ${final}
       Interlinear: null,
       "Cross-references": null,
       "Historical Context": null,
-      Notes: userNotes,
+      Notes: userNotes
     });
 
     setOriginalAnalysis({
       Interlinear: null,
       "Cross-references": null,
       "Historical Context": null,
-      Notes: userNotes,
+      Notes: userNotes
     });
 
     setActiveTab("Interlinear");
     setErrorMsg("");
   }, [verseRef]);
 
-  /* ---------------------------------------------------------
-     Single unified loader (fixes the double API call problem)
-  --------------------------------------------------------- */
+  /* tab loader */
   useEffect(() => {
     if (activeTab === "Notes") return;
 
     let cancelled = false;
-
     const run = async () => {
       setLoading(true);
-
       const text = await loadTab(activeTab);
       if (!cancelled) {
         setAnalysis((p) => ({ ...p, [activeTab]: text }));
       }
-
       setLoading(false);
     };
-
     run();
 
     return () => {
@@ -273,22 +341,19 @@ ${final}
   /* ---------------------------------------------------------
      Render
   --------------------------------------------------------- */
-
   const tabs: Tab[] = [
     "Interlinear",
     "Cross-references",
     "Historical Context",
-    "Notes",
+    "Notes"
   ];
 
   return (
     <div className="p-4 md:p-6 h-full flex flex-col relative">
-
       {onClose && (
         <button
           onClick={onClose}
-          className="md:hidden absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 p-2"
-          aria-label="Close verse tools"
+          className="md:hidden absolute top-3 right-3 text-gray-500 dark:text-gray-400"
         >
           <i className="fas fa-times text-2xl"></i>
         </button>
@@ -310,7 +375,7 @@ ${final}
           </label>
           <button
             onClick={() => setLanguage((l) => (l === "EN" ? "TE" : "EN"))}
-            className="px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-200 dark:hover:bg-gray-600"
+            className="px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm"
           >
             {language}
           </button>
@@ -326,7 +391,7 @@ ${final}
               className={`${
                 activeTab === tab
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  : "border-transparent text-gray-500 dark:text-gray-400"
               } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
             >
               {language === "TE"
@@ -350,7 +415,7 @@ ${final}
           <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap font-sans">
             {activeTab === "Notes" ? (
               <textarea
-                className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
                 placeholder={
                   language === "TE"
                     ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
@@ -363,12 +428,107 @@ ${final}
               <p className="text-red-500">{errorMsg}</p>
             ) : (
               <pre className="whitespace-pre-wrap">
-                {analysis[activeTab] ?? ""}
+                {(analysis[activeTab] ?? "").split("\n").map((line, idx) => {
+                  const ref = line.match(
+                    /([\u0C00-\u0C7F A-Za-z\.]+?\s+\d+:\d+(?:[-–]\d+)?)/ // Telugu + English
+                  );
+
+                  if (ref) {
+                    const reference = ref[1];
+
+                    return (
+                      <div key={idx}>
+                        {line.replace(reference, `<ref>${reference}</ref>`)
+                          .split(/(<ref>|<\/ref>)/g)
+                          .map((part, i) => {
+                            if (part === "<ref>" || part === "</ref>")
+                              return null;
+
+                            if (part === reference) {
+                              return (
+                                <span
+                                  key={i}
+                                  className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                  onClick={async () => {
+                                    setPreviewRef(reference);
+                                    const text =
+                                      await loadReferenceText(reference);
+                                    setPreviewText(text);
+                                    setIsPreviewOpen(true);
+                                  }}
+                                >
+                                  {reference}
+                                </span>
+                              );
+                            }
+
+                            return <span key={i}>{part}</span>;
+                          })}
+                      </div>
+                    );
+                  }
+
+                  return <div key={idx}>{line}</div>;
+                })}
               </pre>
             )}
           </div>
         )}
       </div>
+
+      {/* ---------------------------------------------------------
+         Popup Preview Modal
+      --------------------------------------------------------- */}
+      {isPreviewOpen && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setIsPreviewOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-11/12 max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold mb-2">
+                {language === "TE"
+                  ? (() => {
+                      const match = previewRef?.match(
+                        /^([\u0C00-\u0C7FA-Za-z\. ]+)\s+/
+                      );
+                      if (!match) return previewRef;
+
+                      const raw = match[1].trim();
+
+                      let meta = findBookMetadata(raw);
+                      if (!meta) {
+                        const englishKey = Object.keys(TELUGU_BOOK_NAMES).find(
+                          (k) => TELUGU_BOOK_NAMES[k] === raw
+                        );
+                        meta = englishKey ? findBookMetadata(englishKey) : null;
+                      }
+
+                      const telName =
+                        (meta && TELUGU_BOOK_NAMES[meta.name]) || raw;
+
+                      return previewRef?.replace(raw, telName);
+                    })()
+                  : previewRef}
+              </h3>
+
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                {previewText || "Verse not found."}
+              </p>
+
+              <button
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+                onClick={() => setIsPreviewOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 };

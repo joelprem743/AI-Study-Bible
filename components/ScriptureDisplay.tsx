@@ -18,8 +18,8 @@ interface ScriptureDisplayProps {
 
 const VerseSkeleton: React.FC = () => (
   <div className="p-3 rounded-lg animate-pulse">
-    <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6">
-      <div className="flex">
+    <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
+    <div className="flex">
         <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-8 mr-2"></div>
         <div className="space-y-2 flex-grow">
           <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-full"></div>
@@ -67,7 +67,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
   const lastScrollTop = useRef(0);
-  const SCROLL_THRESHOLD = 50; // Minimum pixels to scroll before triggering action
+  const SCROLL_THRESHOLD = 50;
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
       if (!onScrollDirectionChange) return;
@@ -75,21 +75,17 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
       const currentScrollTop = e.currentTarget.scrollTop;
       const delta = Math.abs(currentScrollTop - lastScrollTop.current);
 
-      // If at the very top, always show navigation
       if (currentScrollTop < 10) {
           onScrollDirectionChange('up');
           lastScrollTop.current = currentScrollTop;
           return;
       }
 
-      // Ignore small scroll movements to prevent jitter
       if (delta < SCROLL_THRESHOLD) return;
 
       if (currentScrollTop > lastScrollTop.current) {
-          // Scrolling Down -> Hide Nav
           onScrollDirectionChange('down');
       } else {
-          // Scrolling Up -> Show Nav
           onScrollDirectionChange('up');
       }
 
@@ -124,7 +120,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
       onScroll={handleScroll}
     >
 
-      {/* MOBILE HEADER (unchanged as per your instruction) */}
+      {/* Mobile header */}
       <div className="md:hidden text-center mb-3 pb-2 border-b border-gray-300 dark:border-gray-700">
         <h2
           className="
@@ -136,23 +132,18 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
         </h2>
       </div>
 
-      {/* DESKTOP HEADER — PERFECTLY CENTERED TWO-COLUMN */}
+      {/* Desktop Header */}
       <div className="hidden md:grid md:grid-cols-2 w-full mb-4 pb-3 border-b border-gray-300 dark:border-gray-700">
-
-        {/* Telugu centered */}
         <div className="flex justify-center">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-telugu">
             {TELUGU_BOOK_NAMES[bookName]} {chapterNum}
           </h2>
         </div>
-
-        {/* English centered */}
         <div className="flex justify-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {bookName} {chapterNum}
           </h2>
         </div>
-
       </div>
 
       {/* VERSES */}
@@ -169,22 +160,29 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
 
           return (
             <div
-              id={`verse-${verse.verse}`}
-              key={verse.verse}
-              onClick={() => onVerseSelect(verse.verse)}
-              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                  id={`verse-${verse.verse}`}
+                  key={verse.verse}
+                  className={`rounded-lg transition-all duration-200 ${
+
                 isSelected
                   ? 'bg-blue-100 dark:bg-blue-900 ring-2 ring-blue-500'
                   : 'hover:bg-gray-200 dark:hover:bg-gray-800'
               }`}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
 
                 {/* TELUGU COLUMN */}
-                <div className="flex">
-                  <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400">
+                <div
+                  className="flex cursor-pointer"
+                  onClick={() => onVerseSelect(verse.verse)}
+                >
+                  <span
+                    className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 cursor-pointer select-none"
+                    onClick={() => onVerseSelect(verse.verse)}
+                  >
                     {verse.verse}
                   </span>
+
                   <div>
                     {verse.text.BSI_TELUGU ? (
                       <p className="text-base leading-relaxed font-telugu">
@@ -199,10 +197,17 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                 </div>
 
                 {/* ENGLISH COLUMN */}
-                <div className="flex mt-2 md:mt-0">
-                  <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden">
+                <div
+                  className="flex mt-2 md:mt-0 cursor-pointer"
+                  onClick={() => onVerseSelect(verse.verse)}
+                >
+                  <span
+                    className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden cursor-pointer select-none"
+                    onClick={() => onVerseSelect(verse.verse)}
+                  >
                     {verse.verse}
                   </span>
+
                   <p className="text-[1.05rem] leading-[1.55]">
                     {englishText}
                   </p>
