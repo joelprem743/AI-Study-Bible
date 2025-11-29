@@ -17,7 +17,7 @@ Welcome to the AI Bible Study Companion, a full-featured web application designe
     -   **Historical Context**: Understand the cultural and historical background of the text.
 -   **Personal Notes**: Take and save your own notes for any verse, stored locally in your browser.
 
-## Project Setup
+## Project 
 
 To get the application running with all its features, you must complete the following setup steps.
 
