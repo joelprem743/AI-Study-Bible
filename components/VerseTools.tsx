@@ -129,7 +129,7 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<Tab>("Interlinear");
+  const [activeTab, setActiveTab] = useState<Tab>("Historical Context");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
 
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
@@ -255,12 +255,12 @@ export const VerseTools: React.FC<{
   const loadTab = useCallback(
     async (tab: Tab) => {
       if (tab === "Notes") return "";
-
+  
       const key = buildKey(tab, language);
       if (localCache.current.has(key)) return localCache.current.get(key)!;
-
+  
       setErrorMsg("");
-
+  
       try {
         const enKey = buildKey(tab, "EN");
         let en = localCache.current.get(enKey);
@@ -270,31 +270,54 @@ export const VerseTools: React.FC<{
           localCache.current.set(enKey, en);
         }
         setOriginalAnalysis((p) => ({ ...p, [tab]: en }));
-
+  
+        // English mode: return as-is
         if (language === "EN") {
           localCache.current.set(key, en);
           return en;
         }
-
+  
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        // FIX: Only Interlinear should use special 1–4 Telugu processing
+        // Cross-references & Historical Context → plain Telugu translation
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        if (tab !== "Interlinear") {
+          const translated = await flashGenerate(`
+  Translate into natural Telugu.
+  Preserve ALL formatting exactly as-is.
+  Do NOT translate Biblical book names or references.
+  Do NOT add, remove, or restructure headings.
+  
+  ----BEGIN----
+  ${en}
+  ----END----
+          `);
+  
+          const out = (translated || en).trim();
+          localCache.current.set(key, out);
+          return out;
+        }
+        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  
         /* --------------------------------------------------------
            OPTION-B TRANSFORMER WITH FIXED SECTION DETECTION
+           (Interlinear ONLY)
         --------------------------------------------------------- */
         const original = en.replace(/\r\n/g, "\n");
-
+  
         function splitSections(txt: string) {
           const lines = txt.split("\n");
-
+  
           let s1: string[] = [];
           let s2: string[] = [];
           let s3: string[] = [];
           let s4: string[] = [];
-
+  
           let cur = 0;
-
+  
           for (let line of lines) {
             const trimmed = line.trim();
-
-            // FIXED: Support **1. ...**, **2. ...**, 1., 1.:
+  
             if (/^\*{0,2}1\.\s*/.test(trimmed)) {
               cur = 1;
               continue;
@@ -311,13 +334,13 @@ export const VerseTools: React.FC<{
               cur = 4;
               continue;
             }
-
+  
             if (cur === 1) s1.push(line);
             else if (cur === 2) s2.push(line);
             else if (cur === 3) s3.push(line);
             else if (cur === 4) s4.push(line);
           }
-
+  
           return {
             sec1: s1.join("\n").trim(),
             sec2: s2.join("\n").trim(),
@@ -325,27 +348,27 @@ export const VerseTools: React.FC<{
             sec4: s4.join("\n").trim(),
           };
         }
-
+  
         const { sec1, sec2, sec3, sec4 } = splitSections(original);
-
+  
         const geminiAlreadyProvidedTelugu =
           /[\u0C00-\u0C7F]/.test(sec2);
-
+  
         let finalSec2 = sec2;
-
+  
         if (!geminiAlreadyProvidedTelugu) {
           const englishBlock = sanitizeToAsciiOptionB(sec2);
           const teluguGen = buildTeluguTranslitFromEnglishBlock(englishBlock);
           finalSec2 = teluguGen.trim();
         }
-
+  
         const isNT = isNewTestament(verseRef.book);
-
+  
         const header1 = `**1. ${isNT ? "గ్రీకు వచనం" : "హీబ్రూ వచనం"}:**`;
         const header2 = `**2. తెలుగు లిప్యంతరీకరణ:**`;
         const header3 = `**3. సరళమైన తెలుగు అనువాదం:**`;
         const header4 = `**4. పదాల వారీగా విశ్లేషణ:**`;
-
+  
         let reconstructed = [
           header1,
           sec1,
@@ -365,24 +388,24 @@ export const VerseTools: React.FC<{
           header4,
           sec4,
         ].join("\n").trim();
-
+  
         reconstructed = replaceParentheticalTranslitsWithTelugu(reconstructed);
-
+  
         const translatePrompt = `
-Translate to natural Telugu.
-Preserve all markdown exactly.
-Do NOT translate Greek/Hebrew.
-Do NOT translate the Telugu transliteration.
-Do NOT modify bold (**), rules (---), or section numbers.
-
-----BEGIN----
-${reconstructed}
-----END----
-`;
-
+  Translate to natural Telugu.
+  Preserve all markdown exactly.
+  Do NOT translate Greek/Hebrew.
+  Do NOT translate the Telugu transliteration.
+  Do NOT modify bold (**), rules (---), or section numbers.
+  
+  ----BEGIN----
+  ${reconstructed}
+  ----END----
+  `;
+  
         const out = await flashGenerate(translatePrompt);
         const output = (out || reconstructed).trim();
-
+  
         localCache.current.set(key, output);
         return output;
       } catch (err) {
@@ -397,7 +420,7 @@ ${reconstructed}
     },
     [verseRef, language]
   );
-
+  
   /* -------------------------
      Reset when verse changes
   ---------------------------*/
@@ -416,7 +439,7 @@ ${reconstructed}
       "Historical Context": null,
       Notes: userNotes,
     });
-    setActiveTab("Interlinear");
+    setActiveTab("Historical Context");
     setErrorMsg("");
   }, [verseRef, userNotes]);
 
@@ -506,10 +529,10 @@ ${reconstructed}
   /* -------------------------
      Render
   ---------------------------*/
-  const tabs: Tab[] = [
-    "Interlinear",
-    "Cross-references",
+  const tabs: Tab[] = [     
     "Historical Context",
+    "Cross-references",
+    "Interlinear",
     "Notes",
   ];
 
