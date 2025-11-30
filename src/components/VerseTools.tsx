@@ -588,7 +588,7 @@ export const VerseTools: React.FC<{
             >
               {language === "TE"
                 ? tab === "Interlinear"
-                  ? "పదాల వారీ అనువాదం"
+                  ? "పదాల వారీ అనువాదంs"
                   : tab === "Cross-references"
                   ? "సంబంధిత వచనాలు"
                   : tab === "Historical Context"

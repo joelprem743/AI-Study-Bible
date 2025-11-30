@@ -82,8 +82,8 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({ result
                                         key={verse.verse}
                                         className="p-3 rounded-lg bg-white dark:bg-gray-800/50"
                                     >
-                                        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6">
-                                            {/* Telugu Column */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
+                                        {/* Telugu Column */}
                                             <div className="flex">
                                                 <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400">{verse.verse}</span>
                                                 <div>
