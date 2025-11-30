@@ -172,32 +172,57 @@ const App: React.FC = () => {
   }, [selectedBook, selectedChapter, handleChapterChange, setSelectedBook]);
 
   const parseReferencesFromString = (refString: string): ParsedReference[] => {
-    // accept both English and normalized Telugu (after normalizeTeluguReference)
-    const referenceRegex = /^([1-3]?\s*[^\d:]+?)\s+(\d+):(\d+)(?:-(\d+))?$/u;
-    const parts = refString.split(/[,;]/g);
+    // split on commas or semicolons (allow spaces around separators)
+    const parts = refString.split(/\s*[;,]\s*/);
     const parsed: ParsedReference[] = [];
-
-    for (const part of parts) {
-      const text = part.trim();
+  
+    // Accept inputs like:
+    // "Genesis 4:5", "Genesis 4:5-7", "1 John 3:16", "యిర్మీయా 23:1"
+    // We'll normalize Telugu book names per-part before matching.
+    const referenceRegex = /^([1-3]?\s*[A-Za-z\u0C00-\u0C7F.'’\-\u00A0]+?)\s+(\d+)\s*:\s*(\d+)(?:-(\d+))?$/u;
+  
+    for (const rawPart of parts) {
+      const text = rawPart.trim();
       if (!text) continue;
-
-      const match = text.match(referenceRegex);
-      if (!match) continue;
-
-      const rawBook = match[1].trim();
-      const normalizedBook = normalizeTeluguReference(rawBook);
-      const bookMeta = findBookMetadata(normalizedBook);
+  
+      // normalize the book portion if Telugu (or romanized Telugu)
+      // normalizeTeluguReference expects a full "Book Chapter:Verse" string;
+      // calling it on the whole part will replace Telugu book with canonical English when possible.
+      const normalizedWhole = normalizeTeluguReference(text);
+  
+      const m = normalizedWhole.match(referenceRegex);
+      if (!m) continue;
+  
+      // m[1] = book (possibly canonical English name after normalizeTeluguReference)
+      // m[2] = chapter
+      // m[3] = start verse
+      // m[4] = end verse (optional)
+      const bookCandidate = m[1].trim();
+      const chapterNum = parseInt(m[2], 10);
+      const startVerseNum = parseInt(m[3], 10);
+      const endVerseNum = m[4] ? parseInt(m[4], 10) : undefined;
+  
+      if (isNaN(chapterNum) || isNaN(startVerseNum)) continue;
+  
+      const bookMeta = findBookMetadata(bookCandidate);
       if (!bookMeta) continue;
-
+  
+      // basic validation: chapter exists, verses are sensible (we don't know verse counts here for each chapter,
+      // but ensure start <= end if end provided)
+      if (chapterNum < 1 || chapterNum > bookMeta.chapters) continue;
+      if (endVerseNum !== undefined && endVerseNum < startVerseNum) continue;
+  
       parsed.push({
         book: bookMeta.name,
-        chapter: parseInt(match[3], 10),
-        startVerse: parseInt(match[4], 10),
-        endVerse: match[5] ? parseInt(match[5], 10) : undefined
+        chapter: chapterNum,
+        startVerse: startVerseNum,
+        endVerse: endVerseNum,
       });
     }
+  
     return parsed;
   };
+  
 
   const handleSearch = async (event: FormEvent) => {
     event.preventDefault();
