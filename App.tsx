@@ -173,7 +173,7 @@ const App: React.FC = () => {
 
   const parseReferencesFromString = (refString: string): ParsedReference[] => {
     // accept both English and normalized Telugu (after normalizeTeluguReference)
-    const referenceRegex = /((\d\s*)?[a-zA-Z0-9\u0C00-\u0C7F\s]+)\s+(\d+):(\d+)(?:-(\d+))?/i;
+    const referenceRegex = /^([1-3]?\s*[^\d:]+?)\s+(\d+):(\d+)(?:-(\d+))?$/u;
     const parts = refString.split(/[,;]/g);
     const parsed: ParsedReference[] = [];
 
