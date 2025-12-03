@@ -12,7 +12,7 @@ interface SearchResultDisplayProps {
 
 const SearchSkeleton: React.FC = () => (
     <div className="mb-8 animate-pulse">
-        <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded w-1/3 mb-6"></div>
+        <div className="h-8 bg-gray-300 dark:bg-gray-800 rounded w-1/3 mb-6"></div>
         <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
                 <div key={i} className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">

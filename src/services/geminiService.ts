@@ -1,19 +1,23 @@
 // src/services/geminiService.ts
-// Consolidated, cleaned, production-ready service used by Chatbot.tsx and VerseTools.tsx
-// Exports: getVerseAnalysis, flashGenerate, sendMessageToBot, searchBibleByKeyword, isNewTestament
+// Gemini service used by VerseTools, Chatbot, and Search.
+// Stable, cached, and optimized for EN/TE separately.
 
 import { GoogleGenAI, Chat } from "@google/genai";
 import type { ChatMode, VerseReference } from "../types";
 
-// GLOBALS
-let ai: GoogleGenAI;
-let chatInstances = new Map<ChatMode, Chat>();
-const verseCache = new Map<string, string>();
-let globalCooldownUntil = 0;
+/* ============================================================
+  GLOBALS & INITIALIZATION
+============================================================ */
 
-// Throttle
+let ai: GoogleGenAI | null = null;
+let chatInstances = new Map<ChatMode, Chat>();
+
+// Cache: unique per verse + section + language
+const verseCache = new Map<string, string>();
+
+let globalCooldownUntil = 0;
 let lastCall = 0;
-const MIN_GAP = 1500; // ms between Gemini calls
+const MIN_GAP_MS = 250;
 
 class ApiKeyError extends Error {
   constructor(message: string) {
@@ -25,555 +29,552 @@ class ApiKeyError extends Error {
 function getAiInstance() {
   if (!ai) {
     const apiKey = (import.meta as any).env?.VITE_API_KEY;
-    if (!apiKey) throw new ApiKeyError("API key missing.");
+    if (!apiKey) throw new ApiKeyError("Missing Gemini API Key.");
     ai = new GoogleGenAI({ apiKey });
   }
   return ai;
 }
 
-/**
- * safeGenerate - wrapper for text-generation calls with basic throttling and error mapping.
- */
-async function safeGenerate(model: string, prompt: string) {
+/* ============================================================
+  SAFE GENERATE WRAPPER (RATE-LIMIT + ERROR HANDLING)
+============================================================ */
+
+async function safeGenerate(model: string, prompt: string): Promise<string> {
   const now = Date.now();
-  const wait = lastCall + MIN_GAP - now;
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  const diff = now - lastCall;
+
+  // Simple per-process pacing
+  if (diff < MIN_GAP_MS) {
+    await new Promise((r) => setTimeout(r, MIN_GAP_MS - diff));
+  }
+
   lastCall = Date.now();
 
-  if (Date.now() < globalCooldownUntil) {
-    const secs = Math.ceil((globalCooldownUntil - Date.now()) / 1000);
-    throw new Error(`AI cooling down. Try again in ${secs}s.`);
+  if (now < globalCooldownUntil) {
+    throw new Error(
+      `AI cooling down. Try again in ${Math.ceil(
+        (globalCooldownUntil - now) / 1000
+      )}s.`
+    );
   }
 
-  try {
-    const aiInstance = getAiInstance();
+  const aiInstance = getAiInstance();
 
-    // modern genai SDK surface
-    if ((aiInstance as any).models?.generateContent) {
-      const response = await (aiInstance as any).models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          temperature: 0.2,
-          systemInstruction:
-            "Return RAW plain text. Do NOT add markdown/HTML/LaTeX. Output raw Unicode exactly as-is.",
-        },
-      });
-      return (response?.text || "").trim();
+  // Primary model + minimal fallback set
+  const modelsToTry = Array.from(
+    new Set([model, "gemini-2.5-flash-lite", "gemini-2.5-flash"])
+  );
+
+  for (const m of modelsToTry) {
+    let retries = 3;
+    let backoff = 300;
+
+    while (retries--) {
+      try {
+        const response = await aiInstance.models.generateContent({
+          model: m,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: { temperature: 0.25 },
+        });
+
+        const text = (response as any)?.text?.trim?.() ?? "";
+        return text;
+      } catch (err: any) {
+        const msg = err?.message || "";
+
+        // Model overloaded
+        if (msg.includes("503") || msg.includes("UNAVAILABLE")) {
+          if (retries === 0) break;
+          await new Promise((r) => setTimeout(r, backoff));
+          backoff *= 2;
+          continue;
+        }
+
+        // Rate limit
+        if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+          globalCooldownUntil = Date.now() + 3000;
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+
+        // Other errors: bail out after retries
+        if (retries === 0) throw new Error(msg || "AI error");
+      }
     }
-
-    // fallback older interface
-    if ((aiInstance as any).generate) {
-      const response = await (aiInstance as any).generate({ model, prompt });
-      return (response?.text || "").trim();
-    }
-
-    throw new Error("Unsupported AI client interface.");
-  } catch (err: any) {
-    const raw = err?.message || "";
-
-    // map common service errors to actionable messages / cooldown
-    if (
-      raw.includes(`"code":503`) ||
-      raw.includes("model is overloaded") ||
-      raw.includes("UNAVAILABLE")
-    ) {
-      throw new Error("The AI model is overloaded. Please switch models.");
-    }
-
-    if (raw.includes("429") || raw.includes("RESOURCE_EXHAUSTED")) {
-      // shorter cooldown + reset lastCall
-      lastCall = Date.now() + 4000;
-      globalCooldownUntil = Date.now() + 4000;
-      throw new Error("AI is busy. Please try again in a few seconds.");
-    }
-
-    throw err;
   }
+
+  throw new Error("AI temporarily unavailable. Please try again.");
 }
 
-/* --------------------------
-   New Testament detection
-   -------------------------- */
+/* ============================================================
+  TESTAMENT HELPERS
+============================================================ */
+
 const NT_BOOKS = new Set([
-  "Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians",
-  "Galatians","Ephesians","Philippians","Colossians","1 Thessalonians","2 Thessalonians",
-  "1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James","1 Peter","2 Peter",
-  "1 John","2 John","3 John","Jude","Revelation"
+  "Matthew",
+  "Mark",
+  "Luke",
+  "John",
+  "Acts",
+  "Romans",
+  "1 Corinthians",
+  "2 Corinthians",
+  "Galatians",
+  "Ephesians",
+  "Philippians",
+  "Colossians",
+  "1 Thessalonians",
+  "2 Thessalonians",
+  "1 Timothy",
+  "2 Timothy",
+  "Titus",
+  "Philemon",
+  "Hebrews",
+  "James",
+  "1 Peter",
+  "2 Peter",
+  "1 John",
+  "2 John",
+  "3 John",
+  "Jude",
+  "Revelation",
 ]);
 
 export function isNewTestament(book: string) {
   return NT_BOOKS.has(book);
 }
 
-/* --------------------------
-   BOOK GENRE MAP
-   -------------------------- */
-type Genre =
-  | "NT_Epistle"
-  | "NT_Gospel"
-  | "NT_Apocalyptic"
-  | "OT_Law"
-  | "OT_History"
-  | "OT_Poetry"
-  | "OT_Prophet";
+/* ============================================================
+  BOOK GENRES (HISTORICAL CONTEXT)
+============================================================ */
 
-const BOOK_GENRES: Record<string, Genre> = {
-  "Romans": "NT_Epistle", "1 Corinthians": "NT_Epistle", "2 Corinthians": "NT_Epistle",
-  "Galatians": "NT_Epistle", "Ephesians": "NT_Epistle", "Philippians": "NT_Epistle",
-  "Colossians": "NT_Epistle", "1 Thessalonians": "NT_Epistle", "2 Thessalonians": "NT_Epistle",
-  "1 Timothy": "NT_Epistle", "2 Timothy": "NT_Epistle", "Titus": "NT_Epistle",
-  "Philemon": "NT_Epistle", "Hebrews": "NT_Epistle", "James": "NT_Epistle",
-  "1 Peter": "NT_Epistle", "2 Peter": "NT_Epistle", "1 John": "NT_Epistle",
-  "2 John": "NT_Epistle", "3 John": "NT_Epistle", "Jude": "NT_Epistle",
-  "Matthew": "NT_Gospel", "Mark": "NT_Gospel", "Luke": "NT_Gospel", "John": "NT_Gospel",
-  "Revelation": "NT_Apocalyptic",
-  "Genesis": "OT_Law", "Exodus": "OT_Law", "Leviticus": "OT_Law", "Numbers": "OT_Law", "Deuteronomy": "OT_Law",
-  "Joshua": "OT_History", "Judges": "OT_History", "Ruth": "OT_History", "1 Samuel": "OT_History", "2 Samuel": "OT_History",
-  "1 Kings": "OT_History", "2 Kings": "OT_History", "1 Chronicles": "OT_History", "2 Chronicles": "OT_History",
-  "Ezra": "OT_History", "Nehemiah": "OT_History", "Esther": "OT_History",
-  "Job": "OT_Poetry", "Psalms": "OT_Poetry", "Proverbs": "OT_Poetry", "Ecclesiastes": "OT_Poetry", "Song of Solomon": "OT_Poetry",
-  "Isaiah": "OT_Prophet", "Jeremiah": "OT_Prophet", "Lamentations": "OT_Prophet", "Ezekiel": "OT_Prophet", "Daniel": "OT_Prophet",
-  "Hosea": "OT_Prophet", "Joel": "OT_Prophet", "Amos": "OT_Prophet", "Obadiah": "OT_Prophet", "Jonah": "OT_Prophet",
-  "Micah": "OT_Prophet", "Nahum": "OT_Prophet", "Habakkuk": "OT_Prophet", "Zephaniah": "OT_Prophet",
-  "Haggai": "OT_Prophet", "Zechariah": "OT_Prophet", "Malachi": "OT_Prophet"
+const BOOK_GENRES: Record<string, string> = {
+  Romans: "NT_Epistle",
+  "1 Corinthians": "NT_Epistle",
+  "2 Corinthians": "NT_Epistle",
+  Galatians: "NT_Epistle",
+  Ephesians: "NT_Epistle",
+  Philippians: "NT_Epistle",
+  Colossians: "NT_Epistle",
+  "1 Thessalonians": "NT_Epistle",
+  "2 Thessalonians": "NT_Epistle",
+  "1 Timothy": "NT_Epistle",
+  "2 Timothy": "NT_Epistle",
+  Titus: "NT_Epistle",
+  Philemon: "NT_Epistle",
+  Hebrews: "NT_Epistle",
+  James: "NT_Epistle",
+  "1 Peter": "NT_Epistle",
+  "2 Peter": "NT_Epistle",
+  "1 John": "NT_Epistle",
+  "2 John": "NT_Epistle",
+  "3 John": "NT_Epistle",
+  Jude: "NT_Epistle",
+
+  Matthew: "NT_Gospel",
+  Mark: "NT_Gospel",
+  Luke: "NT_Gospel",
+  John: "NT_Gospel",
+
+  Revelation: "NT_Apocalyptic",
+
+  Genesis: "OT_Law",
+  Exodus: "OT_Law",
+  Leviticus: "OT_Law",
+  Numbers: "OT_Law",
+  Deuteronomy: "OT_Law",
+
+  Joshua: "OT_History",
+  Judges: "OT_History",
+  Ruth: "OT_History",
+  "1 Samuel": "OT_History",
+  "2 Samuel": "OT_History",
+  "1 Kings": "OT_History",
+  "2 Kings": "OT_History",
+  "1 Chronicles": "OT_History",
+  "2 Chronicles": "OT_History",
+  Ezra: "OT_History",
+  Nehemiah: "OT_History",
+  Esther: "OT_History",
+
+  Job: "OT_Poetry",
+  Psalms: "OT_Poetry",
+  Proverbs: "OT_Poetry",
+  Ecclesiastes: "OT_Poetry",
+  "Song of Solomon": "OT_Poetry",
+
+  Isaiah: "OT_Prophet",
+  Jeremiah: "OT_Prophet",
+  Lamentations: "OT_Prophet",
+  Ezekiel: "OT_Prophet",
+  Daniel: "OT_Prophet",
+  Hosea: "OT_Prophet",
+  Joel: "OT_Prophet",
+  Amos: "OT_Prophet",
+  Obadiah: "OT_Prophet",
+  Jonah: "OT_Prophet",
+  Micah: "OT_Prophet",
+  Nahum: "OT_Prophet",
+  Habakkuk: "OT_Prophet",
+  Zephaniah: "OT_Prophet",
+  Haggai: "OT_Prophet",
+  Zechariah: "OT_Prophet",
+  Malachi: "OT_Prophet",
 };
 
-function getBookGenre(book: string): Genre {
-  return BOOK_GENRES[book] || "NT_Epistle";
+function getBookGenre(book: string) {
+  return BOOK_GENRES[book] || "General";
 }
 
-/* --------------------------
-   Transliteration sanitization (Option B)
-   -------------------------- */
-function sanitizeModelTranslitOptionB(input: string): string {
-  if (!input) return "";
+/* ============================================================
+  INTERLINEAR PROMPT BUILDER (EN ONLY)
+============================================================ */
 
-  const map: [RegExp, string][] = [
-    [/ā/g, "aa"], [/ē/g, "ee"], [/ī/g, "ii"], [/ō/g, "oo"], [/ū/g, "uu"],
-    [/ə/g, "a"], [/ḥ/g, "h"], [/ṭ/g, "t"], [/ṣ/g, "s"], [/š|ś/g, "sh"],
-    [/ḏ/g, "d"], [/ṯ/g, "t"], [/ḇ/g, "b"], [/ẓ/g, "z"], [/ʿ|ʾ|ʼ|’|`/g, "'"],
-    [/á|à|â|ã|ä/g, "a"], [/é|è|ê|ë/g, "e"], [/í|ì|î|ï/g, "i"],
-    [/ó|ò|ô|õ|ö/g, "o"], [/ú|ù|û|ü/g, "u"], [/\p{M}/gu, ""]
-  ];
-
-  let s = input;
-  for (const [rx, repl] of map) s = s.replace(rx, repl);
-
-  s = s.replace(/[^A-Za-z0-9'\-\s]/g, "");
-  s = s.replace(/'+/g, "'");
-  s = s.replace(/([A-Za-z0-9])'([A-Za-z0-9])/g, "$1-$2");
-  s = s.replace(/-+/g, "-");
-
-  return s.trim();
-}
-
-/* --------------------------
-   Interlinear prompt builder
-   -------------------------- */
 function buildInterlinearPrompt(book: string, chapter: number, verse: number) {
   const ref = `${book} ${chapter}:${verse}`;
 
   if (!isNewTestament(book)) {
     return `
-Return an interlinear analysis for ${ref}.
+You are generating a Hebrew interlinear analysis for the verse: ${ref}.
 
 STRICT RULES:
-- Output RAW Hebrew exactly (do not modify Hebrew).
-- No markdown, no HTML.
-- Preserve line breaks.
-- Section 2 (English Transliteration) MUST use only plain ASCII letters, hyphen and apostrophe if needed.
-  * NO diacritics, NO macrons, NO IPA symbols.
-- Word-by-word transliteration should follow the same ASCII rule.
+1. No introductions.
+2. Follow the exact structure shown.
+3. Hebrew text MUST remain untouched.
+4. Transliteration MUST be ASCII only.
 
-FORMAT (must match exactly):
+FORMAT:
 
 **1. Hebrew Text:**
-<raw>
+<raw MT Hebrew>
 
 ---
 
 **2. English Transliteration:**
-<plain ASCII transliteration, only A-Z a-z digits, hyphen, apostrophe>
+<ASCII transliteration>
 
 ---
 
 **3. Smooth English Translation:**
-<translation>
+<one clear sentence>
 
 ---
 
 **4. Word-by-Word Analysis:**
-<Hebrew> (<ASCII transliteration>) - <English meaning>
-<Hebrew> (<ASCII transliteration>) - <English meaning>
-<Hebrew> (<ASCII transliteration>) - <English meaning>
+HebrewWord (ascii-translit) – english-gloss
+HebrewWord (ascii-translit) – english-gloss
+HebrewWord (ascii-translit) – english-gloss
 
-Do NOT combine multiple words on the same line.
-Do NOT add bullet points or numbering.
-
-Answer in English.
+END.
 `.trim();
   }
 
   return `
-Generate a STRICTLY STRUCTURED interlinear analysis for ${ref}.
+You are generating a Greek interlinear analysis for the verse: ${ref}.
 
-NON-NEGOTIABLE RULES:
-- NO markdown except the bold section headers shown below.
-- NO commas, NO parentheses except for transliteration, NO brackets.
-- EVERY Greek word MUST be followed by EXACT pattern:
-  GreekWord (ascii-translit) - EnglishMeaning
-- One and only one such triple per line.
-- DO NOT join multiple triples on one line.
-- DO NOT remove accents from Greek.
-- Transliteration MUST be pure ASCII (A-Z a-z hyphens apostrophes).
+STRICT RULES:
+1. No introductions.
+2. Keep accents and breathings.
+3. ASCII transliteration only.
+4. Exact structure only.
 
-OUTPUT FORMAT (copy exactly):
+FORMAT:
 
 **1. Greek Text:**
-<raw-greek>
+<raw Greek text>
 
 ---
 
 **2. English Transliteration:**
-<ascii transliteration of whole verse>
+<ASCII transliteration>
 
 ---
 
 **3. Smooth English Translation:**
-<plain English translation>
+<one clear sentence>
 
 ---
 
 **4. Word-by-Word Analysis:**
-Greek (translit) - meaning
-Greek (translit) - meaning
-Greek (translit) - meaning
-Greek (translit) - meaning
+GreekWord (ascii-translit) – english-gloss
+GreekWord (ascii-translit) – english-gloss
+GreekWord (ascii-translit) – english-gloss
 
----
-
-Do NOT add any extra sentences or commentary.
-Return RAW TEXT ONLY.
+END.
 `.trim();
 }
 
-/* --------------------------
-   getVerseAnalysis
-   -------------------------- */
-export const getVerseAnalysis = async (
-  verseRef: VerseReference,
-  analysisType: "Cross-references" | "Historical Context" | "Interlinear",
-  language: "EN" | "TE" = "EN"
-) => {
-  const cacheKey = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-${analysisType}-${language}`;
-  if (verseCache.has(cacheKey)) return verseCache.get(cacheKey)!;
+/* ============================================================
+  CROSS-REFERENCES PROMPTS (EN & TE NATIVE)
+============================================================ */
 
-  const baseKeyEN = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-${analysisType}-EN`;
+function buildCrossRefsPromptEN(v: VerseReference) {
+  return `
+You are generating CROSS-REFERENCES + SCHOLARLY COMMENTARY for:
+${v.book} ${v.chapter}:${v.verse}
 
-  try {
-    // CROSS-REFERENCES
-    if (analysisType === "Cross-references") {
-      const promptEN = `
-Provide a scholarly cross-reference analysis for ${verseRef.book} ${verseRef.chapter}:${verseRef.verse}.
+FORMAT EXACTLY:
 
-OUTPUT FORMAT (DO NOT CHANGE):
+**Cross-References (With Explanations)**
+Provide 3–7 bullet points.
+Each bullet MUST follow this minimal strict format:
 
-**Summary**
-A short 2–3 sentence academic overview explaining the conceptual, theological, or literary networks connected to this verse.
+- BookName 1:1 — one short sentence explaining the thematic link.
+
+Rules:
+• NO scripture quotations.
+• NO invented references.
+• NO ANE mythology unless directly connected.
 
 ---
 
-**1. Literary Parallels**
-A 2–4 sentence scholarly paragraph explaining internal literary parallels.
-Then list 3–7 cross-references (ONLY references, no commentary).
+**Scholarly Commentary**
+Write 2–4 short paragraphs.
+Each paragraph 2–4 sentences.
+Cover:
+• historical setting
+• linguistic insight
+• theological theme
+• literary function
 
----
+No long blocks. No quotes.
 
-**2. Thematic Connections**
-A short academic paragraph on shared theological or symbolic themes.
-Then list 3–7 cross-references.
-
----
-
-**3. Canonical or Intertextual Links**
-A brief paragraph explaining how other biblical authors echo or develop this idea.
-Then list 2–6 cross-references.
-
----
-
-**4. Background or Conceptual Parallels**
-A short paragraph describing parallels in law, prophecy, wisdom, or apocalyptic literature.
-Then list 2–6 cross-references.
-
----
-
-STRICT RULES:
-- Do NOT quote verses.
-- Do NOT add commentary to bullet points.
-- Do NOT merge headings.
-- Every section must include a paragraph + bullet list.
-- Clean, concise, scholarly prose only.
-`;
-      const rawEN = await safeGenerate("gemini-2.5-flash-lite", promptEN);
-      const englishResult = (rawEN || "").trim();
-      verseCache.set(baseKeyEN, englishResult);
-
-      if (language === "EN") {
-        verseCache.set(cacheKey, englishResult);
-        return englishResult;
-      }
-
-      const promptTE = `
-Translate the following scholarly outline into clear, natural, academic Telugu.
-
-RULES:
-- PRESERVE ALL FORMATTING EXACTLY.
-- DO NOT translate Biblical book names or references.
-- Do NOT translate cross-reference items.
-- Output must be clean, readable, and well-spaced.
-
-TEXT:
-${englishResult}
-`;
-      const rawTE = await safeGenerate("gemini-2.5-flash-lite", promptTE);
-      const teluguResult = (rawTE || "").trim();
-      verseCache.set(cacheKey, teluguResult);
-      return teluguResult;
-    }
-
-    // HISTORICAL CONTEXT
-    if (analysisType === "Historical Context") {
-      const genre = getBookGenre(verseRef.book);
-      let prompt = `
-Provide a full scholarly historical background for ${verseRef.book} ${verseRef.chapter}:${verseRef.verse}.
-
-OUTPUT FORMAT (DO NOT CHANGE):
-
-**Summary**
-A short 2–3 sentence academic summary explaining the historical significance of this verse.
-
----
-
-**1. Historical Setting**
-A short paragraph (2–4 sentences).
-
----
-
-**2. Authorship and Composition**
-Short paragraph.
-
----
-
-**3. Date and Provenance**
-
----
-
-**4. Literary Context and Purpose**
-
----
-
-**5. Cultural and Religious Background**
-
----
-
-**6. Audience Situation**
-
----
-
-**7. Scholarly Notes and Debates**
-
----
-
-**8. Additional Genre-Specific Notes**
-
----
-
-STRICT RULES:
-- No verse quoting.
-- No devotional tone.
-- One short paragraph per section.
-`;
-      if (genre === "OT_Poetry") prompt += "GENRE GUIDANCE: OT poetry.";
-      if (genre === "OT_Law") prompt += "GENRE GUIDANCE: OT law.";
-      if (genre === "OT_History") prompt += "GENRE GUIDANCE: OT history.";
-      if (genre === "OT_Prophet") prompt += "GENRE GUIDANCE: OT prophets.";
-      if (genre === "NT_Gospel") prompt += "GENRE GUIDANCE: NT gospels.";
-      if (genre === "NT_Epistle") prompt += "GENRE GUIDANCE: NT epistles.";
-      if (genre === "NT_Apocalyptic") prompt += "GENRE GUIDANCE: NT apocalyptic.";
-
-      const res = await safeGenerate("gemini-2.5-flash-lite", prompt);
-      const trimmed = (res || "").trim();
-      verseCache.set(baseKeyEN, trimmed);
-      verseCache.set(cacheKey, trimmed);
-      return trimmed;
-    }
-
-    // INTERLINEAR - single, consolidated implementation
-    if (analysisType === "Interlinear") {
-      const prompt = buildInterlinearPrompt(verseRef.book, verseRef.chapter, verseRef.verse);
-      let result = await safeGenerate("gemini-2.5-flash-lite", prompt);
-      result = (result || "").replace(/\r\n/g, "\n").trim();
-
-      // Start with a working copy
-      let finalText = result;
-
-      // NORMALIZE headers — make the headers predictable so regexes match.
-      // This tolerates many header variants (plain, bold, missing newline, etc.)
-      finalText = finalText
-        // Normalize 1. Greek/Hebrew Text header
-        .replace(/\**\s*1\.\s*(Hebrew|Greek)\s*Text\s*[:：]?\**/i, "**1. Greek Text:**")
-        // Normalize 2. Transliteration header
-        .replace(/\**\s*2\.\s*(English\s*)?Transliteration\s*[:：]?\**/i, "**2. English Transliteration:**")
-        // Normalize 3. Smooth translation
-        .replace(/\**\s*3\.\s*(Smooth\s*)?English\s*Translation\s*[:：]?\**/i, "**3. Smooth English Translation:**")
-        // Normalize 4. Word-by-word
-        .replace(/\**\s*4\.\s*Word[- ]by[- ]Word Analysis\s*[:：]?\**/i, "**4. Word-by-Word Analysis:**");
-
-      // Extract and sanitize section 2 (transliteration)
-      // Accept multiple formats: with or without bold, with or without trailing '---'
-      const sec2Rx = /(?:\*\*2\.\s*English Transliteration:\*\*\s*|\b2\.\s*English Transliteration\s*[:：]?\s*)([\s\S]*?)(?=\n\s*(?:\*\*3\.|\b3\.|---))/i;
-      const sec2m = finalText.match(sec2Rx);
-      if (sec2m && sec2m[1]) {
-        const cleaned = sanitizeModelTranslitOptionB(sec2m[1]);
-        finalText = finalText.replace(sec2m[1], "\n" + cleaned.trim() + "\n");
-      }
-
-      // Clean parenthetical translits where present (e.g., (phobēthōmen) -> (phobeethoomen))
-      finalText = finalText.replace(/\(([^\)\n]+)\)/g, (_match, inner) => {
-        // sanitize everything found inside parentheses to ascii translit where appropriate
-        const cleaned = sanitizeModelTranslitOptionB(inner);
-        return `(${cleaned})`;
-      });
-
-      // Now enforce strict Word-by-Word splitting with full Greek + apostrophe support.
-{
-  const wbaSectionRx =
-    /(?:\*\*4\.\s*Word-by-Word Analysis:\*\*\s*|\b4\.\s*Word-by-Word Analysis\s*[:：]?\s*)([\s\S]*)$/i;
-  const wbaSectionMatch = finalText.match(wbaSectionRx);
-
-  if (wbaSectionMatch) {
-    const rawBlock = wbaSectionMatch[1].trim();
-
-    // Extract ALL Greek word entries using a global match
-    // Pattern: Greek word (translit) - meaning
-    const entryRx =
-      /([\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF][\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF'']*)\s*\(([^()]+)\)\s*-\s*([^.]+?)(?=\s+[\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF][\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF'']*\s*\(|$)/gu;
-
-    const entries: string[] = [];
-    let match: RegExpExecArray | null;
-
-    while ((match = entryRx.exec(rawBlock)) !== null) {
-      const greek = match[1].trim();
-      const translit = sanitizeModelTranslitOptionB(match[2]);
-      const gloss = match[3].trim().replace(/[.,;]+$/, "").replace(/\s+/g, " ");
-      entries.push(`${greek} (${translit}) - ${gloss}`);
-    }
-
-    let rebuilt = "";
-    
-    if (entries.length > 0) {
-      rebuilt = entries.join("\n");
-    } else {
-      // Fallback: split on any occurrence of Greek character followed by (
-      const simpleRx = /([\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF]+[''ʼ']?)\s*\([^)]+\)\s*-\s*[^(]+/gu;
-      const parts = rawBlock.match(simpleRx);
-      
-      if (parts && parts.length > 0) {
-        rebuilt = parts.map(p => {
-          const cleaned = p.trim().replace(/[.,;]+$/, "");
-          return cleaned;
-        }).join("\n");
-      } else {
-        // Ultimate fallback: force split before every Greek word
-        rebuilt = rawBlock
-          .replace(/([\p{Script=Greek}\u0370-\u03FF\u1F00-\u1FFF]+)/gu, "\n$1")
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .join("\n");
-      }
-    }
-
-    finalText = finalText.replace(
-      wbaSectionRx,
-      `**4. Word-by-Word Analysis:**\n${rebuilt}`
-    );
-  }
+Begin.
+`.trim();
 }
 
+function buildCrossRefsPromptTE(v: VerseReference) {
+  return `
+క్రింది వాక్యానికి సంబంధించి క్రాస్ రిఫరెన్సులు మరియు పండితుల వ్యాఖ్యానం తెలుగులో ఇవ్వండి:
 
-      verseCache.set(baseKeyEN, finalText);
-      verseCache.set(cacheKey, finalText);
-      return finalText;
-    }
+${v.book} ${v.chapter}:${v.verse}
 
-    return "";
-  } catch (err: any) {
-    throw new Error(err?.message || "Failed to load verse analysis.");
+FORMAT (మార్క్‌డౌన్ నిర్మాణం తప్పనిసరి):
+
+**సంబంధిత వచనాలు (వివరణలతో)**
+3–7 బుల్లెట్ పాయింట్లు రాయండి.
+ప్రతి బుల్లెట్ ఈ ఫార్మాట్‌లో ఉండాలి:
+
+- పుస్తకనామం 1:1 — ఈ వచనంతో ఉన్న థీమాటిక్ / ఆలోచనా సంబంధాన్ని తెలుగులో ఒక చిన్న వాక్యంతో వివరించండి.
+
+RULES:
+• వచనాలను కోట్ చేయకండి (పరామర్శ మాత్రమే చేయండి).
+• బైబిల్‌లో లేని ఊహాత్మక రిఫరెన్సులు వద్దు.
+• ఒక్కో బుల్లెట్ ఒకే వాక్యంగా ఉండాలి.
+
+---
+
+**పండితుల వ్యాఖ్యానం**
+2–4 చిన్న పేరాలు రాయండి.
+ప్రతి పేరా 2–4 వాక్యాలు మాత్రమే.
+
+కవర చేయాల్సిన అంశాలు:
+• చారిత్రక నేపథ్యం
+• సాంస్కృతిక / సామాజిక పరిస్థితి
+• భాషా పరమైన సూచనలు
+• థియాలజికల్ థీమ్
+• ఈ వచనం గ్రంథంలో తీసుకునే పాత్ర
+
+సూటిగా, స్పష్టంగా, బోధనాత్మకంగా రాయండి. పొడవైన బ్లాకులు వద్దు.
+
+Begin.
+`.trim();
+}
+
+/* ============================================================
+  HISTORICAL CONTEXT PROMPTS (EN & TE NATIVE)
+============================================================ */
+
+function buildHistoricalContextPromptEN(v: VerseReference) {
+  const genre = getBookGenre(v.book);
+
+  return `
+You are generating HISTORICAL CONTEXT for:
+${v.book} ${v.chapter}:${v.verse}
+
+Genre: ${genre}
+
+FORMAT EXACTLY:
+
+**Historical Context**
+Write 2–4 tight scholarly paragraphs:
+• historical setting
+• culture + geopolitics
+• authorship + audience
+• genre significance
+• themes relevant to this verse
+
+Rules:
+• No scripture quotations.
+• Reference other biblical material only like "Genesis 1" (no verse numbers).
+• Clean markdown.
+• No long blocks.
+
+Begin.
+`.trim();
+}
+
+function buildHistoricalContextPromptTE(v: VerseReference) {
+  const genre = getBookGenre(v.book);
+
+  return `
+క్రింది వాక్యానికి చారిత్రక నేపథ్యం తెలుగులో వివరించండి:
+
+${v.book} ${v.chapter}:${v.verse}
+
+జానర్: ${genre}
+
+FORMAT:
+
+**చారిత్రక నేపథ్యం**
+2–4 చిన్న చిన్న పేరాలు రాయండి.
+
+ప్రతి పేరాలో ఈ అంశాల్లో కొన్నింటిని కవర‍ చేయండి:
+• చారిత్రక నేపథ్యం (కాలం, రాజులు, రాజకీయ పరిస్థితి)
+• సంస్కృతి, సామాజిక పరిస్థితులు
+• రచయిత, మొదటి పాఠకులు (audience)
+• ఈ గ్రంథంలోని జానర్ ప్రాముఖ్యత
+• ఈ వచనంతో సంబంధించిన ప్రధాన థీమ్‌లు
+
+RULES:
+• బైబిల్ వచనాలను కోట్ చేయకండి (సూచన రూపంలో మాత్రమే ఉంటే సరిపోతుంది).
+• మార్క్‌డౌన్ హెడ్డింగ్ (**చారిత్రక నేపథ్యం**) అలాగే ఉంచండి.
+• సూటిగా, పాయింట్‌కు దగ్గరగా రాయండి.
+
+Begin.
+`.trim();
+}
+
+/* ============================================================
+  MAIN: getVerseAnalysis
+============================================================ */
+
+export const getVerseAnalysis = async (
+  verse: VerseReference,
+  section: "Cross-references" | "Historical Context" | "Interlinear",
+  language: "EN" | "TE" = "EN"
+) => {
+  const baseKey = `${verse.book}-${verse.chapter}-${verse.verse}-${section}`;
+  const cacheKey = `${baseKey}-${language}`;
+
+  const cached = verseCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  let prompt = "";
+  const MODEL = "gemini-2.5-flash-lite";
+
+  // Important design decision:
+  // Interlinear is ALWAYS generated in EN.
+  // Telugu interlinear is handled in the UI (VerseTools) using EN base text.
+  if (section === "Interlinear") {
+    const interlinearKey = `${baseKey}-EN`;
+    const cachedInterlinear = verseCache.get(interlinearKey);
+    if (cachedInterlinear !== undefined) return cachedInterlinear;
+
+    prompt = buildInterlinearPrompt(verse.book, verse.chapter, verse.verse);
+    const en = await safeGenerate(MODEL, prompt);
+    verseCache.set(interlinearKey, en);
+    return en;
   }
+
+  // Cross-references + Historical Context
+  if (section === "Cross-references") {
+    prompt =
+      language === "EN"
+        ? buildCrossRefsPromptEN(verse)
+        : buildCrossRefsPromptTE(verse);
+  } else {
+    // Historical Context
+    prompt =
+      language === "EN"
+        ? buildHistoricalContextPromptEN(verse)
+        : buildHistoricalContextPromptTE(verse);
+  }
+
+  const out = await safeGenerate(MODEL, prompt);
+  verseCache.set(cacheKey, out);
+  return out;
 };
 
-/* --------------------------
-   flashGenerate
---------------------------- */
+/* ============================================================
+  SIMPLE FLASH GENERATOR
+============================================================ */
+
 export const flashGenerate = async (prompt: string) => {
   return safeGenerate("gemini-2.5-flash-lite", prompt);
 };
 
-/* --------------------------
-   Chat wrapper
---------------------------- */
+/* ============================================================
+  CHATBOT SUPPORT
+============================================================ */
+
 function getChat(mode: ChatMode): Chat {
   if (!chatInstances.has(mode)) {
     const aiInstance = getAiInstance();
-    const newChat = aiInstance.chats.create({
+    const chat = aiInstance.chats.create({
       model: mode,
       config: {
-        systemInstruction: "You are an expert Bible scholar. Be precise, deep, and context-rich.",
+        systemInstruction:
+          "You are an expert Bible scholar. Provide careful, text-aware explanations with references.",
       },
     });
-    chatInstances.set(mode, newChat);
+    chatInstances.set(mode, chat);
   }
   return chatInstances.get(mode)!;
 }
 
 export const sendMessageToBot = async (
   message: string,
-  history: any[] = [],
+  history: any[],
   mode: ChatMode,
-  language: "EN" | "TE" = "EN"
+  lang: "EN" | "TE" = "EN"
 ) => {
-  try {
-    const langInstr = language === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
+  const langText =
+    lang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
 
-    if (mode === "gemini-2.5-flash" || mode === "gemini-2.5-flash-lite") {
-      const fullPrompt = `${message}\n\n${langInstr}`;
-      const text = await safeGenerate("gemini-2.5-flash-lite", fullPrompt);
+  try {
+    // Simple mode uses direct generate
+    if (mode === "gemini-2.5-flash-lite") {
+      const text = await safeGenerate(
+        "gemini-2.5-flash-lite",
+        `${message}\n\n${langText}`
+      );
       return { text, sources: [] };
     }
 
     const chat = getChat(mode);
-    const result = await chat.sendMessage({ message: `${message}\n\n${langInstr}` });
-    return { text: result.text, sources: [] };
+    const resp = await chat.sendMessage({
+      message: `${message}\n\n${langText}`,
+      history,
+    } as any);
+
+    return { text: (resp as any)?.text || "", sources: [] };
   } catch (err: any) {
-    const raw = err?.message || "";
-    if (raw.includes("model is overloaded") || raw.includes(`"code":503`) || raw.includes("UNAVAILABLE")) {
-      return { text: "The AI model is overloaded. Try switching models.", sources: [] };
-    }
-    return { text: raw || "AI error", sources: [] };
+    return { text: err.message || "AI error", sources: [] };
   }
 };
 
-/* --------------------------
-   searchBibleByKeyword
---------------------------- */
-export const searchBibleByKeyword = async (keyword: string): Promise<string> => {
-  const prompt = `You are a Bible search engine. Keyword: "${keyword}". Return ONLY valid Bible references.`;
+/* ============================================================
+  KEYWORD SEARCH
+============================================================ */
 
+export const searchBibleByKeyword = async (
+  keyword: string
+): Promise<string> => {
   try {
-    const raw = await safeGenerate("gemini-2.5-flash-lite", prompt);
-    return raw.replace(/[\n\[\]]/g, "").replace(/ +/g, " ").trim();
+    const res = await safeGenerate(
+      "gemini-2.5-flash-lite",
+      `
+Return ONLY Bible references related to "${keyword}".
+
+Rules:
+• Only references like: John 3:16; Romans 8:1–4
+• No commentary.
+• No extra text.
+`.trim()
+    );
+
+    return res.replace(/\s+/g, " ").trim();
   } catch {
     return "";
   }

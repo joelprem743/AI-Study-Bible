@@ -331,17 +331,17 @@ const App: React.FC = () => {
       <div className="flex flex-col h-screen font-sans">
         {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
 
-        <header className="bg-white dark:bg-gray-800 p-3 shadow-md z-10 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <header className="bg-white dark:bg-gray-900 p-3 shadow-md z-10 border-b border-gray-200 dark:border-[#2A2F35] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-4 ml-4 py-2 px-0 bg-transparent">
             <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white">
               <i className="fas fa-book-open text-lg"></i>
             </div>
 
             <div className="flex flex-col">
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-[#E5E5E5]">
                 AI Bible Study Companion
               </h1>
-              <span className="text-xs text-gray-600 dark:text-gray-400">
+              <span className="text-xs text-gray-600 dark:text-[#9CA3AF]">
                 by Joel Prem
               </span>
             </div>
@@ -357,7 +357,7 @@ const App: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search (Psalm 23:1, Romans 8:1–4 | యోహాను 3:16) "
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white w-full p-2.5 outline-none"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm dark:bg-gray-800 dark:border-[#2A2F35] dark:text-[#E5E5E5] w-full p-2.5 outline-none"
               />
               <button type="submit" className="px-4 text-white bg-blue-600 hover:bg-blue-700 border border-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
                 <i className="fas fa-search"></i>
@@ -411,12 +411,12 @@ const App: React.FC = () => {
                 />
               </div>
 
-              <div className="w-full md:w-1/3 hidden md:block overflow-y-auto bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
+              <div className="w-full md:w-1/3 hidden md:block overflow-y-auto bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-[#2A2F35]">
                 {selectedVerseRef && selectedVerseData ? (
                   <VerseTools verseRef={selectedVerseRef} verseData={selectedVerseData} englishVersion={englishVersion} />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8 text-center">
-                    <p>Select a verse to see detailed Verse tools like Interlinear, Cross-references, Historical Context and Notes.</p>
+                    <p className="flex items-center justify-center h-full text-gray-500 dark:text-[#9CA3AF] p-8 text-center">Select a verse to see detailed Verse tools like Interlinear, Cross-references, Historical Context and Notes.</p>
                   </div>
                 )}
               </div>
@@ -424,34 +424,42 @@ const App: React.FC = () => {
           )}
         </main>
 
-        {isToolsModalOpen && selectedVerseRef && selectedVerseData && (
-          <div className="md:hidden fixed inset-0 bg-black bg-opacity-60 z-30" onClick={() => setIsToolsModalOpen(false)}>
-            <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-800 rounded-t-2xl shadow-lg overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <VerseTools
-                verseRef={selectedVerseRef}
-                verseData={selectedVerseData}
-                englishVersion={englishVersion}
-                onClose={() => setIsToolsModalOpen(false)}
-              />
-            </div>
-          </div>
-        )}
+{isToolsModalOpen && selectedVerseRef && selectedVerseData && (
+  <div
+    className="md:hidden fixed inset-0 bg-black bg-opacity-60 z-30"
+    onClick={() => setIsToolsModalOpen(false)}
+  >
+    <div
+      className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-900 rounded-t-2xl shadow-lg overflow-hidden flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <VerseTools
+        verseRef={selectedVerseRef}
+        verseData={selectedVerseData}
+        englishVersion={englishVersion}
+        onClose={() => setIsToolsModalOpen(false)}
+      />
+    </div>
+  </div>
+)}
 
-        <footer className="bg-gray-200 dark:bg-gray-800 text-center p-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-300 dark:border-gray-700">
-          Contact: joelpremtej@gmail.com
-        </footer>
+<footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-[#9CA3AF] border-t border-gray-300 dark:border-[#2A2F35]">
+  Contact: joelpremtej@gmail.com
+</footer>
 
-        <Chatbot
-          selectedBook={selectedBook}
-          selectedChapter={selectedChapter}
-          selectedVerseRef={selectedVerseRef}
-          verses={verses}
-          englishVersion={englishVersion}
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-        />
-      </div>
-    </LanguageProvider>
+<Chatbot
+  selectedBook={selectedBook}
+  selectedChapter={selectedChapter}
+  selectedVerseRef={selectedVerseRef}
+  verses={verses}
+  englishVersion={englishVersion}
+  isOpen={isChatOpen}
+  onToggle={() => setIsChatOpen(!isChatOpen)}
+/>
+
+</div>   {/* CLOSE flex flex-col h-screen container */}
+</LanguageProvider>
+
   );
 };
 

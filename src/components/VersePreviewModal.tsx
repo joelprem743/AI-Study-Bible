@@ -25,9 +25,17 @@ export function VersePreviewModal({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-xl max-w-md w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
+  className="
+    bg-white dark:bg-gray-800 
+    p-4 rounded-lg shadow-xl 
+    max-w-md w-full 
+    max-h-[75vh]         /* limit popup height */
+    overflow-y-auto      /* enable scroll when long */
+    overscroll-contain   /* prevent scroll bounce */
+  "
+  onClick={(e) => e.stopPropagation()}
+>
+
         <h2 className="text-lg font-semibold mb-2">{reference}</h2>
         <p className="text-sm whitespace-pre-wrap">{text}</p>
 

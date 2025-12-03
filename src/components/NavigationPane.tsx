@@ -63,23 +63,24 @@ export default function NavigationPane(props: Props) {
   };
 
   return (
-    <div className="p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className="p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-[#2A2F35] shadow-sm">
 
       <div className="flex items-center w-full gap-3">
 
         {/* UNIFIED BUTTON */}
         <div
-          className="
-            group flex flex-1 items-center justify-between
-            bg-gray-50 dark:bg-gray-700
-            border border-gray-300 dark:border-gray-600
-            rounded-xl px-3 py-2
-            transform-gpu transition-all duration-150 ease-out
-            hover:scale-[1.03] active:scale-[0.985]
-            hover:shadow-[0_0_8px_rgba(59,130,246,0.35)]
-            dark:hover:shadow-[0_0_10px_rgba(59,130,246,0.45)]
-          "
-        >
+  className="
+    group flex flex-1 items-center justify-between
+    bg-gray-50 dark:bg-gray-800
+    border border-gray-300 dark:border-[#2A2F35]
+    rounded-xl px-3 py-2
+    transform-gpu transition-all duration-150 ease-out
+    hover:scale-[1.03] active:scale-[0.985]
+    hover:shadow-[0_0_8px_rgba(59,130,246,0.35)]
+    dark:hover:shadow-[0_0_10px_rgba(59,130,246,0.45)]
+  "
+>
+
 
           <button
             onClick={(e) => {
@@ -89,7 +90,7 @@ export default function NavigationPane(props: Props) {
             disabled={isFirstChapterOfBible}
             className="
               h-full flex items-center justify-center
-              text-gray-500 dark:text-gray-300 disabled:opacity-30
+              text-gray-500 dark:text-[#E5E5E5] disabled:opacity-30
               text-sm md:text-base px-3 z-10 pointer-events-auto
             "
           >
@@ -102,7 +103,7 @@ export default function NavigationPane(props: Props) {
               title={unifiedLabel}
               className="
                 text-sm font-medium w-full h-full flex items-center justify-center
-                text-gray-900 dark:text-white md:text-base 
+                text-gray-900 dark:text-[#E5E5E5] md:text-base 
                 whitespace-nowrap overflow-hidden text-ellipsis px-2
               "
             >
@@ -131,21 +132,22 @@ export default function NavigationPane(props: Props) {
         <div
           onClick={() => setIsVersionModalOpen(true)}
           className="
-            relative min-w-[90px] inline-block cursor-pointer
-            transform-gpu transition-all duration-200 ease-out
-            hover:scale-[1.06] active:scale-[0.96]
-            hover:shadow-[0_0_12px_rgba(59,130,246,0.6)]
-            dark:hover:shadow-[0_0_14px_rgba(59,130,246,0.7)]
-            rounded-xl bg-gray-50 dark:bg-gray-700
-            border border-gray-300 dark:border-gray-600
-            px-3 py-2
-          "
+  relative min-w-[90px] inline-block cursor-pointer
+  transform-gpu transition-all duration-200 ease-out
+  hover:scale-[1.06] active:scale-[0.96]
+  hover:shadow-[0_0_12px_rgba(59,130,246,0.6)]
+  dark:hover:shadow-[0_0_14px_rgba(59,130,246,0.7)]
+  rounded-xl bg-gray-50 dark:bg-gray-800
+  border border-gray-300 dark:border-[#2A2F35]
+  px-3 py-2
+"
+
         >
           <div className="flex items-center justify-between w-full">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
+          <span className="text-sm font-medium text-gray-900 dark:text-[#E5E5E5]">
               {englishVersion}
             </span>
-            <i className="fas fa-caret-down text-xs text-gray-700 dark:text-gray-300" />
+            <i className="fas fa-caret-down text-xs text-gray-700 dark:text-[#9CA3AF]" />
           </div>
         </div>
 
@@ -155,21 +157,28 @@ export default function NavigationPane(props: Props) {
       {isModalOpen && (
         <ModalPortal>
           <div
-            className="fixed inset-0 z-[99999] bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[99999] bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setIsModalOpen(false)}
           >
             <div
               className="
-                relative z-[100000]
-                bg-white dark:bg-gray-800 rounded-xl shadow-2xl
-                w-full max-w-2xl h-[80vh] flex flex-col
-                border border-gray-200 dark:border-gray-700
-                overflow-hidden
-              "
+              relative z-[100000]
+              bg-white dark:bg-gray-900
+              rounded-xl shadow-2xl
+              w-full max-w-2xl h-[80vh] flex flex-col
+              border border-gray-200 dark:border-[#2A2F35]
+              overflow-hidden
+            "
+            
               onClick={(e) => e.stopPropagation()}
             >
 
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+              <div className="
+  p-4 border-b border-gray-200 dark:border-[#2A2F35]
+  flex items-center justify-between 
+  bg-gray-50 dark:bg-gray-900
+"
+>
                 {selectionStep === "CHAPTER" ? (
                   <button
                     onClick={() => setSelectionStep("BOOK")}
@@ -178,20 +187,20 @@ export default function NavigationPane(props: Props) {
                     <i className="fas fa-arrow-left mr-2" /> Books
                   </button>
                 ) : (
-                  <span className="text-lg font-bold text-gray-800 dark:text-white">
+                  <span className="text-lg font-bold text-gray-800 dark:text-[#E5E5E5]">
                     Select Book
                   </span>
                 )}
 
                 {selectionStep === "CHAPTER" && (
-                  <span className="text-lg font-bold text-gray-800 dark:text-white">
+                  <span className="text-lg font-bold text-gray-800 dark:text-[#E5E5E5]">
                     {TELUGU_BOOK_NAMES[tempBook] || tempBook}
                   </span>
                 )}
 
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
+                  className="text-gray-500 hover:text-gray-800 dark:text-[#9CA3AF] dark:hover:text-white p-2"
                 >
                   <i className="fas fa-times text-xl"></i>
                 </button>
@@ -206,11 +215,10 @@ export default function NavigationPane(props: Props) {
                         onClick={() => handleBookSelect(book)}
                         className={`
                           p-3 rounded-lg transition-all text-center
-                          ${
-                            tempBook === book
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                          }
+                          ${tempBook === book
+                            ? "bg-blue-600 text-white shadow-md"
+                            : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-800 dark:text-[#E5E5E5] dark:hover:bg-[#2A2F35]"
+                          }                          
                         `}
                       >
                         <div className="text-sm font-normal truncate">
@@ -228,12 +236,14 @@ export default function NavigationPane(props: Props) {
                           key={ch}
                           onClick={() => handleChapterSelect(ch)}
                           className="
-                            aspect-square flex items-center justify-center
-                            text-base font-semibold rounded-lg bg-gray-100
-                            hover:bg-blue-600 hover:text-white
-                            dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-blue-600
-                            transition-all border border-gray-200 dark:border-gray-600
-                          "
+  aspect-square flex items-center justify-center
+  text-base font-semibold rounded-lg
+  bg-gray-100 dark:bg-gray-800
+  hover:bg-blue-600 hover:text-white
+  dark:text-[#E5E5E5] dark:hover:bg-blue-600
+  transition-all border border-gray-200 dark:border-[#2A2F35]
+"
+
                         >
                           {ch}
                         </button>
@@ -249,62 +259,63 @@ export default function NavigationPane(props: Props) {
       )}
 
       {/* VERSION MODAL */}
-      {isVersionModalOpen && (
-        <ModalPortal>
-          <div
-            className="fixed inset-0 z-[99999] bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4"
+{isVersionModalOpen && (
+  <ModalPortal>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
+      onClick={() => setIsVersionModalOpen(false)}
+    >
+      <div
+        className="
+          relative bg-white dark:bg-[#111418]
+          rounded-xl shadow-2xl
+          w-full max-w-sm max-h-[70vh] flex flex-col
+          border border-gray-200 dark:border-[#2A2F35]
+          overflow-hidden
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-200 dark:border-[#2A2F35] bg-gray-50 dark:bg-[#1A1D21] flex items-center justify-between">
+          <span className="text-lg font-bold text-gray-800 dark:text-[#E5E5E5]">
+            Select Version
+          </span>
+
+          <button
             onClick={() => setIsVersionModalOpen(false)}
+            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
           >
-            <div
-              className="
-                relative z-[100000]
-                bg-white dark:bg-gray-800 rounded-xl shadow-2xl
-                w-full max-w-sm max-h-[70vh] flex flex-col
-                border border-gray-200 dark:border-gray-700
-                overflow-hidden
-              "
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
-                <span className="text-lg font-bold text-gray-800 dark:text-white">
-                  Select Version
-                </span>
-                <button
-                  onClick={() => setIsVersionModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white p-2"
-                >
-                  <i className="fas fa-times text-xl" />
-                </button>
-              </div>
+            <i className="fas fa-times text-xl" />
+          </button>
+        </div>
 
-              <div className="flex-grow overflow-y-auto p-4">
-                <div className="grid grid-cols-1 gap-3">
-                  {englishVersions.map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => {
-                        onEnglishVersionChange(v);
-                        setIsVersionModalOpen(false);
-                      }}
-                      className={`
-                        w-full p-3 rounded-lg transition-all text-left
-                        ${
-                          englishVersion === v
-                            ? "bg-blue-600 text-white shadow-md"
-                            : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                        }
-                      `}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-            </div>
+        <div className="flex-grow overflow-y-auto p-4">
+          <div className="grid grid-cols-1 gap-3">
+            {englishVersions.map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  onEnglishVersionChange(v);
+                  setIsVersionModalOpen(false);
+                }}
+                className={`
+                  w-full p-3 rounded-lg transition-all text-left
+                  ${
+                    englishVersion === v
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-700 dark:bg-[#1A1D21] dark:text-[#E5E5E5] dark:hover:bg-[#2A2F35]"
+                  }
+                `}
+              >
+                {v}
+              </button>
+            ))}
           </div>
-        </ModalPortal>
-      )}
+        </div>
+      </div>
+    </div>
+  </ModalPortal>
+)}
+
 
     </div>
   );
