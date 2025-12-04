@@ -218,7 +218,17 @@ export const VerseTools: React.FC<{
   verseData: Verse;
   englishVersion: string;
   onClose?: () => void;
-}> = ({ verseRef, verseData, englishVersion, onClose }) => {
+  currentHighlight?: string;
+  onHighlightChange?: (color: string | null) => void;
+}> = ({
+  verseRef,
+  verseData,
+  englishVersion,
+  onClose,
+  currentHighlight,
+  onHighlightChange,
+}) => {
+
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -334,6 +344,8 @@ export const VerseTools: React.FC<{
     },
     [language, englishVersion]
   );
+  // Make loadTab stable to avoid unnecessary reloads
+
 
   /* -------------------------
     loadTab (analysis) with optimized EN/TE behavior
@@ -438,8 +450,10 @@ ${reconstructed}
         return "";
       }
     },
-    [verseRef, language]
-  );
+    [verseRef.book, verseRef.chapter, verseRef.verse, language, englishVersion]
+
+  );  
+
 
   /* -------------------------
     Reset when verse changes
@@ -462,39 +476,55 @@ ${reconstructed}
   /* -------------------------
     Invalidate cache when language changes (current tab only)
   ---------------------------*/
+  // Replace your entire language-change effect with:
   useEffect(() => {
-    const key = buildKey(activeTab, language);
-    localCache.current.delete(key);
-    setAnalysis((prev) => ({ ...prev, [activeTab]: null }));
-  }, [language, activeTab]);
+    // mark tab as needing reload BEFORE clearing cache
+    setAnalysis(prev => ({ ...prev, [activeTab]: null }));
+  
+    // clear EN + TE cached values for this tab
+    localCache.current.delete(`${verseId}::${activeTab}::EN`);
+    localCache.current.delete(`${verseId}::${activeTab}::TE`);
+  }, [language, activeTab, verseId]);
+  
+  
+  
+
+  
 
   /* -------------------------
     Load when language/tab changes
   ---------------------------*/
-  useEffect(() => {
-    if (activeTab === "Notes") return;
+  // Load content when activeTab or language changes
+// Load analysis content based on tab + language
+useEffect(() => {
+  if (activeTab === "Notes") return;
 
-    // Already loaded? do nothing
-    if (analysis[activeTab] != null) return;
+  // Already loaded? Skip.
+  if (analysis[activeTab] != null) return;
 
-    let cancelled = false;
+  let cancelled = false;
 
-    (async () => {
-      setLoading(true);
-      setErrorMsg("");
+  (async () => {
+    setLoading(true);
+    setErrorMsg("");
 
-      const text = await loadTab(activeTab);
-      if (!cancelled) {
-        setAnalysis((prev) => ({ ...prev, [activeTab]: text }));
-        setLoading(false);
-      }
-    })();
+    const text = await loadTab(activeTab);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, language, verseId, loadTab, analysis]);
+    if (!cancelled) {
+      setAnalysis(prev => ({ ...prev, [activeTab]: text }));
+      setLoading(false);
+    }
+  })();
 
+  return () => {
+    cancelled = true;
+  };
+}, [activeTab, verseId, language, loadTab, analysis]);
+
+
+
+
+  
   /* -------------------------
     Reference click
   ---------------------------*/
@@ -597,7 +627,7 @@ ${reconstructed}
           <i className="fas fa-times text-2xl" />
         </button>
       )}
-
+  
       {/* Header: Verse + Language Toggle */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
@@ -607,12 +637,12 @@ ${reconstructed}
               : verseRef.book}{" "}
             {verseRef.chapter}:{verseRef.verse}
           </h2>
-
+  
           <p className="mt-1 text-gray-700 dark:text-gray-300 italic">
             "{displayVerseText}"
           </p>
         </div>
-
+  
         <div className="flex items-center gap-2 mr-10 md:mr-0">
           <label className="text-sm text-gray-600 dark:text-gray-300">
             Language
@@ -625,6 +655,62 @@ ${reconstructed}
           </button>
         </div>
       </div>
+  
+      {/* Highlight controls */}
+      {onHighlightChange && (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Highlight
+          </span>
+  
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onHighlightChange("yellow")}
+              className={`
+                w-6 h-6 rounded-full border bg-yellow-300
+                ${currentHighlight === "yellow" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
+              `}
+            />
+  
+            <button
+              type="button"
+              onClick={() => onHighlightChange("green")}
+              className={`
+                w-6 h-6 rounded-full border bg-green-300
+                ${currentHighlight === "green" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
+              `}
+            />
+  
+            <button
+              type="button"
+              onClick={() => onHighlightChange("pink")}
+              className={`
+                w-6 h-6 rounded-full border bg-rose-300
+                ${currentHighlight === "pink" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
+              `}
+            />
+  
+            <button
+              type="button"
+              onClick={() => onHighlightChange("blue")}
+              className={`
+                w-6 h-6 rounded-full border bg-sky-300
+                ${currentHighlight === "blue" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
+              `}
+            />
+  
+            <button
+              type="button"
+              onClick={() => onHighlightChange(null)}
+              className="ml-2 px-3 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+  
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
