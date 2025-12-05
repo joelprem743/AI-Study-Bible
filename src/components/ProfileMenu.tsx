@@ -91,14 +91,20 @@ export default function ProfileMenu() {
     return (
       <>
         <button
-          onClick={() => handleAuthOpen("signin")}
-          className="
-            w-10 h-10 rounded-full bg-slate-700 border border-slate-500
-            flex items-center justify-center text-white hover:bg-slate-600
-          "
-        >
-          <i className="fas fa-user text-lg" />
-        </button>
+  onClick={() => handleAuthOpen("signin")}
+  className="
+    w-10 h-10 rounded-full 
+    bg-gray-500/40 dark:bg-gray-700/40
+    border border-gray-400/40 dark:border-gray-600/40
+    flex items-center justify-center 
+    text-gray-200 dark:text-gray-300
+    hover:bg-gray-500/60 dark:hover:bg-gray-700/60
+    transition-all duration-200
+  "
+>
+  <i className="fas fa-user text-lg" />
+</button>
+
 
         {isAuthModalOpen && (
           <AuthModal
@@ -136,18 +142,18 @@ export default function ProfileMenu() {
       <button
   onClick={() => setIsDropdownOpen((v) => !v)}
   className="
-    w-10 h-10 rounded-full flex items-center justify-center font-semibold
-    text-white
-    bg-gradient-to-br from-blue-500 to-indigo-600
-    hover:from-blue-600 hover:to-indigo-700
-    border border-blue-700/40
+    w-10 h-10 rounded-full 
+    bg-gray-400 dark:bg-gray-600
+    flex items-center justify-center 
+    font-semibold text-white
+    border border-gray-300/30 dark:border-white/10
+    hover:bg-gray-500 dark:hover:bg-gray-700
     transition-all duration-200
-    dark:from-blue-400 dark:to-indigo-500
-    dark:hover:from-blue-500 dark:hover:to-indigo-600
   "
 >
   {firstLetter}
 </button>
+
 
 
       {/* Dropdown Menu */}
