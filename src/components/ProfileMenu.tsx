@@ -1,6 +1,7 @@
 // src/components/ProfileMenu.tsx
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
+import ProfileNotes from "./ProfileNotes";
 import ProfileHighlights from "./ProfileHighlights";
 
 type AuthMode = "signin" | "signup";
@@ -11,7 +12,7 @@ export default function ProfileMenu() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
-
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -174,6 +175,19 @@ export default function ProfileMenu() {
           </button>
 
           <button
+            onClick={() => {
+              setIsNotesOpen(true);
+              setIsDropdownOpen(false);
+            }}
+            className="w-full text-left px-4 py-2 text-sm
+                       text-gray-700 dark:text-gray-200
+                       hover:bg-gray-100 dark:hover:bg-slate-800"
+          >
+            My Notes
+          </button>
+
+
+          <button
             onClick={handleLogout}
             className="
               w-full text-left px-4 py-2 text-sm
@@ -193,6 +207,13 @@ export default function ProfileMenu() {
           onClose={() => setIsHighlightsOpen(false)}
         />
       )}
+      {isNotesOpen && (
+        <ProfileNotes
+          userId={user.id}
+          onClose={() => setIsNotesOpen(false)}
+        />
+      )}
+
     </div>
   );
 }

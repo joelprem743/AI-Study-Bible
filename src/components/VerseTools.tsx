@@ -14,10 +14,10 @@ import {
   isNewTestament,
 } from "../services/geminiService";
 import type { Verse, VerseReference } from "../types";
-import { useLocalStorage } from "../hooks/useLocalStorage";
 import { findBookMetadata, fetchChapter } from "../services/bibleService";
 import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+import { useNotes } from "../context/NotesContext";
 
 /* -------------------------
   Small utils / transliteration
@@ -228,14 +228,19 @@ export const VerseTools: React.FC<{
   currentHighlight,
   onHighlightChange,
 }) => {
+  // NOTES CONTEXT (Supabase-backed)
+  const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
 
+  // Preview ref modal
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // UI state
   const [activeTab, setActiveTab] = useState<Tab>("Historical Context");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
 
+  // Analysis cache per tab (language-specific content handled separately)
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
     Interlinear: null,
     "Cross-references": null,
@@ -247,11 +252,11 @@ export const VerseTools: React.FC<{
   const [errorMsg, setErrorMsg] = useState("");
 
   const verseId = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}`;
-  const [userNotes, setUserNotes] = useLocalStorage<string>(
-    `${verseId}-notes`,
-    ""
-  );
 
+  // Notes text (this is what the user types)
+  const [noteText, setNoteText] = useState<string>("");
+
+  // Local in-memory caches for AI analysis + reference fetching
   const localCache = useRef(new Map<string, string>());
   const refCache = useRef(new Map<string, string>());
 
@@ -260,8 +265,10 @@ export const VerseTools: React.FC<{
       ? verseData.text.BSI_TELUGU || verseData.text.KJV
       : verseData.text[englishVersion] || verseData.text.KJV;
 
-  const buildKey = (tab: Tab, lang: "EN" | "TE") =>
-    `${verseId}::${tab}::${lang}`;
+  const buildKey = useCallback(
+    (tab: Tab, lang: "EN" | "TE") => `${verseId}::${tab}::${lang}`,
+    [verseId]
+  );
 
   /* -------------------------
     loadReferenceText
@@ -289,6 +296,7 @@ export const VerseTools: React.FC<{
         let meta = findBookMetadata(rawBook);
 
         if (!meta) {
+          // Try "1 యోహాను" style
           const numMatch = rawBook.match(/^([1-3])\s*(.+)$/u);
           if (numMatch) {
             const bookNum = numMatch[1];
@@ -304,6 +312,7 @@ export const VerseTools: React.FC<{
         }
 
         if (!meta) {
+          // Try reverse match from TELUGU_BOOK_NAMES
           const englishKey = Object.entries(TELUGU_BOOK_NAMES).find(
             ([, tel]) => {
               const telNoNum = tel.replace(/^[1-3]\s*/, "").trim();
@@ -344,8 +353,6 @@ export const VerseTools: React.FC<{
     },
     [language, englishVersion]
   );
-  // Make loadTab stable to avoid unnecessary reloads
-
 
   /* -------------------------
     loadTab (analysis) with optimized EN/TE behavior
@@ -450,81 +457,78 @@ ${reconstructed}
         return "";
       }
     },
-    [verseRef.book, verseRef.chapter, verseRef.verse, language, englishVersion]
-
-  );  
-
+    [verseRef, language, englishVersion, buildKey]
+  );
 
   /* -------------------------
     Reset when verse changes
   ---------------------------*/
-  useEffect(() => {
-    localCache.current.clear();
-    refCache.current.clear();
-
-    setAnalysis({
-      Interlinear: null,
-      "Cross-references": null,
-      "Historical Context": null,
-      Notes: userNotes,
-    });
-
-    setErrorMsg("");
-    setActiveTab("Historical Context");
-  }, [verseRef, userNotes]);
-
   /* -------------------------
-    Invalidate cache when language changes (current tab only)
-  ---------------------------*/
-  // Replace your entire language-change effect with:
-  useEffect(() => {
-    // mark tab as needing reload BEFORE clearing cache
-    setAnalysis(prev => ({ ...prev, [activeTab]: null }));
-  
-    // clear EN + TE cached values for this tab
-    localCache.current.delete(`${verseId}::${activeTab}::EN`);
-    localCache.current.delete(`${verseId}::${activeTab}::TE`);
-  }, [language, activeTab, verseId]);
-  
-  
-  
-
-  
-
-  /* -------------------------
-    Load when language/tab changes
-  ---------------------------*/
-  // Load content when activeTab or language changes
-// Load analysis content based on tab + language
+  Reset AI state when verse changes
+---------------------------*/
 useEffect(() => {
-  if (activeTab === "Notes") return;
+  // Clear AI caches for new verse
+  localCache.current.clear();
+  refCache.current.clear();
 
-  // Already loaded? Skip.
-  if (analysis[activeTab] != null) return;
+  setAnalysis({
+    Interlinear: null,
+    "Cross-references": null,
+    "Historical Context": null,
+    Notes: null,
+  });
 
-  let cancelled = false;
+  setErrorMsg("");
+  setActiveTab("Historical Context");
+}, [verseRef]);
 
-  (async () => {
-    setLoading(true);
-    setErrorMsg("");
-
-    const text = await loadTab(activeTab);
-
-    if (!cancelled) {
-      setAnalysis(prev => ({ ...prev, [activeTab]: text }));
-      setLoading(false);
-    }
-  })();
-
-  return () => {
-    cancelled = true;
-  };
-}, [activeTab, verseId, language, loadTab, analysis]);
-
+/* -------------------------
+  Sync notes from context when verse or notes change
+---------------------------*/
+useEffect(() => {
+  const existing = getNoteFor(verseRef);
+  setNoteText(existing?.content ?? "");
+}, [verseRef]);
 
 
+  /* -------------------------
+    Invalidate analysis for current tab on language change
+  ---------------------------*/
+  useEffect(() => {
+    if (activeTab === "Notes") return;
 
-  
+    setAnalysis((prev) => ({
+      ...prev,
+      [activeTab]: null,
+    }));
+  }, [language, activeTab]);
+
+  /* -------------------------
+    Load analysis content when tab or language changes
+  ---------------------------*/
+  useEffect(() => {
+    if (activeTab === "Notes") return;
+    if (analysis[activeTab] != null) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setErrorMsg("");
+
+      const text = await loadTab(activeTab);
+
+      if (!cancelled) {
+        setAnalysis((prev) => ({ ...prev, [activeTab]: text }));
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, analysis, loadTab]);
+
   /* -------------------------
     Reference click
   ---------------------------*/
@@ -615,6 +619,22 @@ useEffect(() => {
   }, [previewRef, language]);
 
   /* -------------------------
+    Notes change handler (Supabase-backed)
+  ---------------------------*/
+  const handleNoteChange = useCallback(
+    async (val: string) => {
+      setNoteText(val);
+      try {
+        await saveNoteFor(verseRef, val);
+        await refreshNoteFor(verseRef);
+      } catch (e) {
+        console.error("Failed to save note", e);
+      }
+    },
+    [saveNoteFor, refreshNoteFor, verseRef]
+  );
+
+  /* -------------------------
     Render
   ---------------------------*/
   return (
@@ -627,7 +647,7 @@ useEffect(() => {
           <i className="fas fa-times text-2xl" />
         </button>
       )}
-  
+
       {/* Header: Verse + Language Toggle */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
@@ -637,12 +657,12 @@ useEffect(() => {
               : verseRef.book}{" "}
             {verseRef.chapter}:{verseRef.verse}
           </h2>
-  
+
           <p className="mt-1 text-gray-700 dark:text-gray-300 italic">
             "{displayVerseText}"
           </p>
         </div>
-  
+
         <div className="flex items-center gap-2 mr-10 md:mr-0">
           <label className="text-sm text-gray-600 dark:text-gray-300">
             Language
@@ -655,51 +675,55 @@ useEffect(() => {
           </button>
         </div>
       </div>
-  
+
       {/* Highlight controls */}
       {onHighlightChange && (
         <div className="mb-4 flex items-center gap-3">
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
             Highlight
           </span>
-  
+
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onHighlightChange("yellow")}
-              className={`
-                w-6 h-6 rounded-full border bg-yellow-300
-                ${currentHighlight === "yellow" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
-              `}
+              className={`w-6 h-6 rounded-full border bg-yellow-300 ${
+                currentHighlight === "yellow"
+                  ? "ring-2 ring-white/70 dark:ring-white/60"
+                  : ""
+              }`}
             />
-  
+
             <button
               type="button"
               onClick={() => onHighlightChange("green")}
-              className={`
-                w-6 h-6 rounded-full border bg-green-300
-                ${currentHighlight === "green" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
-              `}
+              className={`w-6 h-6 rounded-full border bg-green-300 ${
+                currentHighlight === "green"
+                  ? "ring-2 ring-white/70 dark:ring-white/60"
+                  : ""
+              }`}
             />
-  
+
             <button
               type="button"
               onClick={() => onHighlightChange("pink")}
-              className={`
-                w-6 h-6 rounded-full border bg-rose-300
-                ${currentHighlight === "pink" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
-              `}
+              className={`w-6 h-6 rounded-full border bg-rose-300 ${
+                currentHighlight === "pink"
+                  ? "ring-2 ring-white/70 dark:ring-white/60"
+                  : ""
+              }`}
             />
-  
+
             <button
               type="button"
               onClick={() => onHighlightChange("blue")}
-              className={`
-                w-6 h-6 rounded-full border bg-sky-300
-                ${currentHighlight === "blue" ? "ring-2 ring-white/70 dark:ring-white/60" : ""}
-              `}
+              className={`w-6 h-6 rounded-full border bg-sky-300 ${
+                currentHighlight === "blue"
+                  ? "ring-2 ring-white/70 dark:ring-white/60"
+                  : ""
+              }`}
             />
-  
+
             <button
               type="button"
               onClick={() => onHighlightChange(null)}
@@ -710,7 +734,6 @@ useEffect(() => {
           </div>
         </div>
       )}
-  
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
@@ -741,7 +764,7 @@ useEffect(() => {
 
       {/* Main content */}
       <div className="flex-grow overflow-y-auto pr-2">
-        {loading ? (
+        {loading && activeTab !== "Notes" ? (
           <LoadingSkeleton />
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
@@ -753,8 +776,8 @@ useEffect(() => {
                     ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
                     : "Your personal notes on this verse..."
                 }
-                value={userNotes}
-                onChange={(e) => setUserNotes(e.target.value)}
+                value={noteText}
+                onChange={(e) => void handleNoteChange(e.target.value)}
               />
             ) : errorMsg ? (
               <p className="text-red-500">{errorMsg}</p>
