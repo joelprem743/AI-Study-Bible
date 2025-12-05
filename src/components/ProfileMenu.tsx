@@ -94,12 +94,12 @@ export default function ProfileMenu() {
   onClick={() => handleAuthOpen("signin")}
   className="
     w-10 h-10 rounded-full 
-    bg-gray-200 dark:bg-gray-700
-    border border-gray-300 dark:border-gray-500
-    flex items-center justify-center 
-    text-gray-700 dark:text-gray-200
-    hover:bg-gray-300 dark:hover:bg-gray-600
-    transition-all duration-200
+    bg-gray-100 dark:bg-gray-800
+    border border-gray-300 dark:border-gray-600
+    flex items-center justify-center
+    text-gray-600 dark:text-gray-300
+    hover:bg-gray-200 dark:hover:bg-gray-700
+    transition-all
   "
 >
   <i className="fas fa-user text-lg" />
@@ -140,21 +140,23 @@ export default function ProfileMenu() {
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Avatar Button */}
-      <button
+      
+<button
   onClick={() => setIsDropdownOpen((v) => !v)}
   className="
     w-10 h-10 rounded-full 
-    bg-gray-300 dark:bg-gray-600
-    flex items-center justify-center 
-    font-semibold 
+    bg-gray-100 dark:bg-gray-700
+    border border-gray-300 dark:border-gray-600
+    flex items-center justify-center
+    font-semibold
     text-gray-800 dark:text-white
-    border border-gray-400 dark:border-gray-500
-    hover:bg-gray-400 dark:hover:bg-gray-700
-    transition-all duration-200
+    hover:bg-gray-200 dark:hover:bg-gray-600
+    transition-all
   "
 >
   {firstLetter}
 </button>
+
 
 
 
