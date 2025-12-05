@@ -7,13 +7,21 @@ interface HighlightRow {
   book: string;
   chapter: number;
   verse: number;
-  color: string;
+  color: string; // stored in DB as "yellow" | "green" | "pink" | "blue"
 }
 
 interface Props {
   userId: string;
   onClose: () => void;
 }
+
+// Tailwind color equivalents used in VerseTools
+const COLOR_MAP: Record<string, string> = {
+  yellow: "#FDE047", // bg-yellow-300
+  green: "#86EFAC",  // bg-green-300
+  pink: "#FDA4AF",   // bg-rose-300
+  blue: "#7DD3FC",   // bg-sky-300
+};
 
 export default function ProfileHighlights({ userId, onClose }: Props) {
   const [highlights, setHighlights] = useState<HighlightRow[]>([]);
@@ -184,8 +192,11 @@ function HighlightItem({ highlight, onClose }: ItemProps) {
       <div className="flex items-center gap-2 mb-1">
         <div
           className="w-3 h-3 rounded"
-          style={{ backgroundColor: highlight.color }}
+          style={{
+            backgroundColor: COLOR_MAP[highlight.color] || highlight.color,
+          }}
         />
+
         <span className="font-semibold text-sm text-gray-800 dark:text-blue-200">
           {highlight.book} {highlight.chapter}:{highlight.verse}
         </span>

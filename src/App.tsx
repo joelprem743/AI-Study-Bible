@@ -11,6 +11,8 @@ import { SearchResultDisplay } from "./components/SearchResultDisplay";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
 
+
+
 import {
   fetchChapter,
   BIBLE_META,
@@ -449,79 +451,138 @@ const App: React.FC = () => {
         <div className="flex flex-col h-screen font-sans">
           {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
 
-          {/* HEADER */}
+          
 {/* HEADER */}
 <header
   className="
-    bg-white dark:bg-gray-900 p-3 shadow-md z-10 
-    border-b border-gray-200 dark:border-[#2A2F35]
+    bg-white dark:bg-slate-900 p-3 shadow-md z-10 
+    border-b border-gray-200 dark:border-slate-700
     flex flex-col md:flex-row md:items-center md:justify-between gap-3
   "
 >
 
-  {/* TITLE + PROFILE (MOBILE ONLY) */}
-  <div className="flex md:hidden items-center justify-between px-4">
-    {/* Title Left */}
-    <div className="flex items-center gap-4 py-2">
-      <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white">
-        <i className="fas fa-book-open text-lg" />
+  {/* MOBILE: Logo + Title + Profile */}
+  <div className="flex md:hidden items-center justify-between px-2">
+    
+    {/* Brand Logo (Rounded Square — NOT Circle) */}
+    <div className="flex items-center gap-3 py-1">
+      <div
+        className="
+          w-10 h-10 rounded-lg 
+          bg-gradient-to-br from-blue-500 to-blue-700
+          flex items-center justify-center shadow-sm
+        "
+      >
+        <svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+  className="w-6 h-6 text-white"
+>
+  {/* Bible cover */}
+  <rect x="5" y="3" width="14" height="18" rx="2" />
+
+  {/* Cross vertical — longer */}
+  <path d="M12 8v8" />
+
+  {/* Cross horizontal — shorter, placed above center */}
+  <path d="M10 10h4" />
+</svg>
+
+
       </div>
 
-      <div className="flex flex-col">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-[#E5E5E5]">
+      <div className="flex flex-col leading-tight">
+        <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           AI Bible Study Companion
-        </h1>
-        <span className="text-xs text-gray-600 dark:text-[#9CA3AF]">
+        </span>
+        <span className="text-xs text-gray-600 dark:text-gray-400">
           by Joel Prem
         </span>
       </div>
     </div>
 
-    {/* Profile Right */}
+    {/* Profile Menu (Mobile) */}
     <ProfileMenu />
   </div>
 
-  {/* DESKTOP TITLE (unchanged) */}
-  <div className="hidden md:flex items-center gap-4 ml-4 py-2">
-    <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white">
-      <i className="fas fa-book-open text-lg" />
+  {/* DESKTOP: Logo + Title */}
+  <div className="hidden md:flex items-center gap-4 ml-4 py-1">
+
+    {/* Brand Logo (Rounded Square — PROPER version) */}
+    <div
+      className="
+        w-10 h-10 rounded-lg
+        bg-gradient-to-br from-blue-500 to-blue-700
+        flex items-center justify-center shadow-sm
+      "
+    >
+      <svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+  className="w-6 h-6 text-white"
+>
+  {/* Bible cover */}
+  <rect x="5" y="3" width="14" height="18" rx="2" />
+
+  {/* Cross vertical — longer */}
+  <path d="M12 8v8" />
+
+  {/* Cross horizontal — shorter, placed above center */}
+  <path d="M10 10h4" />
+</svg>
+
+
+
     </div>
 
-    <div className="flex flex-col">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-[#E5E5E5]">
+    <div className="flex flex-col leading-tight">
+      <span className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         AI Bible Study Companion
-      </h1>
-      <span className="text-sm text-gray-600 dark:text-[#9CA3AF]">
+      </span>
+      <span className="text-sm text-gray-600 dark:text-gray-400">
         by Joel Prem
       </span>
     </div>
   </div>
 
-  {/* SEARCH BAR + PROFILE (DESKTOP LAYOUT SAME AS ORIGINAL) */}
-  <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-3 px-4 md:px-0">
+  {/* SEARCH + PROFILE (Desktop) */}
+  <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-3 px-2 md:px-0">
 
-    {/* Search */}
+    {/* Search Bar */}
     <form
       onSubmit={handleSearch}
       className="flex-1 md:w-80 max-w-md flex items-center"
     >
-      <div className="
-        flex w-full rounded-lg overflow-hidden 
-        transform-gpu transition-all duration-200 ease-out
-        hover:shadow-[0_0_14px_rgba(59,130,246,0.55)] 
-        dark:hover:shadow-[0_0_16px_rgba(59,130,246,0.65)]
-      ">
+      <div
+        className="
+          flex w-full rounded-lg overflow-hidden 
+          transition-all duration-200 ease-out
+          hover:shadow-[0_0_14px_rgba(59,130,246,0.55)] 
+          dark:hover:shadow-[0_0_16px_rgba(59,130,246,0.65)]
+        "
+      >
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search (Psalm 23:1, Romans 8:1–4 | యోహాను 3:16)"
+          placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
           className="
             bg-gray-50 border border-gray-300 text-gray-900 text-sm 
-            dark:bg-gray-800 dark:border-[#2A2F35] dark:text-[#E5E5E5] 
+            dark:bg-gray-800 dark:border-slate-700 dark:text-gray-100
             w-full p-2.5 outline-none
           "
         />
+
         <button
           type="submit"
           className="
@@ -535,13 +596,13 @@ const App: React.FC = () => {
       </div>
     </form>
 
-    {/* Desktop Profile EXACT SAME PLACE */}
+    {/* Profile Avatar (Desktop) */}
     <div className="hidden md:block">
       <ProfileMenu />
     </div>
-
   </div>
 </header>
+
 
 
 
