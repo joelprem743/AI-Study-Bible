@@ -94,16 +94,17 @@ export default function ProfileMenu() {
   onClick={() => handleAuthOpen("signin")}
   className="
     w-10 h-10 rounded-full 
-    bg-gray-500/40 dark:bg-gray-700/40
-    border border-gray-400/40 dark:border-gray-600/40
+    bg-gray-200 dark:bg-gray-700
+    border border-gray-300 dark:border-gray-500
     flex items-center justify-center 
-    text-gray-200 dark:text-gray-300
-    hover:bg-gray-500/60 dark:hover:bg-gray-700/60
+    text-gray-700 dark:text-gray-200
+    hover:bg-gray-300 dark:hover:bg-gray-600
     transition-all duration-200
   "
 >
   <i className="fas fa-user text-lg" />
 </button>
+
 
 
         {isAuthModalOpen && (
@@ -143,16 +144,18 @@ export default function ProfileMenu() {
   onClick={() => setIsDropdownOpen((v) => !v)}
   className="
     w-10 h-10 rounded-full 
-    bg-gray-400 dark:bg-gray-600
+    bg-gray-300 dark:bg-gray-600
     flex items-center justify-center 
-    font-semibold text-white
-    border border-gray-300/30 dark:border-white/10
-    hover:bg-gray-500 dark:hover:bg-gray-700
+    font-semibold 
+    text-gray-800 dark:text-white
+    border border-gray-400 dark:border-gray-500
+    hover:bg-gray-400 dark:hover:bg-gray-700
     transition-all duration-200
   "
 >
   {firstLetter}
 </button>
+
 
 
 
