@@ -228,19 +228,15 @@ export const VerseTools: React.FC<{
   currentHighlight,
   onHighlightChange,
 }) => {
-  // NOTES CONTEXT (Supabase-backed)
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
 
-  // Preview ref modal
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // UI state
   const [activeTab, setActiveTab] = useState<Tab>("Notes");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
 
-  // Analysis cache per tab (language-specific content handled separately)
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
     Interlinear: null,
     "Cross-references": null,
@@ -248,15 +244,14 @@ export const VerseTools: React.FC<{
     Notes: null,
   });
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const verseId = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}`;
-
-  // Notes text (this is what the user types)
   const [noteText, setNoteText] = useState<string>("");
 
-  // Local in-memory caches for AI analysis + reference fetching
   const localCache = useRef(new Map<string, string>());
   const refCache = useRef(new Map<string, string>());
 
@@ -269,23 +264,61 @@ export const VerseTools: React.FC<{
     (tab: Tab, lang: "EN" | "TE") => `${verseId}::${tab}::${lang}`,
     [verseId]
   );
+
   const handleCopyVerse = () => {
     const bookName =
       language === "TE"
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book;
-  
+
     const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
     const text = displayVerseText || "";
-  
+
     const out = `${ref} — ${text}`;
-  
+
     navigator.clipboard.writeText(out).catch((err) => {
       console.error("Copy failed", err);
     });
   };
-  
-  
+
+  const handleShareVerse = async () => {
+    const bookName =
+      language === "TE"
+        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+        : verseRef.book;
+
+    const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+    const text = displayVerseText || "";
+
+    const message = `${ref}\n${text}`;
+
+    const shareData = {
+      title: "Bible Verse",
+      text: message,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        console.error("Native share failed:", err);
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(message);
+      alert(
+        language === "TE"
+          ? "వచనం క్లిప్‌బోర్డ్‌కి కాపీ అయింది!"
+          : "Verse copied to clipboard!"
+      );
+    } catch (err) {
+      console.error("Clipboard write failed:", err);
+    }
+  };
+
   /* -------------------------
     loadReferenceText
   ---------------------------*/
@@ -312,7 +345,6 @@ export const VerseTools: React.FC<{
         let meta = findBookMetadata(rawBook);
 
         if (!meta) {
-          // Try "1 యోహాను" style
           const numMatch = rawBook.match(/^([1-3])\s*(.+)$/u);
           if (numMatch) {
             const bookNum = numMatch[1];
@@ -328,7 +360,6 @@ export const VerseTools: React.FC<{
         }
 
         if (!meta) {
-          // Try reverse match from TELUGU_BOOK_NAMES
           const englishKey = Object.entries(TELUGU_BOOK_NAMES).find(
             ([, tel]) => {
               const telNoNum = tel.replace(/^[1-3]\s*/, "").trim();
@@ -371,8 +402,7 @@ export const VerseTools: React.FC<{
   );
 
   /* -------------------------
-    loadTab (analysis) with optimized EN/TE behavior
-    NOTE: this does NOT auto-run; we call it from a button.
+    loadTab (analysis)
   ---------------------------*/
   const loadTab = useCallback(
     async (tab: Tab) => {
@@ -388,9 +418,6 @@ export const VerseTools: React.FC<{
         let en: string | null = null;
         const MODEL_LANG_EN: "EN" = "EN";
 
-        // Fetch English only when needed:
-        // - language === "EN" (any tab)
-        // - Interlinear tab (for TE pipeline)
         if (language === "EN" || tab === "Interlinear") {
           const enKey = buildKey(tab, MODEL_LANG_EN);
           const cachedEN = localCache.current.get(enKey);
@@ -404,21 +431,18 @@ export const VerseTools: React.FC<{
           }
         }
 
-        // Case 1: English (all tabs, including Interlinear) -> just return EN
         if (language === "EN") {
           const result = en || "";
           localCache.current.set(key, result);
           return result;
         }
 
-        // Case 2: Telugu simple tabs (NO EN NEEDED)
         if (language === "TE" && tab !== "Interlinear") {
           const te = (await getVerseAnalysis(verseRef, tab, "TE")) || "";
           localCache.current.set(key, te);
           return te;
         }
 
-        // Case 3: Telugu Interlinear -> special pipeline
         const original = (en || "").replace(/\r\n/g, "\n");
         const { sec1, sec2, sec3, sec4 } = splitSections(original);
 
@@ -479,10 +503,9 @@ ${reconstructed}
   );
 
   /* -------------------------
-    Reset AI state when verse changes
+    Effects
   ---------------------------*/
   useEffect(() => {
-    // Clear AI caches for new verse
     localCache.current.clear();
     refCache.current.clear();
 
@@ -497,20 +520,13 @@ ${reconstructed}
     setActiveTab("Notes");
   }, [verseRef]);
 
-  /* -------------------------
-    Sync notes from context when verse changes
-  ---------------------------*/
   useEffect(() => {
     const existing = getNoteFor(verseRef);
     setNoteText(existing?.content ?? "");
   }, [verseRef, getNoteFor]);
 
-  /* -------------------------
-    Invalidate analysis for current tab on language change
-  ---------------------------*/
   useEffect(() => {
     if (activeTab === "Notes") return;
-
     setAnalysis((prev) => ({
       ...prev,
       [activeTab]: null,
@@ -518,29 +534,20 @@ ${reconstructed}
     setErrorMsg("");
   }, [language, activeTab]);
 
-  /* -------------------------
-    Manual generate handler (avoid auto-calls)
-  ---------------------------*/
-  const handleGenerateClick = useCallback(
-    async () => {
-      if (activeTab === "Notes") return;
-      setLoading(true);
-      setErrorMsg("");
+  const handleGenerateClick = useCallback(async () => {
+    if (activeTab === "Notes") return;
+    setLoading(true);
+    setErrorMsg("");
 
-      const text = await loadTab(activeTab);
+    const text = await loadTab(activeTab);
 
-      setAnalysis((prev) => ({
-        ...prev,
-        [activeTab]: text,
-      }));
-      setLoading(false);
-    },
-    [activeTab, loadTab]
-  );
+    setAnalysis((prev) => ({
+      ...prev,
+      [activeTab]: text,
+    }));
+    setLoading(false);
+  }, [activeTab, loadTab]);
 
-  /* -------------------------
-    Reference click
-  ---------------------------*/
   const handleClickReference = useCallback(
     async (reference: string) => {
       setPreviewRef(reference);
@@ -551,9 +558,6 @@ ${reconstructed}
     [loadReferenceText]
   );
 
-  /* -------------------------
-    Markdown node rendering with clickable refs
-  ---------------------------*/
   const renderNodeWithRefs = useCallback(
     (node: React.ReactNode): React.ReactNode => {
       if (node == null) return null;
@@ -603,9 +607,6 @@ ${reconstructed}
     [handleClickReference]
   );
 
-  /* -------------------------
-    Preview modal TE ref label
-  ---------------------------*/
   const displayPreviewRef = useMemo(() => {
     if (!previewRef) return previewRef;
     if (language !== "TE") return previewRef;
@@ -627,9 +628,6 @@ ${reconstructed}
     return previewRef.replace(raw, telName);
   }, [previewRef, language]);
 
-  /* -------------------------
-    Notes change handler (Supabase-backed)
-  ---------------------------*/
   const handleNoteChange = useCallback(
     async (val: string) => {
       setNoteText(val);
@@ -648,61 +646,94 @@ ${reconstructed}
   ---------------------------*/
   return (
     <div className="p-4 md:p-6 h-full flex flex-col relative">
-      {onClose && (
+      {/* HEADER */}
+<div className="mb-4">
+  <div className="flex items-center justify-between">
+    
+    {/* Title */}
+    <h2 className="text-xl font-bold text-blue-500 dark:text-blue-400">
+      {language === "TE"
+        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+        : verseRef.book}{" "}
+      {verseRef.chapter}:{verseRef.verse}
+    </h2>
+
+    {/* Action buttons */}
+    <div className="flex items-center gap-2 relative">
+
+      
+
+      {/* Ellipsis Menu */}
+      <div className="flex items-center gap-4">
+
+  {/* Ellipsis Menu */}
+  <div className="relative">
+    <button
+      onClick={() => setMenuOpen((v) => !v)}
+      className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
+                 text-gray-600 dark:text-gray-300"
+    >
+      <i className="fas fa-ellipsis-v" />
+    </button>
+
+    {menuOpen && (
+      <div
+        className="
+          absolute right-0 translate-x-[-8px] mt-2 w-44
+          bg-white dark:bg-gray-800 
+          border border-gray-300 dark:border-gray-600
+          rounded-lg shadow-xl z-[9999]"
+      >
         <button
-          onClick={onClose}
-          className="md:hidden absolute top-3 right-3 text-gray-500 dark:text-gray-400"
+          onClick={() => { handleCopyVerse(); setMenuOpen(false); }}
+          className="w-full px-4 py-2 flex items-center gap-3 text-left 
+                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <i className="fas fa-times text-2xl" />
+          <i className="fas fa-copy w-4" />
+          Copy Verse
         </button>
-      )}
 
-      {/* Header: Verse + Language Toggle */}
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-        <div className="flex items-center gap-2">
-  <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-    {language === "TE"
-      ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-      : verseRef.book}{" "}
-    {verseRef.chapter}:{verseRef.verse}
-  </h2>
+        <button
+          onClick={() => { handleShareVerse(); setMenuOpen(false); }}
+          className="w-full px-4 py-2 flex items-center gap-3 text-left 
+                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <i className="fas fa-share w-4" />
+          Share Verse
+        </button>
 
-  {/* Copy button beside reference */}
-  <button
-  onClick={handleCopyVerse}
-  className="
-    px-2 py-1 text-xs flex items-center gap-1 rounded 
-    border border-gray-300 dark:border-gray-600 
-    bg-gray-100 dark:bg-gray-800 
-    text-gray-700 dark:text-gray-200 
-    hover:bg-gray-200 dark:hover:bg-gray-700
-  "
->
-  <i className="fas fa-copy text-xs" />
-  Copy
-</button>
+        <button
+          onClick={() => { setLanguage(language === 'EN' ? 'TE' : 'EN'); setMenuOpen(false); }}
+          className="w-full px-4 py-2 flex items-center gap-3 text-left 
+                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <i className="fas fa-globe w-4" />
+          Language: {language}
+        </button>
+      </div>
+    )}
+  </div>
 
+  {/* Close button */}
+  {onClose && (
+    <button
+      onClick={onClose}
+      className="text-gray-500 dark:text-gray-400 hover:text-gray-300"
+    >
+      <i className="fas fa-times text-lg" />
+    </button>
+  )}
 </div>
 
+    </div>
+  </div>
 
-          <p className="mt-1 text-gray-700 dark:text-gray-300 italic">
-            "{displayVerseText}"
-          </p>
-        </div>
+  {/* Verse Text */}
+  <p className="text-gray-200 dark:text-gray-200 italic text-sm mt-2 leading-relaxed">
+    {displayVerseText ? `"${displayVerseText}"` : ""}
+  </p>
+</div>
 
-        <div className="flex items-center gap-2 mr-10 md:mr-0">
-          <label className="text-sm text-gray-600 dark:text-gray-300">
-            Language
-          </label>
-          <button
-            onClick={() => setLanguage((l) => (l === "EN" ? "TE" : "EN"))}
-            className="px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm"
-          >
-            {language}
-          </button>
-        </div>
-      </div>
 
       {/* Highlight controls */}
       {onHighlightChange && (
@@ -712,63 +743,55 @@ ${reconstructed}
           </span>
 
           <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("yellow");
-              onClose?.();
-            }}
-            className="w-6 h-6 rounded-full border bg-yellow-300 ..."
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("green");
-              onClose?.();
-            }}
-            className="w-6 h-6 rounded-full border bg-green-300 ..."
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("pink");
-              onClose?.();
-            }}
-            className="w-6 h-6 rounded-full border bg-rose-300 ..."
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("blue");
-              onClose?.();
-            }}
-            className="w-6 h-6 rounded-full border bg-sky-300 ..."
-          />
-
+            <button
+              type="button"
+              onClick={() => {
+                onHighlightChange("yellow");
+                onClose?.();
+              }}
+              className="w-6 h-6 rounded-full border bg-yellow-300"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onHighlightChange("green");
+                onClose?.();
+              }}
+              className="w-6 h-6 rounded-full border bg-green-300"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onHighlightChange("pink");
+                onClose?.();
+              }}
+              className="w-6 h-6 rounded-full border bg-rose-300"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onHighlightChange("blue");
+                onClose?.();
+              }}
+              className="w-6 h-6 rounded-full border bg-sky-300"
+            />
 
             <button
-  type="button"
-  onClick={() => {
-    onHighlightChange(null);
-    onClose?.();
-  }}
-  className="
-    px-3 py-1 text-xs rounded 
-    border border-gray-300 dark:border-gray-600 
-    bg-gray-100 dark:bg-gray-800 
-    text-gray-700 dark:text-gray-200 
-    hover:bg-gray-200 dark:hover:bg-gray-700
-  "
->
-  Clear
-</button>
-
-
-
-
+              type="button"
+              onClick={() => {
+                onHighlightChange(null);
+                onClose?.();
+              }}
+              className="
+                px-3 py-1 text-xs rounded 
+                border border-gray-300 dark:border-gray-600 
+                bg-gray-100 dark:bg-gray-800 
+                text-gray-700 dark:text-gray-200 
+                hover:bg-gray-200 dark:hover:bg-gray-700
+              "
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}
@@ -807,37 +830,37 @@ ${reconstructed}
       <div className="flex-grow overflow-y-auto pr-2">
         {activeTab === "Notes" ? (
           <div className="flex flex-col gap-3">
-          <textarea
-            className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
-            placeholder={
-              language === "TE"
-                ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
-                : "Your personal notes on this verse..."
-            }
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-          />
-        
-          <button
-            onClick={async () => {
-              try {
-                await saveNoteFor(verseRef, noteText);
-                await refreshNoteFor(verseRef);
-                onClose?.(); 
-              } catch (err) {
-                console.error("Failed to save note", err);
+            <textarea
+              className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+              placeholder={
+                language === "TE"
+                  ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
+                  : "Your personal notes on this verse..."
               }
-            }}
-            className="
-              self-start px-4 py-2 text-sm 
-              bg-blue-600 hover:bg-blue-700 
-              text-white rounded-md
-            "
-          >
-            {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
-          </button>
-        </div>
-        
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onBlur={(e) => void handleNoteChange(e.target.value)}
+            />
+
+            <button
+              onClick={async () => {
+                try {
+                  await saveNoteFor(verseRef, noteText);
+                  await refreshNoteFor(verseRef);
+                  onClose?.();
+                } catch (err) {
+                  console.error("Failed to save note", err);
+                }
+              }}
+              className="
+                self-start px-4 py-2 text-sm 
+                bg-blue-600 hover:bg-blue-700 
+                text-white rounded-md
+              "
+            >
+              {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
+            </button>
+          </div>
         ) : loading ? (
           <LoadingSkeleton />
         ) : (
