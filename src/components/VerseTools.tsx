@@ -270,14 +270,21 @@ export const VerseTools: React.FC<{
     [verseId]
   );
   const handleCopyVerse = () => {
-    const ref = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+    const bookName =
+      language === "TE"
+        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+        : verseRef.book;
+  
+    const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
     const text = displayVerseText || "";
+  
     const out = `${ref} — ${text}`;
   
     navigator.clipboard.writeText(out).catch((err) => {
       console.error("Copy failed", err);
     });
   };
+  
   
   /* -------------------------
     loadReferenceText
@@ -653,12 +660,31 @@ ${reconstructed}
       {/* Header: Verse + Language Toggle */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-            {language === "TE"
-              ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-              : verseRef.book}{" "}
-            {verseRef.chapter}:{verseRef.verse}
-          </h2>
+        <div className="flex items-center gap-2">
+  <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
+    {language === "TE"
+      ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+      : verseRef.book}{" "}
+    {verseRef.chapter}:{verseRef.verse}
+  </h2>
+
+  {/* Copy button beside reference */}
+  <button
+  onClick={handleCopyVerse}
+  className="
+    px-2 py-1 text-xs flex items-center gap-1 rounded 
+    border border-gray-300 dark:border-gray-600 
+    bg-gray-100 dark:bg-gray-800 
+    text-gray-700 dark:text-gray-200 
+    hover:bg-gray-200 dark:hover:bg-gray-700
+  "
+>
+  <i className="fas fa-copy text-xs" />
+  Copy
+</button>
+
+</div>
+
 
           <p className="mt-1 text-gray-700 dark:text-gray-300 italic">
             "{displayVerseText}"
@@ -724,27 +750,23 @@ ${reconstructed}
 
 
             <button
-              type="button"
-              onClick={() => {
-                onHighlightChange(null);
-                onClose?.();
-              }}
-              className="ml-2 px-3 py-1 text-xs ..."
-            >
-              Clear
-            </button>
+  type="button"
+  onClick={() => {
+    onHighlightChange(null);
+    onClose?.();
+  }}
+  className="
+    px-3 py-1 text-xs rounded 
+    border border-gray-300 dark:border-gray-600 
+    bg-gray-100 dark:bg-gray-800 
+    text-gray-700 dark:text-gray-200 
+    hover:bg-gray-200 dark:hover:bg-gray-700
+  "
+>
+  Clear
+</button>
 
-            <button
-              type="button"
-              onClick={handleCopyVerse}
-              className="ml-2 px-2.5 py-1 flex items-center gap-1 text-xs rounded 
-                         border border-gray-300 dark:border-gray-600 
-                         bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200
-                         hover:bg-gray-200"
-            >
-              <i className="fas fa-copy text-xs" />
-              Copy
-            </button>
+
 
 
           </div>
