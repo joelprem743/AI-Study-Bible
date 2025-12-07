@@ -340,7 +340,6 @@ async function fetchTranslationForReference(referenceString: string, version: st
 // fetchChapter
 // ------------------------------
 export const fetchChapter = async (book: string, chapter: number): Promise<Verse[]> => {
-  // book may be Telugu or English: canonicalize to English before fetch
   const engBook = canonicalizeBook(book);
   const reference = `${engBook} ${chapter}`;
 
@@ -373,44 +372,34 @@ export const fetchChapter = async (book: string, chapter: number): Promise<Verse
 // fetchVersesByReferences
 // ------------------------------
 export const fetchVersesByReferences = async (references: ParsedReference[]): Promise<FullVerse[]> => {
-  const fetchPromises = references.map(async (ref) => {
-    // canonicalize the book name from ref (handles Telugu/English/abbrev)
+  const results: FullVerse[] = [];
+
+  for (const ref of references) {
     const engBook = canonicalizeBook(ref.book);
 
-    const referenceString = ref.endVerse
-      ? `${engBook} ${ref.chapter}:${ref.startVerse}-${ref.endVerse}`
-      : `${engBook} ${ref.chapter}:${ref.startVerse}`;
+    const start = ref.startVerse;
+    const end = ref.endVerse ?? start;
 
-    const [webData, kjvData] = await Promise.all([
-      fetchTranslationForReference(referenceString, 'web'),
-      fetchTranslationForReference(referenceString, 'kjv'),
-    ]);
+    for (let v = start; v <= end; v++) {
+      const teluguText = getTeluguVerse(engBook, ref.chapter, v);
 
-    if (!kjvData.verses || kjvData.verses.length === 0) {
-      return [] as FullVerse[];
-    }
-
-    return kjvData.verses.map(kjvVerse => {
-      const teluguText = getTeluguVerse(engBook, ref.chapter, kjvVerse.verse);
-      const webVerse = webData.verses.find(v => v.verse === kjvVerse.verse);
-
-      return {
+      results.push({
         book: engBook,
         chapter: ref.chapter,
-        verse: kjvVerse.verse,
+        verse: v,
         text: {
-          KJV: kjvVerse.text.replace(/\n/g, ' ').trim(),
-          ESV: webVerse?.text.replace(/\n/g, ' ').trim() || kjvVerse.text.replace(/\n/g, ' ').trim(),
-          NIV: webVerse?.text.replace(/\n/g, ' ').trim() || kjvVerse.text.replace(/\n/g, ' ').trim(),
-          ...(teluguText && { BSI_TELUGU: teluguText }),
+          KJV: "",          // no english for highlights
+          ESV: "",
+          NIV: "",
+          ...(teluguText && { BSI_TELUGU: teluguText })
         }
-      } as FullVerse;
-    });
-  });
+      });
+    }
+  }
 
-  const results = await Promise.all(fetchPromises);
-  return results.flat();
+  return results;
 };
+
 
 // ------------------------------
 // findBookMetadata — robust lookup for English / normalized Telugu names.
@@ -442,3 +431,103 @@ export const findBookMetadata = (
 
   return null;
 };
+
+// ------------------------------------------------------------
+// ADVANCED TELUGU SEARCH ENGINE
+// ------------------------------------------------------------
+export interface SearchOptions {
+  wholeWord?: boolean;       // Match whole Telugu words
+  highlight?: boolean;       // Include <mark> highlights
+  limit?: number;            // Maximum number of results
+  requireAll?: boolean;      // Match ALL keywords (AND search)
+}
+
+export async function searchTeluguKeyword(
+  rawQuery: string,
+  options: SearchOptions = {}
+): Promise<FullVerse[]> {
+
+  if (!rawQuery || !rawQuery.trim()) return [];
+
+  const query = rawQuery.trim().toLowerCase();
+  const keywords = query.split(/\s+/).filter(Boolean);
+  if (keywords.length === 0) return [];
+
+  const whole = options.wholeWord ?? false;
+  const highlight = options.highlight ?? true;
+  const requireAll = options.requireAll ?? true;
+  const limit = options.limit ?? 3000; // avoid UI freeze
+
+  const results: Array<{ score: number; verse: FullVerse }> = [];
+
+  typedTeluguBibleData.Book.forEach((book, bookIndex) => {
+    const bookName = BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name;
+
+    book.Chapter.forEach((chapter, chapterIndex) => {
+      chapter.Verse.forEach((v, verseIndex) => {
+        const raw = v.Verse?.trim() ?? "";
+        const text = raw.toLowerCase();
+
+        let matchScore = 0;
+        let matched = !requireAll;
+
+        for (const kw of keywords) {
+          if (whole) {
+            // Whole word detection
+            const regex = new RegExp(`(?:^|\\s)${kw}(?:$|\\s)`, "u");
+            if (regex.test(text)) {
+              matchScore += 10;
+              matched = requireAll ? matched && true : true;
+            } else if (requireAll) {
+              matched = false;
+              break;
+            }
+          } else {
+            // Substring detection
+            if (text.includes(kw)) {
+              matchScore += 5;
+              matched = requireAll ? matched && true : true;
+            } else if (requireAll) {
+              matched = false;
+              break;
+            }
+          }
+        }
+
+        if (!matched || matchScore === 0) return;
+
+        // Highlighting
+        let highlighted = raw;
+        if (highlight) {
+          for (const kw of keywords) {
+            const safe = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            highlighted = highlighted.replace(
+              new RegExp(`(${safe})`, "giu"),
+              "<mark>$1</mark>"
+            );
+          }
+        }
+
+        results.push({
+          score: matchScore,
+          verse: {
+            book: bookName,
+            chapter: chapterIndex + 1,
+            verse: verseIndex + 1,
+            text: {
+              KJV: "",
+              ESV: "",
+              NIV: "",
+              BSI_TELUGU: highlighted,
+            },
+          },
+        });
+      });
+    });
+  });
+
+  // Sort: highest score first
+  results.sort((a, b) => b.score - a.score);
+
+  return results.slice(0, limit).map((r) => r.verse);
+}

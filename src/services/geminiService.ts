@@ -19,6 +19,15 @@ let globalCooldownUntil = 0;
 let lastCall = 0;
 const MIN_GAP_MS = 250;
 
+// Feature flag to hard-disable AI if needed
+const AI_DISABLED =
+  (import.meta as any).env?.VITE_DISABLE_GEMINI === "1" ||
+  (import.meta as any).env?.VITE_DISABLE_GEMINI === "true";
+
+// Retry / cooldown configuration
+const MAX_RETRIES_PER_MODEL = 1;
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000; // 15 minutes for 429
+
 class ApiKeyError extends Error {
   constructor(message: string) {
     super(message);
@@ -40,6 +49,12 @@ function getAiInstance() {
 ============================================================ */
 
 async function safeGenerate(model: string, prompt: string): Promise<string> {
+  if (AI_DISABLED) {
+    throw new Error(
+      "AI features are temporarily disabled. Please try again later."
+    );
+  }
+
   const now = Date.now();
   const diff = now - lastCall;
 
@@ -50,26 +65,29 @@ async function safeGenerate(model: string, prompt: string): Promise<string> {
 
   lastCall = Date.now();
 
+  // Global cooldown (e.g. after quota/rate-limit)
   if (now < globalCooldownUntil) {
+    const seconds = Math.max(
+      1,
+      Math.ceil((globalCooldownUntil - now) / 1000)
+    );
     throw new Error(
-      `AI cooling down. Try again in ${Math.ceil(
-        (globalCooldownUntil - now) / 1000
-      )}s.`
+      `AI cooling down due to recent rate limits. Try again in ~${seconds}s.`
     );
   }
 
   const aiInstance = getAiInstance();
 
-  // Primary model + minimal fallback set
+  // Primary model + minimal fallback set (deduped by Set)
   const modelsToTry = Array.from(
     new Set([model, "gemini-2.5-flash-lite", "gemini-2.5-flash"])
   );
 
   for (const m of modelsToTry) {
-    let retries = 3;
+    let retries = MAX_RETRIES_PER_MODEL;
     let backoff = 300;
 
-    while (retries--) {
+    while (true) {
       try {
         const response = await aiInstance.models.generateContent({
           model: m,
@@ -80,30 +98,52 @@ async function safeGenerate(model: string, prompt: string): Promise<string> {
         const text = (response as any)?.text?.trim?.() ?? "";
         return text;
       } catch (err: any) {
-        const msg = err?.message || "";
+        const msg: string = err?.message || "";
+        const lower = msg.toLowerCase();
 
-        // Model overloaded
+        // 429 / RESOURCE_EXHAUSTED / quota
+        if (
+          msg.includes("429") ||
+          msg.includes("RESOURCE_EXHAUSTED") ||
+          lower.includes("quota") ||
+          lower.includes("rate limit")
+        ) {
+          // Long cooldown to stop hammering a dead quota
+          globalCooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+
+          throw new Error(
+            "AI quota or rate limit exceeded (429). " +
+              "Check your Gemini usage or try again later."
+          );
+        }
+
+        // Model overloaded / temporary backend problem
         if (msg.includes("503") || msg.includes("UNAVAILABLE")) {
-          if (retries === 0) break;
+          if (retries > 0) {
+            retries -= 1;
+            await new Promise((r) => setTimeout(r, backoff));
+            backoff *= 2;
+            continue;
+          }
+          // Out of retries for this model; try next model
+          break;
+        }
+
+        // Other errors: retry a bit, then bail
+        if (retries > 0) {
+          retries -= 1;
           await new Promise((r) => setTimeout(r, backoff));
           backoff *= 2;
           continue;
         }
 
-        // Rate limit
-        if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-          globalCooldownUntil = Date.now() + 3000;
-          await new Promise((r) => setTimeout(r, 1000));
-          continue;
-        }
-
-        // Other errors: bail out after retries
-        if (retries === 0) throw new Error(msg || "AI error");
+        // No retries left for this model; move on
+        break;
       }
     }
   }
 
-  throw new Error("AI temporarily unavailable. Please try again.");
+  throw new Error("AI temporarily unavailable. Please try again later.");
 }
 
 /* ============================================================
@@ -463,9 +503,7 @@ export const getVerseAnalysis = async (
   let prompt = "";
   const MODEL = "gemini-2.5-flash-lite";
 
-  // Important design decision:
   // Interlinear is ALWAYS generated in EN.
-  // Telugu interlinear is handled in the UI (VerseTools) using EN base text.
   if (section === "Interlinear") {
     const interlinearKey = `${baseKey}-EN`;
     const cachedInterlinear = verseCache.get(interlinearKey);
@@ -576,6 +614,7 @@ Rules:
 
     return res.replace(/\s+/g, " ").trim();
   } catch {
+    // If AI is disabled or quota is gone, just return empty.
     return "";
   }
 };

@@ -198,10 +198,10 @@ const LoadingSkeleton: React.FC = () => (
 type Tab = "Interlinear" | "Cross-references" | "Historical Context" | "Notes";
 
 const TABS: Tab[] = [
-  "Historical Context",
-  "Cross-references",
-  "Interlinear",
   "Notes",
+  "Cross-references",
+  "Historical Context",
+  "Interlinear",
 ];
 
 /* -------------------------
@@ -237,7 +237,7 @@ export const VerseTools: React.FC<{
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<Tab>("Historical Context");
+  const [activeTab, setActiveTab] = useState<Tab>("Notes");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
 
   // Analysis cache per tab (language-specific content handled separately)
@@ -269,7 +269,16 @@ export const VerseTools: React.FC<{
     (tab: Tab, lang: "EN" | "TE") => `${verseId}::${tab}::${lang}`,
     [verseId]
   );
-
+  const handleCopyVerse = () => {
+    const ref = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+    const text = displayVerseText || "";
+    const out = `${ref} — ${text}`;
+  
+    navigator.clipboard.writeText(out).catch((err) => {
+      console.error("Copy failed", err);
+    });
+  };
+  
   /* -------------------------
     loadReferenceText
   ---------------------------*/
@@ -356,6 +365,7 @@ export const VerseTools: React.FC<{
 
   /* -------------------------
     loadTab (analysis) with optimized EN/TE behavior
+    NOTE: this does NOT auto-run; we call it from a button.
   ---------------------------*/
   const loadTab = useCallback(
     async (tab: Tab) => {
@@ -369,18 +379,19 @@ export const VerseTools: React.FC<{
 
       try {
         let en: string | null = null;
+        const MODEL_LANG_EN: "EN" = "EN";
 
         // Fetch English only when needed:
         // - language === "EN" (any tab)
         // - Interlinear tab (for TE pipeline)
         if (language === "EN" || tab === "Interlinear") {
-          const enKey = buildKey(tab, "EN");
+          const enKey = buildKey(tab, MODEL_LANG_EN);
           const cachedEN = localCache.current.get(enKey);
 
           if (cachedEN != null) {
             en = cachedEN;
           } else {
-            const fetched = await getVerseAnalysis(verseRef, tab, "EN");
+            const fetched = await getVerseAnalysis(verseRef, tab, MODEL_LANG_EN);
             en = fetched || "";
             localCache.current.set(enKey, en);
           }
@@ -449,47 +460,43 @@ ${reconstructed}
 
         localCache.current.set(key, output);
         return output;
-      } catch (e) {
+      } catch (e: any) {
         console.error("loadTab error", e);
-        setErrorMsg(
-          language === "TE" ? "కంటెంట్ లోడ్ కాలేదు." : "Failed to load content."
-        );
+        const fallback =
+          language === "TE" ? "కంటెంట్ లోడ్ కాలేదు." : "Failed to load content.";
+        setErrorMsg(e?.message || fallback);
         return "";
       }
     },
-    [verseRef, language, englishVersion, buildKey]
+    [verseRef, language, buildKey]
   );
 
   /* -------------------------
-    Reset when verse changes
+    Reset AI state when verse changes
   ---------------------------*/
+  useEffect(() => {
+    // Clear AI caches for new verse
+    localCache.current.clear();
+    refCache.current.clear();
+
+    setAnalysis({
+      Interlinear: null,
+      "Cross-references": null,
+      "Historical Context": null,
+      Notes: null,
+    });
+
+    setErrorMsg("");
+    setActiveTab("Notes");
+  }, [verseRef]);
+
   /* -------------------------
-  Reset AI state when verse changes
----------------------------*/
-useEffect(() => {
-  // Clear AI caches for new verse
-  localCache.current.clear();
-  refCache.current.clear();
-
-  setAnalysis({
-    Interlinear: null,
-    "Cross-references": null,
-    "Historical Context": null,
-    Notes: null,
-  });
-
-  setErrorMsg("");
-  setActiveTab("Historical Context");
-}, [verseRef]);
-
-/* -------------------------
-  Sync notes from context when verse or notes change
----------------------------*/
-useEffect(() => {
-  const existing = getNoteFor(verseRef);
-  setNoteText(existing?.content ?? "");
-}, [verseRef]);
-
+    Sync notes from context when verse changes
+  ---------------------------*/
+  useEffect(() => {
+    const existing = getNoteFor(verseRef);
+    setNoteText(existing?.content ?? "");
+  }, [verseRef, getNoteFor]);
 
   /* -------------------------
     Invalidate analysis for current tab on language change
@@ -501,33 +508,28 @@ useEffect(() => {
       ...prev,
       [activeTab]: null,
     }));
+    setErrorMsg("");
   }, [language, activeTab]);
 
   /* -------------------------
-    Load analysis content when tab or language changes
+    Manual generate handler (avoid auto-calls)
   ---------------------------*/
-  useEffect(() => {
-    if (activeTab === "Notes") return;
-    if (analysis[activeTab] != null) return;
-
-    let cancelled = false;
-
-    (async () => {
+  const handleGenerateClick = useCallback(
+    async () => {
+      if (activeTab === "Notes") return;
       setLoading(true);
       setErrorMsg("");
 
       const text = await loadTab(activeTab);
 
-      if (!cancelled) {
-        setAnalysis((prev) => ({ ...prev, [activeTab]: text }));
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, analysis, loadTab]);
+      setAnalysis((prev) => ({
+        ...prev,
+        [activeTab]: text,
+      }));
+      setLoading(false);
+    },
+    [activeTab, loadTab]
+  );
 
   /* -------------------------
     Reference click
@@ -684,53 +686,67 @@ useEffect(() => {
           </span>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onHighlightChange("yellow")}
-              className={`w-6 h-6 rounded-full border bg-yellow-300 ${
-                currentHighlight === "yellow"
-                  ? "ring-2 ring-white/70 dark:ring-white/60"
-                  : ""
-              }`}
-            />
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("yellow");
+              onClose?.();
+            }}
+            className="w-6 h-6 rounded-full border bg-yellow-300 ..."
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("green");
+              onClose?.();
+            }}
+            className="w-6 h-6 rounded-full border bg-green-300 ..."
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("pink");
+              onClose?.();
+            }}
+            className="w-6 h-6 rounded-full border bg-rose-300 ..."
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("blue");
+              onClose?.();
+            }}
+            className="w-6 h-6 rounded-full border bg-sky-300 ..."
+          />
+
 
             <button
               type="button"
-              onClick={() => onHighlightChange("green")}
-              className={`w-6 h-6 rounded-full border bg-green-300 ${
-                currentHighlight === "green"
-                  ? "ring-2 ring-white/70 dark:ring-white/60"
-                  : ""
-              }`}
-            />
-
-            <button
-              type="button"
-              onClick={() => onHighlightChange("pink")}
-              className={`w-6 h-6 rounded-full border bg-rose-300 ${
-                currentHighlight === "pink"
-                  ? "ring-2 ring-white/70 dark:ring-white/60"
-                  : ""
-              }`}
-            />
-
-            <button
-              type="button"
-              onClick={() => onHighlightChange("blue")}
-              className={`w-6 h-6 rounded-full border bg-sky-300 ${
-                currentHighlight === "blue"
-                  ? "ring-2 ring-white/70 dark:ring-white/60"
-                  : ""
-              }`}
-            />
-
-            <button
-              type="button"
-              onClick={() => onHighlightChange(null)}
-              className="ml-2 px-3 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800"
+              onClick={() => {
+                onHighlightChange(null);
+                onClose?.();
+              }}
+              className="ml-2 px-3 py-1 text-xs ..."
             >
               Clear
             </button>
+
+            <button
+              type="button"
+              onClick={handleCopyVerse}
+              className="ml-2 px-2.5 py-1 flex items-center gap-1 text-xs rounded 
+                         border border-gray-300 dark:border-gray-600 
+                         bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200
+                         hover:bg-gray-200"
+            >
+              <i className="fas fa-copy text-xs" />
+              Copy
+            </button>
+
+
           </div>
         </div>
       )}
@@ -741,7 +757,10 @@ useEffect(() => {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setErrorMsg("");
+              }}
               className={`${
                 activeTab === tab
                   ? "border-blue-500 text-blue-600"
@@ -764,23 +783,61 @@ useEffect(() => {
 
       {/* Main content */}
       <div className="flex-grow overflow-y-auto pr-2">
-        {loading && activeTab !== "Notes" ? (
+        {activeTab === "Notes" ? (
+          <div className="flex flex-col gap-3">
+          <textarea
+            className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+            placeholder={
+              language === "TE"
+                ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
+                : "Your personal notes on this verse..."
+            }
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+          />
+        
+          <button
+            onClick={async () => {
+              try {
+                await saveNoteFor(verseRef, noteText);
+                await refreshNoteFor(verseRef);
+                onClose?.(); 
+              } catch (err) {
+                console.error("Failed to save note", err);
+              }
+            }}
+            className="
+              self-start px-4 py-2 text-sm 
+              bg-blue-600 hover:bg-blue-700 
+              text-white rounded-md
+            "
+          >
+            {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
+          </button>
+        </div>
+        
+        ) : loading ? (
           <LoadingSkeleton />
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
-            {activeTab === "Notes" ? (
-              <textarea
-                className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
-                placeholder={
-                  language === "TE"
-                    ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
-                    : "Your personal notes on this verse..."
-                }
-                value={noteText}
-                onChange={(e) => void handleNoteChange(e.target.value)}
-              />
-            ) : errorMsg ? (
-              <p className="text-red-500">{errorMsg}</p>
+            {errorMsg ? (
+              <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
+            ) : analysis[activeTab] == null ? (
+              <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+                <p>
+                  {language === "TE"
+                    ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
+                    : "Click the button below to generate AI analysis for this tab."}
+                </p>
+                <button
+                  onClick={handleGenerateClick}
+                  className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+                >
+                  {language === "TE"
+                    ? "విశ్లేషణ సృష్టించు"
+                    : `Generate ${activeTab}`}
+                </button>
+              </div>
             ) : (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}

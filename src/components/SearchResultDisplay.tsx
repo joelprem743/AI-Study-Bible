@@ -88,7 +88,11 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({ result
                                                 <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400">{verse.verse}</span>
                                                 <div>
                                                     {verse.text.BSI_TELUGU ? (
-                                                        <p className="text-lg leading-relaxed">{verse.text.BSI_TELUGU}</p>
+                                                        <p
+                                                        className="text-lg leading-relaxed"
+                                                        dangerouslySetInnerHTML={{ __html: verse.text.BSI_TELUGU }}
+                                                      />
+                                                      
                                                     ) : (
                                                         <p className="text-sm italic text-gray-500 dark:text-gray-400">[Telugu not available]</p>
                                                     )}

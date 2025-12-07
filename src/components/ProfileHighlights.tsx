@@ -1,7 +1,7 @@
 // src/components/ProfileHighlights.tsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { fetchChapter } from "../services/bibleService";
+import { fetchVersesByReferences } from "../services/bibleService";
 
 interface HighlightRow {
   book: string;
@@ -153,21 +153,23 @@ function HighlightItem({ highlight, onClose }: ItemProps) {
     const key = `${highlight.book}-${highlight.chapter}`;
 
     if (!chapterCache[key]) {
-      chapterCache[key] = await fetchChapter(highlight.book, highlight.chapter);
+      chapterCache[key] = await fetchVersesByReferences([
+        {
+          book: highlight.book,
+          chapter: highlight.chapter,
+          startVerse: highlight.verse,
+          endVerse: highlight.verse
+        }
+      ]);
+      
     }
 
     const verses = chapterCache[key];
-    const verseObj = verses.find((v: any) => v.verse === highlight.verse);
+    const verseObj = verses[0];
 
-    const english =
-      verseObj?.text?.ESV ||
-      verseObj?.text?.KJV ||
-      verseObj?.text?.NIV ||
-      "";
 
     const telugu = verseObj?.text?.BSI_TELUGU || "";
-
-    setText(telugu || english);
+setText(telugu);
   }
 
   const goToVerse = () => {

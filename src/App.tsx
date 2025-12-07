@@ -19,6 +19,7 @@ import {
   findBookMetadata,
   fetchVersesByReferences,
   normalizeTeluguReference,
+  searchTeluguKeyword,
 } from "./services/bibleService";
 
 import { searchBibleByKeyword } from "./services/geminiService";
@@ -333,92 +334,93 @@ const App: React.FC = () => {
     return parsed;
   };
 
-  const handleSearch = async (event: FormEvent) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
+  // ------------------ SEARCH LOGIC ------------------
+const handleSearch = async (event: FormEvent) => {
+  event.preventDefault();
+  const query = searchQuery.trim();
+  if (!query) return;
 
-    setSearchError(null);
+  setSearchError(null);
 
-    const normalizedQueryForParse = normalizeTeluguReference(query);
-    const parsedRefs = parseReferencesFromString(normalizedQueryForParse);
+  // Try parse reference
+  const normalizedQueryForParse = normalizeTeluguReference(query);
+  const parsedRefs = parseReferencesFromString(normalizedQueryForParse);
 
-    if (parsedRefs.length > 1) {
-      setIsSearching(true);
-      try {
-        const results = await fetchVersesByReferences(parsedRefs);
-        setSearchResults(results);
-        setIsSearchView(true);
-      } catch (err) {
-        console.error(err);
-        setSearchError("Failed to fetch results.");
-      } finally {
-        setIsSearching(false);
-        setSearchQuery("");
-      }
-      return;
-    }
-
-    if (parsedRefs.length === 1) {
-      const ref = parsedRefs[0];
-      const bookMeta = BIBLE_META.find((b) => b.name === ref.book);
-
-      if (!bookMeta || ref.chapter < 1 || ref.chapter > bookMeta.chapters) {
-        setSearchError(`Invalid chapter for ${ref.book}.`);
-        return;
-      }
-
-      setIsSearchView(false);
-      setSelectedBook(ref.book);
-      setSelectedChapter(ref.chapter);
-
-      if (ref.startVerse) {
-        setSelectedVerseRef({
-          book: ref.book,
-          chapter: ref.chapter,
-          verse: ref.startVerse,
-        });
-      } else {
-        setSelectedVerseRef(null);
-      }
-
-      setSearchQuery("");
-      return;
-    }
-
+  // Multiple references ("John 3:16, John 4:5")
+  if (parsedRefs.length > 1) {
     setIsSearching(true);
     try {
-      const normalizedForAI = normalizeTeluguReference(query);
-      const referenceString = await searchBibleByKeyword(normalizedForAI);
-
-      if (!referenceString || !referenceString.trim()) {
-        setSearchError(`No verses found for "${query}".`);
-        setSearchResults([]);
-        setIsSearchView(true);
-        return;
-      }
-
-      const normalizedRefString = normalizeTeluguReference(referenceString);
-      const keywordRefs = parseReferencesFromString(normalizedRefString);
-
-      if (keywordRefs.length === 0) {
-        setSearchError(`Could not parse results for "${query}".`);
-        setSearchResults([]);
-        setIsSearchView(true);
-        return;
-      }
-
-      const results = await fetchVersesByReferences(keywordRefs);
+      const results = await fetchVersesByReferences(parsedRefs);
       setSearchResults(results);
       setIsSearchView(true);
     } catch (err) {
       console.error(err);
-      setSearchError("An error occurred during keyword search.");
+      setSearchError("Failed to fetch results.");
     } finally {
       setIsSearching(false);
       setSearchQuery("");
     }
-  };
+    return;
+  }
+
+  // Single reference
+  if (parsedRefs.length === 1) {
+    const ref = parsedRefs[0];
+    const bookMeta = BIBLE_META.find((b) => b.name === ref.book);
+
+    if (!bookMeta || ref.chapter < 1 || ref.chapter > bookMeta.chapters) {
+      setSearchError(`Invalid chapter for ${ref.book}.`);
+      return;
+    }
+
+    setIsSearchView(false);
+    setSelectedBook(ref.book);
+    setSelectedChapter(ref.chapter);
+
+    if (ref.startVerse) {
+      setSelectedVerseRef({
+        book: ref.book,
+        chapter: ref.chapter,
+        verse: ref.startVerse,
+      });
+    } else {
+      setSelectedVerseRef(null);
+    }
+
+    setSearchQuery("");
+    return;
+  }
+
+  // ----------------------
+  // TELUGU KEYWORD SEARCH (REPLACES AI)
+  // ----------------------
+  setIsSearching(true);
+
+  try {
+    const results = await searchTeluguKeyword(query, {
+      wholeWord: false,
+      requireAll: false,
+      highlight: true,
+      limit: 500,
+    });
+
+    if (results.length === 0) {
+      setSearchError(`No verses found for "${query}".`);
+      setSearchResults([]);
+      setIsSearchView(true);
+      return;
+    }
+
+    setSearchResults(results);
+    setIsSearchView(true);
+  } catch (err) {
+    console.error(err);
+    setSearchError("Telugu search failed.");
+  } finally {
+    setIsSearching(false);
+    setSearchQuery("");
+  }
+};
 
   const handleClearSearch = () => {
     setIsSearchView(false);
