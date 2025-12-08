@@ -97,7 +97,34 @@ const App: React.FC = () => {
    * So: if the current hash looks like an OAuth callback,
    * we leave it alone and let Supabase process it first.
    */
-  
+  useEffect(() => {
+    if (isSearchView) return;
+
+    const currentHash = window.location.hash;
+
+    // Detect Supabase OAuth hash and DO NOT touch it
+    if (
+      currentHash.startsWith("#access_token") ||
+      currentHash.includes("access_token=") ||
+      currentHash.includes("refresh_token=")
+    ) {
+      return;
+    }
+
+    let desiredHash = `#/${encodeURIComponent(selectedBook)}/${selectedChapter}`;
+    if (
+      selectedVerseRef &&
+      selectedVerseRef.book === selectedBook &&
+      selectedVerseRef.chapter === selectedChapter
+    ) {
+      desiredHash += `/${selectedVerseRef.verse}`;
+    }
+
+    if (currentHash !== desiredHash) {
+      window.location.hash = desiredHash;
+    }
+  }, [selectedBook, selectedChapter, selectedVerseRef, isSearchView]);
+
   // ------------------ HANDLE URL HASH CHANGE (OAuth-safe) ------------------
   /**
    * This parser reads our own deep-link hashes like:
@@ -139,19 +166,31 @@ const App: React.FC = () => {
       }
 
       setSelectedBook(bookMeta.name);
-setSelectedChapter(chapterNum);
+      setSelectedChapter(chapterNum);
 
-if (verseNum) {
-  setSelectedVerseRef({
-    book: bookMeta.name,
-    chapter: chapterNum,
-    verse: verseNum,
-  });
-  if (window.innerWidth < 768) setIsToolsModalOpen(true);
-} else {
-  setSelectedVerseRef(null);
-}
+      if (verseNum && !isNaN(verseNum) && verseNum > 0) {
+        const newVerseRef = {
+          book: bookMeta.name,
+          chapter: chapterNum,
+          verse: verseNum,
+        };
+        setSelectedVerseRef(newVerseRef);
 
+        if (window.innerWidth < 768) {
+          setIsToolsModalOpen(true);
+        }
+
+        // Scroll to verse after a short delay to ensure DOM is ready
+        setTimeout(() => {
+          const verseElement = document.getElementById(`verse-${verseNum}`);
+          if (verseElement) {
+            verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+      } else {
+        setSelectedVerseRef(null);
+        setIsToolsModalOpen(false);
+      }
     };
 
     const handleHashChange = () => {
@@ -204,16 +243,12 @@ if (verseNum) {
     setSelectedChapter(1);
     setSelectedVerseRef(null);
     setIsToolsModalOpen(false);
-    window.location.hash = `#/${book}/1`;
-
   }, []);
 
   const handleChapterChange = useCallback((chapter: number) => {
     setSelectedChapter(chapter);
     setSelectedVerseRef(null);
     setIsToolsModalOpen(false);
-    window.location.hash = `#/${selectedBook}/${chapter}`;
-
   }, []);
 
   const handleNextChapter = useCallback(() => {
@@ -263,8 +298,6 @@ if (verseNum) {
         chapter: selectedChapter,
         verse: verseNum,
       });
-      window.location.hash = `#/${selectedBook}/${selectedChapter}/${verseNum}`;
-
       if (window.innerWidth < 768) setIsToolsModalOpen(true);
       setIsChatOpen(false);
     },
@@ -404,6 +437,26 @@ const handleSearch = async (event: FormEvent) => {
     setSearchResults([]);
     setSearchError(null);
   };
+    // ------------------ UNIFIED NAVIGATION ENGINE ------------------
+
+  const navigateTo = useCallback(
+  (book: string, chapter: number, verse?: number) => {
+    setSelectedBook(book);
+    setSelectedChapter(chapter);
+
+    if (verse) {
+      setSelectedVerseRef({ book, chapter, verse });
+      if (window.innerWidth < 768) setIsToolsModalOpen(true);
+    } else {
+      setSelectedVerseRef(null);
+      setIsToolsModalOpen(false);
+    }
+
+    // Hash sync handled by effect
+  },
+  []
+  );
+
 
   // ------------------ METADATA ------------------
   const selectedBookMeta = BIBLE_META.find((b) => b.name === selectedBook);
