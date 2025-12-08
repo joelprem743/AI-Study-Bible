@@ -168,7 +168,7 @@ const App: React.FC = () => {
       setSelectedBook(bookMeta.name);
       setSelectedChapter(chapterNum);
 
-      if (verseNum && !isNaN(verseNum) && verseNum > 0) {
+      if (verseNum) {
         const newVerseRef = {
           book: bookMeta.name,
           chapter: chapterNum,
@@ -176,17 +176,7 @@ const App: React.FC = () => {
         };
         setSelectedVerseRef(newVerseRef);
 
-        if (window.innerWidth < 768) {
-          setIsToolsModalOpen(true);
-        }
-
-        // Scroll to verse after a short delay to ensure DOM is ready
-        setTimeout(() => {
-          const verseElement = document.getElementById(`verse-${verseNum}`);
-          if (verseElement) {
-            verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 300);
+        if (window.innerWidth < 768) setIsToolsModalOpen(true);
       } else {
         setSelectedVerseRef(null);
         setIsToolsModalOpen(false);
@@ -439,7 +429,7 @@ const handleSearch = async (event: FormEvent) => {
   };
     // ------------------ UNIFIED NAVIGATION ENGINE ------------------
 
-  const navigateTo = useCallback(
+const navigateTo = useCallback(
   (book: string, chapter: number, verse?: number) => {
     setSelectedBook(book);
     setSelectedChapter(chapter);

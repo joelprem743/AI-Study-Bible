@@ -8,6 +8,7 @@ interface SearchResultDisplayProps {
     error: string | null;
     onClear: () => void;
     englishVersion: string;
+    onNavigate: (book: string, chapter: number, verse: number) => void; // ADDED
 }
 
 const SearchSkeleton: React.FC = () => (
@@ -31,7 +32,10 @@ const SearchSkeleton: React.FC = () => (
     </div>
 );
 
-export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({ results, isLoading, error, onClear, englishVersion }) => {
+export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
+    results, isLoading, error, onClear, englishVersion, onNavigate
+}) => {
+
     const groupedResults = results.reduce((acc, verse) => {
         const key = `${verse.book} ${verse.chapter}`;
         if (!acc[key]) {
@@ -79,32 +83,34 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({ result
                                 const englishText = verse.text[englishVersion as keyof typeof verse.text] || verse.text.KJV;
                                 return (
                                     <div
-                                        key={verse.verse}
-                                        className="p-3 rounded-lg bg-white dark:bg-gray-800/50"
-                                    >
-                                        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
-                                        {/* Telugu Column */}
-                                            <div className="flex">
-                                                <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400">{verse.verse}</span>
-                                                <div>
-                                                    {verse.text.BSI_TELUGU ? (
-                                                        <p
-                                                        className="text-lg leading-relaxed"
-                                                        dangerouslySetInnerHTML={{ __html: verse.text.BSI_TELUGU }}
-                                                      />
-                                                      
-                                                    ) : (
-                                                        <p className="text-sm italic text-gray-500 dark:text-gray-400">[Telugu not available]</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {/* English Column */}
-                                            <div className="flex mt-2 md:mt-0">
-                                                <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden">{verse.verse}</span>
-                                                <p className="leading-relaxed">{englishText}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+    key={verse.verse}
+    className="p-3 rounded-lg bg-white dark:bg-gray-800/50 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+    onClick={() => onNavigate(verse.book, verse.chapter, verse.verse)}
+>
+    <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
+        <div className="flex">
+            <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400">{verse.verse}</span>
+            <div>
+                {verse.text.BSI_TELUGU ? (
+                    <p
+                        className="text-lg leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: verse.text.BSI_TELUGU }}
+                    />
+                ) : (
+                    <p className="text-sm italic text-gray-500 dark:text-gray-400">
+                        [Telugu not available]
+                    </p>
+                )}
+            </div>
+        </div>
+
+        <div className="flex mt-2 md:mt-0">
+            <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden">{verse.verse}</span>
+            <p className="leading-relaxed">{englishText}</p>
+        </div>
+    </div>
+</div>
+
                                 );
                             })}
                         </div>
