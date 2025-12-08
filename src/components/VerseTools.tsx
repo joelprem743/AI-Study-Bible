@@ -295,7 +295,7 @@ export const VerseTools: React.FC<{
     const shareData = {
       title: "Bible Verse",
       text: message,
-      url: window.location.href,
+      url: `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`,
     };
 
     if (navigator.share) {
