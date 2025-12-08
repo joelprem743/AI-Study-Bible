@@ -97,34 +97,7 @@ const App: React.FC = () => {
    * So: if the current hash looks like an OAuth callback,
    * we leave it alone and let Supabase process it first.
    */
-  useEffect(() => {
-    if (isSearchView) return;
-
-    const currentHash = window.location.hash;
-
-    // Detect Supabase OAuth hash and DO NOT touch it
-    if (
-      currentHash.startsWith("#access_token") ||
-      currentHash.includes("access_token=") ||
-      currentHash.includes("refresh_token=")
-    ) {
-      return;
-    }
-
-    let desiredHash = `#/${encodeURIComponent(selectedBook)}/${selectedChapter}`;
-    if (
-      selectedVerseRef &&
-      selectedVerseRef.book === selectedBook &&
-      selectedVerseRef.chapter === selectedChapter
-    ) {
-      desiredHash += `/${selectedVerseRef.verse}`;
-    }
-
-    if (currentHash !== desiredHash) {
-      window.location.hash = desiredHash;
-    }
-  }, [selectedBook, selectedChapter, selectedVerseRef, isSearchView]);
-
+  
   // ------------------ HANDLE URL HASH CHANGE (OAuth-safe) ------------------
   /**
    * This parser reads our own deep-link hashes like:
@@ -166,21 +139,19 @@ const App: React.FC = () => {
       }
 
       setSelectedBook(bookMeta.name);
-      setSelectedChapter(chapterNum);
+setSelectedChapter(chapterNum);
 
-      if (verseNum) {
-        const newVerseRef = {
-          book: bookMeta.name,
-          chapter: chapterNum,
-          verse: verseNum,
-        };
-        setSelectedVerseRef(newVerseRef);
+if (verseNum) {
+  setSelectedVerseRef({
+    book: bookMeta.name,
+    chapter: chapterNum,
+    verse: verseNum,
+  });
+  if (window.innerWidth < 768) setIsToolsModalOpen(true);
+} else {
+  setSelectedVerseRef(null);
+}
 
-        if (window.innerWidth < 768) setIsToolsModalOpen(true);
-      } else {
-        setSelectedVerseRef(null);
-        setIsToolsModalOpen(false);
-      }
     };
 
     const handleHashChange = () => {
@@ -233,12 +204,16 @@ const App: React.FC = () => {
     setSelectedChapter(1);
     setSelectedVerseRef(null);
     setIsToolsModalOpen(false);
+    window.location.hash = `#/${book}/1`;
+
   }, []);
 
   const handleChapterChange = useCallback((chapter: number) => {
     setSelectedChapter(chapter);
     setSelectedVerseRef(null);
     setIsToolsModalOpen(false);
+    window.location.hash = `#/${selectedBook}/${chapter}`;
+
   }, []);
 
   const handleNextChapter = useCallback(() => {
@@ -288,6 +263,8 @@ const App: React.FC = () => {
         chapter: selectedChapter,
         verse: verseNum,
       });
+      window.location.hash = `#/${selectedBook}/${selectedChapter}/${verseNum}`;
+
       if (window.innerWidth < 768) setIsToolsModalOpen(true);
       setIsChatOpen(false);
     },
