@@ -1,5 +1,6 @@
+//src/utils/shareHelpers.ts
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
-import type { VerseReference } from "../types";
+import { VerseReference } from "..";
 
 /* --------------------------
    Build formatted verse text

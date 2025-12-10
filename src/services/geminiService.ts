@@ -3,14 +3,14 @@
 // Stable, cached, and optimized for EN/TE separately.
 
 import { GoogleGenAI, Chat } from "@google/genai";
-import type { ChatMode, VerseReference } from "../types";
-
+import { VerseReference } from "..";
+// import Groq from "groq-sdk";
 /* ============================================================
   GLOBALS & INITIALIZATION
 ============================================================ */
 
 let ai: GoogleGenAI | null = null;
-let chatInstances = new Map<ChatMode, Chat>();
+// let chatInstances = new Map<ChatMode, Chat>();
 
 // Cache: unique per verse + section + language
 const verseCache = new Map<string, string>();
@@ -27,7 +27,9 @@ const AI_DISABLED =
 // Retry / cooldown configuration
 const MAX_RETRIES_PER_MODEL = 1;
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000; // 15 minutes for 429
-
+// const groq = new Groq({
+//   apiKey: (import.meta as any).env?.VITE_GROQ_API_KEY,
+// });
 class ApiKeyError extends Error {
   constructor(message: string) {
     super(message);
@@ -77,6 +79,7 @@ async function safeGenerate(model: string, prompt: string): Promise<string> {
   }
 
   const aiInstance = getAiInstance();
+
 
   // Primary model + minimal fallback set (deduped by Set)
   const modelsToTry = Array.from(
@@ -534,6 +537,46 @@ export const getVerseAnalysis = async (
   return out;
 };
 
+// src/services/geminiService.ts
+
+// src/services/geminiService.ts
+
+export const sendMessageToLlama = async (
+  message: string,
+  history: any[],
+  lang: "EN" | "TE" = "EN"
+) => {
+  const res = await fetch("/api/llama-chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history, lang }),
+  });
+
+  // Read body once as text to avoid double .json() calls
+  const raw = await res.text();
+  let data: any = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    // not valid JSON, keep raw string
+  }
+
+  if (!res.ok) {
+    const errMsg =
+      (data && data.error) ||
+      `LLaMA API error: ${res.status} ${res.statusText} ${raw || ""}`.trim();
+    throw new Error(errMsg);
+  }
+
+  return {
+    text: data?.text ?? "",
+    sources: data?.sources ?? [],
+  };
+};
+
+
+
+
 /* ============================================================
   SIMPLE FLASH GENERATOR
 ============================================================ */
@@ -546,51 +589,51 @@ export const flashGenerate = async (prompt: string) => {
   CHATBOT SUPPORT
 ============================================================ */
 
-function getChat(mode: ChatMode): Chat {
-  if (!chatInstances.has(mode)) {
-    const aiInstance = getAiInstance();
-    const chat = aiInstance.chats.create({
-      model: mode,
-      config: {
-        systemInstruction:
-          "You are an expert Bible scholar. Provide careful, text-aware explanations with references.",
-      },
-    });
-    chatInstances.set(mode, chat);
-  }
-  return chatInstances.get(mode)!;
-}
+// function getChat(mode: ChatMode): Chat {
+//   if (!chatInstances.has(mode)) {
+//     const aiInstance = getAiInstance();
+//     const chat = aiInstance.chats.create({
+//       model: mode,
+//       config: {
+//         systemInstruction:
+//           "You are an expert Bible scholar. Provide careful, text-aware explanations with references.",
+//       },
+//     });
+//     chatInstances.set(mode, chat);
+//   }
+//   return chatInstances.get(mode)!;
+// }
 
-export const sendMessageToBot = async (
-  message: string,
-  history: any[],
-  mode: ChatMode,
-  lang: "EN" | "TE" = "EN"
-) => {
-  const langText =
-    lang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
+// export const sendMessageToBot = async (
+//   message: string,
+//   history: any[],
+//   mode: ChatMode,
+//   lang: "EN" | "TE" = "EN"
+// ) => {
+//   const langText =
+//     lang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
 
-  try {
-    // Simple mode uses direct generate
-    if (mode === "gemini-2.5-flash-lite") {
-      const text = await safeGenerate(
-        "gemini-2.5-flash-lite",
-        `${message}\n\n${langText}`
-      );
-      return { text, sources: [] };
-    }
+//   try {
+//     // Simple mode uses direct generate
+//     if (mode === "gemini-2.5-flash-lite") {
+//       const text = await safeGenerate(
+//         "gemini-2.5-flash-lite",
+//         `${message}\n\n${langText}`
+//       );
+//       return { text, sources: [] };
+//     }
 
-    const chat = getChat(mode);
-    const resp = await chat.sendMessage({
-      message: `${message}\n\n${langText}`,
-      history,
-    } as any);
+//     const chat = getChat(mode);
+//     const resp = await chat.sendMessage({
+//       message: `${message}\n\n${langText}`,
+//       history,
+//     } as any);
 
-    return { text: (resp as any)?.text || "", sources: [] };
-  } catch (err: any) {
-    return { text: err.message || "AI error", sources: [] };
-  }
-};
+//     return { text: (resp as any)?.text || "", sources: [] };
+//   } catch (err: any) {
+//     return { text: err.message || "AI error", sources: [] };
+//   }
+// };
 
 /* ============================================================
   KEYWORD SEARCH

@@ -5,7 +5,7 @@
 //
 // Replaces previous brittle normalization logic — copy this file exactly.
 
-import type { Verse, ParsedReference, FullVerse } from '../types';
+import { Verse, ParsedReference, FullVerse } from '..';
 import { BIBLE_META_WITH_VERSE_COUNTS } from '../data/bibleMetaWithVerseCounts';
 import { teluguBibleData } from '../data/telugubible';
 import { TELUGU_BOOK_NAMES } from '../data/teluguBookNames';

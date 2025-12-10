@@ -1,6 +1,6 @@
-
+//src/componenets/SearchResultsDisplay.tsx
 import React from 'react';
-import type { FullVerse } from '../types';
+import { FullVerse } from '..';
 
 interface SearchResultDisplayProps {
     results: FullVerse[];

@@ -24,7 +24,7 @@
 
   import { searchBibleByKeyword } from "./services/geminiService";
 
-  import type { Verse, VerseReference, FullVerse, ParsedReference } from "./types";
+  import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
 
   import { LanguageProvider } from "./context/LanguageContext";
   import ProfileMenu from "./components/ProfileMenu";

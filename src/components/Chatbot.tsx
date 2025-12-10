@@ -1,8 +1,8 @@
 // src/components/Chatbot.tsx
 import React, { useState, useRef, useEffect } from "react";
-import type { Message, GroundingChunk, Verse, VerseReference } from "../types";
-import { ChatMode } from "../types";
-import { sendMessageToBot } from "../services/geminiService";
+import { Message, GroundingChunk, Verse, VerseReference } from "..";
+import { sendMessageToLlama } from "../services/geminiService";
+
 
 // Helper translations (simple conversational Telugu)
 const UI_TEXT = {
@@ -106,7 +106,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   // This enables Option B: keep chat history, but all future AI responses follow modelLanguage.
   const [modelLanguage, setModelLanguage] = useState<"EN" | "TE">("EN");
 
-  const [chatMode, setChatMode] = useState<ChatMode>(ChatMode.FAST);
+  // const [chatMode, setChatMode] = useState<ChatMode>(ChatMode.FAST);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [followUpQs, setFollowUpQs] = useState<string[]>([]);
@@ -118,15 +118,33 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const CHAT_MODE_LABELS = {
-    [ChatMode.FAST]: language === "TE" ? "ఫాస్ట్" : "Fast",
-    [ChatMode.STANDARD]: language === "TE" ? "స్టాండర్డ్" : "Standard",
-    [ChatMode.DEEP_THOUGHT]: language === "TE" ? "డీప్ థాట్" : "Deep Thought",
-  } as Record<ChatMode, string>;
+  // const CHAT_MODE_LABELS = {
+  //   [ChatMode.FAST]: language === "TE" ? "ఫాస్ట్" : "Fast",
+  //   [ChatMode.STANDARD]: language === "TE" ? "స్టాండర్డ్" : "Standard",
+  //   [ChatMode.DEEP_THOUGHT]: language === "TE" ? "డీప్ థాట్" : "Deep Thought",
+  // } as Record<ChatMode, string>;
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages, followUpQs]);
 
+  useEffect(() => {
+    const handler = (e: any) => {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (!last || last.sender !== "bot") {
+          return [...prev, { id: "stream", text: e.detail, sender: "bot" }];
+        }
+        return [
+          ...prev.slice(0, -1),
+          { ...last, text: last.text + e.detail }
+        ];
+      });
+    };
+  
+    window.addEventListener("llama-stream", handler);
+    return () => window.removeEventListener("llama-stream", handler);
+  }, []);
+  
   // Translation helper for UI text
   const t = (key: string) => {
     if (language === "TE") return (UI_TEXT as any)[`${key}_te`] || (UI_TEXT as any)[`${key}_en`];
@@ -195,12 +213,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   
   Return each question on a new line starting with "- " or a number.`;
   
-    const result = await sendMessageToBot(
-      metaInstruction, 
-      [...history], 
-      ChatMode.FAST,
-      modelLanguage
-    );
+  const result = await sendMessageToLlama(
+    metaInstruction,
+    [...history],
+    modelLanguage
+  );
+  
   
     try {
       const text = result.text || "";
@@ -288,8 +306,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
 
     try {
-      const response = await sendMessageToBot(`${contextualizedInput}\n\n${langInstruction}`, [...messages, userMessage], chatMode);
-
+      const response = await sendMessageToLlama(
+        `${contextualizedInput}\n\n${langInstruction}`,
+        [...messages, userMessage],
+        modelLanguage
+      );
+      
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response.text,
@@ -381,60 +403,29 @@ export const Chatbot: React.FC<ChatbotProps> = ({
             <h3 className="text-lg font-bold">AI Bible Bot</h3>
 
             <div className="relative flex items-center gap-3">
-              {/* Model dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsModeDropdownOpen((prev) => !prev)}
-                  className="
-                    bg-gray-50 dark:bg-gray-700
-                    border border-gray-300 dark:border-gray-600
-                    text-gray-900 dark:text-white
-                    text-xs rounded-lg px-3 py-1.5
-                    flex items-center gap-2
-                    transition-all duration-150
-                    hover:bg-gray-100 dark:hover:bg-gray-600
-                    hover:shadow-[0_0_6px_1px_rgba(0,0,0,0.12)]
-                    focus:outline-none focus:ring-2 focus:ring-blue-200
-                  "
-                >
-                  {CHAT_MODE_LABELS[chatMode]}
-                  <i className="fas fa-caret-down text-[10px] opacity-80"></i>
-                </button>
+              {/* 
+=======================
+ MODEL DROPDOWN DISABLED
+ (Future Multi-Model Support)
+=======================
 
-                {isModeDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-40 rounded-lg shadow-lg z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700">
-                    <button
-                      onClick={() => {
-                        setChatMode(ChatMode.FAST);
-                        setIsModeDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      {language === "TE" ? "ఫాస్ట్" : "Fast"}
-                    </button>
+<div className="relative">
+  <button ...>
+    {CHAT_MODE_LABELS[chatMode]}
+    <i className="fas fa-caret-down text-[10px] opacity-80"></i>
+  </button>
 
-                    <button
-                      onClick={() => {
-                        setChatMode(ChatMode.STANDARD);
-                        setIsModeDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      {language === "TE" ? "స్టాండర్డ్" : "Standard"}
-                    </button>
+  {isModeDropdownOpen && (
+    <div className="absolute right-0 mt-2 w-40 rounded-lg shadow-lg z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700">
+      <button ...>Fast</button>
+      <button ...>Standard</button>
+      <button ...>Deep Thought</button>
+    </div>
+  )}
+</div>
 
-                    <button
-                      onClick={() => {
-                        setChatMode(ChatMode.DEEP_THOUGHT);
-                        setIsModeDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      {language === "TE" ? "డీప్ థాట్" : "Deep Thought"}
-                    </button>
-                  </div>
-                )}
-              </div>
+*/}
+
 
               {/* Language dropdown */}
               <div className="relative">

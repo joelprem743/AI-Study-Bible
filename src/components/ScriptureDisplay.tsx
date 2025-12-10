@@ -1,6 +1,6 @@
 // src/components/ScriptureDisplay.tsx
 import React, { useEffect, useRef, useCallback } from "react";
-import type { Verse, VerseReference } from "../types";
+import { Verse, VerseReference } from "..";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 interface ScriptureDisplayProps {

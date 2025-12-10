@@ -13,7 +13,7 @@ import {
   flashGenerate,
   isNewTestament,
 } from "../services/geminiService";
-import type { Verse, VerseReference } from "../types";
+import { Verse, VerseReference } from "..";
 import { findBookMetadata, fetchChapter } from "../services/bibleService";
 import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
