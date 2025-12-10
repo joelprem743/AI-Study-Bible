@@ -2,24 +2,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Message, GroundingChunk, Verse, VerseReference } from "..";
 import { sendMessageToLlama } from "../services/geminiService";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+
+import rehypeRaw from "rehype-raw";
 
 
 // Helper translations (simple conversational Telugu)
 const UI_TEXT = {
   welcome_en: `👋 Hello! I'm BibleBot — your AI-powered Bible study assistant 📖✨`,
   welcome_te: `👋 హలో! నేనే బైబిల్‌బాట్ — మీ AI ఆధారిత బైబిల్ అధ్యయన సహాయకుడు 📖✨`,
-
-  modelGuideTitle_en: `Model Guide:`,
-  modelGuideTitle_te: `మోడల్ సూచిక:`,
-
-  modelFast_en: `Fast — quick answers and short explanations.`,
-  modelFast_te: `ఫాస్ట్ — త్వరిత సమాధానాలు మరియు సరళమైన వివరణలు.`,
-
-  modelStandard_en: `Standard — balanced mode for clear explanations.`,
-  modelStandard_te: `స్టాండర్డ్ — స్పష్టమైన వివరణలు మరియు సాధారణ అధ్యయనానికి.`,
-
-  modelDeep_en: `Deep Thought — deep theology & multi-verse analysis.`,
-  modelDeep_te: `డీప్ థాట్ — లోతైన దైవశాస్త్రం & బహు-వచన విశ్లేషణ.`,
 
   tryQuestions_en: `Try questions like:`,
   tryQuestions_te: `ఈ తరహా ప్రశ్నలను ప్రయత్నించండి:`,
@@ -41,13 +34,23 @@ const BotMessage: React.FC<{
 }> = ({ message, sources }) => (
   <div className="flex items-start gap-2.5">
     <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
-      <div className="text-sm font-normal text-gray-900 dark:text-white whitespace-pre-wrap">
-        {message}
+      
+      {/* MARKDOWN WRAPPER FIX */}
+      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-white">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+        >
+          {String(message)}
+        </ReactMarkdown>
       </div>
 
       {sources && sources.length > 0 && (
         <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
-          <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">Sources:</h4>
+          <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+            Sources:
+          </h4>
+
           <ul className="list-disc list-inside space-y-1">
             {sources
               .filter((s) => s.web?.uri)
@@ -69,6 +72,7 @@ const BotMessage: React.FC<{
     </div>
   </div>
 );
+
 
 // USER MESSAGE COMPONENT
 const UserMessage: React.FC<{ message: string }> = ({ message }) => (
@@ -536,14 +540,22 @@ export const Chatbot: React.FC<ChatbotProps> = ({
                   {modelLanguage === "TE" ? UI_TEXT.followUpHeading_te : UI_TEXT.followUpHeading_en}
                 </div>
                 {followUpQs.map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestionClick(q)}
-                    className="w-full text-left p-3 text-sm rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 transition-shadow duration-150 hover:shadow-[0_0_6px_rgba(0,0,0,0.06)]"
-                  >
-                    {q}
-                  </button>
-                ))}
+  <button
+    key={i}
+    onClick={() => handleSuggestionClick(q)}
+    className="w-full text-left p-3 text-sm rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 transition-shadow duration-150 hover:shadow-[0_0_6px_rgba(0,0,0,0.06)]"
+  >
+    <div className="prose prose-sm dark:prose-invert max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+      >
+        {q}
+      </ReactMarkdown>
+    </div>
+  </button>
+))}
+
               </div>
             )}
 

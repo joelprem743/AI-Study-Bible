@@ -1,152 +1,37 @@
 // src/services/geminiService.ts
-// Gemini service used by VerseTools, Chatbot, and Search.
-// Stable, cached, and optimized for EN/TE separately.
+// VerseTools + Chatbot helpers.
+// All AI calls now go through backend APIs (Gemini/Groq), no keys on frontend.
 
-import { GoogleGenAI, Chat } from "@google/genai";
 import { VerseReference } from "..";
-// import Groq from "groq-sdk";
-/* ============================================================
-  GLOBALS & INITIALIZATION
-============================================================ */
-
-let ai: GoogleGenAI | null = null;
-// let chatInstances = new Map<ChatMode, Chat>();
-
-// Cache: unique per verse + section + language
-const verseCache = new Map<string, string>();
-
-let globalCooldownUntil = 0;
-let lastCall = 0;
-const MIN_GAP_MS = 250;
-
-// Feature flag to hard-disable AI if needed
-const AI_DISABLED =
-  (import.meta as any).env?.VITE_DISABLE_GEMINI === "1" ||
-  (import.meta as any).env?.VITE_DISABLE_GEMINI === "true";
-
-// Retry / cooldown configuration
-const MAX_RETRIES_PER_MODEL = 1;
-const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000; // 15 minutes for 429
-// const groq = new Groq({
-//   apiKey: (import.meta as any).env?.VITE_GROQ_API_KEY,
-// });
-class ApiKeyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiKeyError";
-  }
-}
-
-function getAiInstance() {
-  if (!ai) {
-    const apiKey = (import.meta as any).env?.VITE_API_KEY;
-    if (!apiKey) throw new ApiKeyError("Missing Gemini API Key.");
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
-}
 
 /* ============================================================
-  SAFE GENERATE WRAPPER (RATE-LIMIT + ERROR HANDLING)
+  FRONTEND → BACKEND CALL HELPER (VerseTools pipeline)
 ============================================================ */
 
-async function safeGenerate(model: string, prompt: string): Promise<string> {
-  if (AI_DISABLED) {
-    throw new Error(
-      "AI features are temporarily disabled. Please try again later."
-    );
+async function callVerseToolsBackend(prompt: string, cacheKey: string): Promise<string> {
+  const res = await fetch("/api/verse-tools", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, cacheKey }),
+  });
+
+  const raw = await res.text();
+let data;
+
+try {
+  data = raw ? JSON.parse(raw) : null;
+} catch {
+  throw new Error("Backend returned invalid JSON: " + raw);
+}
+
+
+  if (!res.ok) {
+    const msg = data?.error || `VerseTools AI backend error: ${res.status} ${res.statusText}`;
+    throw new Error(msg);
   }
 
-  const now = Date.now();
-  const diff = now - lastCall;
-
-  // Simple per-process pacing
-  if (diff < MIN_GAP_MS) {
-    await new Promise((r) => setTimeout(r, MIN_GAP_MS - diff));
-  }
-
-  lastCall = Date.now();
-
-  // Global cooldown (e.g. after quota/rate-limit)
-  if (now < globalCooldownUntil) {
-    const seconds = Math.max(
-      1,
-      Math.ceil((globalCooldownUntil - now) / 1000)
-    );
-    throw new Error(
-      `AI cooling down due to recent rate limits. Try again in ~${seconds}s.`
-    );
-  }
-
-  const aiInstance = getAiInstance();
-
-
-  // Primary model + minimal fallback set (deduped by Set)
-  const modelsToTry = Array.from(
-    new Set([model, "gemini-2.5-flash-lite", "gemini-2.5-flash"])
-  );
-
-  for (const m of modelsToTry) {
-    let retries = MAX_RETRIES_PER_MODEL;
-    let backoff = 300;
-
-    while (true) {
-      try {
-        const response = await aiInstance.models.generateContent({
-          model: m,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: { temperature: 0.25 },
-        });
-
-        const text = (response as any)?.text?.trim?.() ?? "";
-        return text;
-      } catch (err: any) {
-        const msg: string = err?.message || "";
-        const lower = msg.toLowerCase();
-
-        // 429 / RESOURCE_EXHAUSTED / quota
-        if (
-          msg.includes("429") ||
-          msg.includes("RESOURCE_EXHAUSTED") ||
-          lower.includes("quota") ||
-          lower.includes("rate limit")
-        ) {
-          // Long cooldown to stop hammering a dead quota
-          globalCooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
-
-          throw new Error(
-            "AI quota or rate limit exceeded (429). " +
-              "Check your Gemini usage or try again later."
-          );
-        }
-
-        // Model overloaded / temporary backend problem
-        if (msg.includes("503") || msg.includes("UNAVAILABLE")) {
-          if (retries > 0) {
-            retries -= 1;
-            await new Promise((r) => setTimeout(r, backoff));
-            backoff *= 2;
-            continue;
-          }
-          // Out of retries for this model; try next model
-          break;
-        }
-
-        // Other errors: retry a bit, then bail
-        if (retries > 0) {
-          retries -= 1;
-          await new Promise((r) => setTimeout(r, backoff));
-          backoff *= 2;
-          continue;
-        }
-
-        // No retries left for this model; move on
-        break;
-      }
-    }
-  }
-
-  throw new Error("AI temporarily unavailable. Please try again later.");
+  const text = (data?.text ?? "").toString().trim();
+  return text;
 }
 
 /* ============================================================
@@ -288,27 +173,27 @@ STRICT RULES:
 
 FORMAT:
 
-**1. Hebrew Text:**
+## Hebrew Text
 <raw MT Hebrew>
 
 ---
 
-**2. English Transliteration:**
+## English Transliteration
 <ASCII transliteration>
 
 ---
 
-**3. Smooth English Translation:**
+## Smooth English Translation
 <one clear sentence>
 
 ---
 
-**4. Word-by-Word Analysis:**
-HebrewWord (ascii-translit) – english-gloss
-HebrewWord (ascii-translit) – english-gloss
-HebrewWord (ascii-translit) – english-gloss
+## Word-by-Word Analysis
+- HebrewWord (ascii-translit) — english-gloss
+- HebrewWord (ascii-translit) — english-gloss
+- HebrewWord (ascii-translit) — english-gloss
 
-END.
+End with a short 1–2 sentence note on how this verse fits the surrounding passage.
 `.trim();
   }
 
@@ -323,27 +208,27 @@ STRICT RULES:
 
 FORMAT:
 
-**1. Greek Text:**
+## Greek Text
 <raw Greek text>
 
 ---
 
-**2. English Transliteration:**
+## English Transliteration
 <ASCII transliteration>
 
 ---
 
-**3. Smooth English Translation:**
+## Smooth English Translation
 <one clear sentence>
 
 ---
 
-**4. Word-by-Word Analysis:**
-GreekWord (ascii-translit) – english-gloss
-GreekWord (ascii-translit) – english-gloss
-GreekWord (ascii-translit) – english-gloss
+## Word-by-Word Analysis
+- GreekWord (ascii-translit) — english-gloss
+- GreekWord (ascii-translit) — english-gloss
+- GreekWord (ascii-translit) — english-gloss
 
-END.
+End with a short 1–2 sentence note on how this verse fits the surrounding passage.
 `.trim();
 }
 
@@ -356,9 +241,11 @@ function buildCrossRefsPromptEN(v: VerseReference) {
 You are generating CROSS-REFERENCES + SCHOLARLY COMMENTARY for:
 ${v.book} ${v.chapter}:${v.verse}
 
+Format the answer as clean Markdown with clear headings and bullet points.
+
 FORMAT EXACTLY:
 
-**Cross-References (With Explanations)**
+## Cross-References (With Explanations)
 Provide 3–7 bullet points.
 Each bullet MUST follow this minimal strict format:
 
@@ -371,7 +258,7 @@ Rules:
 
 ---
 
-**Scholarly Commentary**
+## Scholarly Commentary
 Write 2–4 short paragraphs.
 Each paragraph 2–4 sentences.
 Cover:
@@ -380,21 +267,19 @@ Cover:
 • theological theme
 • literary function
 
-No long blocks. No quotes.
-
-Begin.
+No long blocks. No quotes. Use **bold** for key doctrinal or thematic terms.
 `.trim();
 }
 
 function buildCrossRefsPromptTE(v: VerseReference) {
   return `
-క్రింది వాక్యానికి సంబంధించి క్రాస్ రిఫరెన్సులు మరియు పండితుల వ్యాఖ్యానం తెలుగులో ఇవ్వండి:
+క్రింది వచనానికి సంబంధించి క్రాస్ రిఫరెన్సులు మరియు పండితుల వ్యాఖ్యానం తెలుగులో ఇవ్వండి:
 
 ${v.book} ${v.chapter}:${v.verse}
 
-FORMAT (మార్క్‌డౌన్ నిర్మాణం తప్పనిసరి):
+సమాధానం తప్పనిసరిగా Markdown ఫార్మాట్‌లో ఉండాలి:
 
-**సంబంధిత వచనాలు (వివరణలతో)**
+## సంబంధిత వచనాలు (వివరణలతో)
 3–7 బుల్లెట్ పాయింట్లు రాయండి.
 ప్రతి బుల్లెట్ ఈ ఫార్మాట్‌లో ఉండాలి:
 
@@ -407,7 +292,7 @@ RULES:
 
 ---
 
-**పండితుల వ్యాఖ్యానం**
+## పండితుల వ్యాఖ్యానం
 2–4 చిన్న పేరాలు రాయండి.
 ప్రతి పేరా 2–4 వాక్యాలు మాత్రమే.
 
@@ -419,8 +304,7 @@ RULES:
 • ఈ వచనం గ్రంథంలో తీసుకునే పాత్ర
 
 సూటిగా, స్పష్టంగా, బోధనాత్మకంగా రాయండి. పొడవైన బ్లాకులు వద్దు.
-
-Begin.
+కీలక పదాలను **బోల్డ్** గా హైలైట్ చేయండి.
 `.trim();
 }
 
@@ -437,9 +321,11 @@ ${v.book} ${v.chapter}:${v.verse}
 
 Genre: ${genre}
 
+Format the answer as well-structured Markdown.
+
 FORMAT EXACTLY:
 
-**Historical Context**
+## Historical Context
 Write 2–4 tight scholarly paragraphs:
 • historical setting
 • culture + geopolitics
@@ -452,8 +338,7 @@ Rules:
 • Reference other biblical material only like "Genesis 1" (no verse numbers).
 • Clean markdown.
 • No long blocks.
-
-Begin.
+• Use **bold** for key concepts and dates where relevant.
 `.trim();
 }
 
@@ -461,15 +346,15 @@ function buildHistoricalContextPromptTE(v: VerseReference) {
   const genre = getBookGenre(v.book);
 
   return `
-క్రింది వాక్యానికి చారిత్రక నేపథ్యం తెలుగులో వివరించండి:
+క్రింది వచనానికి చారిత్రక నేపథ్యం తెలుగులో వివరించండి:
 
 ${v.book} ${v.chapter}:${v.verse}
 
 జానర్: ${genre}
 
-FORMAT:
+సమాధానం Markdown ఫార్మాట్‌లో ఉండాలి:
 
-**చారిత్రక నేపథ్యం**
+## చారిత్రక నేపథ్యం
 2–4 చిన్న చిన్న పేరాలు రాయండి.
 
 ప్రతి పేరాలో ఈ అంశాల్లో కొన్నింటిని కవర‍ చేయండి:
@@ -481,16 +366,18 @@ FORMAT:
 
 RULES:
 • బైబిల్ వచనాలను కోట్ చేయకండి (సూచన రూపంలో మాత్రమే ఉంటే సరిపోతుంది).
-• మార్క్‌డౌన్ హెడ్డింగ్ (**చారిత్రక నేపథ్యం**) అలాగే ఉంచండి.
+• హెడ్డింగ్‌ల కోసం ## వాడండి.
+• కీలక పదాలను **బోల్డ్** గా హైలైట్ చేయండి.
 • సూటిగా, పాయింట్‌కు దగ్గరగా రాయండి.
-
-Begin.
 `.trim();
 }
 
 /* ============================================================
-  MAIN: getVerseAnalysis
+  MAIN: getVerseAnalysis (VerseTools → backend)
 ============================================================ */
+
+// Frontend-level cache (per session) to avoid extra network hits
+const verseCache = new Map<string, string>();
 
 export const getVerseAnalysis = async (
   verse: VerseReference,
@@ -504,21 +391,18 @@ export const getVerseAnalysis = async (
   if (cached !== undefined) return cached;
 
   let prompt = "";
-  const MODEL = "gemini-2.5-flash-lite";
 
-  // Interlinear is ALWAYS generated in EN.
   if (section === "Interlinear") {
     const interlinearKey = `${baseKey}-EN`;
     const cachedInterlinear = verseCache.get(interlinearKey);
     if (cachedInterlinear !== undefined) return cachedInterlinear;
 
     prompt = buildInterlinearPrompt(verse.book, verse.chapter, verse.verse);
-    const en = await safeGenerate(MODEL, prompt);
+    const en = await callVerseToolsBackend(prompt, interlinearKey);
     verseCache.set(interlinearKey, en);
     return en;
   }
 
-  // Cross-references + Historical Context
   if (section === "Cross-references") {
     prompt =
       language === "EN"
@@ -532,14 +416,14 @@ export const getVerseAnalysis = async (
         : buildHistoricalContextPromptTE(verse);
   }
 
-  const out = await safeGenerate(MODEL, prompt);
+  const out = await callVerseToolsBackend(prompt, cacheKey);
   verseCache.set(cacheKey, out);
   return out;
 };
 
-// src/services/geminiService.ts
-
-// src/services/geminiService.ts
+/* ============================================================
+  CHATBOT SUPPORT (uses /api/llama-chat on backend)
+============================================================ */
 
 export const sendMessageToLlama = async (
   message: string,
@@ -549,16 +433,27 @@ export const sendMessageToLlama = async (
   const res = await fetch("/api/llama-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history, lang }),
+    body: JSON.stringify({
+      message: `${message}
+      
+      Format the entire answer in clean Markdown. Use:
+      - headings (##)
+      - bullet points
+      - short paragraphs
+      - **bold** for important terms
+      
+      Do NOT mix paragraph and list formatting in the same block.`,
+      history,
+      lang,
+    }),
   });
 
-  // Read body once as text to avoid double .json() calls
   const raw = await res.text();
   let data: any = null;
   try {
     data = raw ? JSON.parse(raw) : null;
   } catch {
-    // not valid JSON, keep raw string
+    // non-JSON, ignore and fall through
   }
 
   if (!res.ok) {
@@ -574,86 +469,34 @@ export const sendMessageToLlama = async (
   };
 };
 
-
-
-
 /* ============================================================
-  SIMPLE FLASH GENERATOR
+  SIMPLE FLASH GENERATOR (generic prompt → backend)
 ============================================================ */
 
 export const flashGenerate = async (prompt: string) => {
-  return safeGenerate("gemini-2.5-flash-lite", prompt);
+  const cacheKey = `flash-${prompt.slice(0, 100)}`;
+  return callVerseToolsBackend(prompt, cacheKey);
 };
 
 /* ============================================================
-  CHATBOT SUPPORT
-============================================================ */
-
-// function getChat(mode: ChatMode): Chat {
-//   if (!chatInstances.has(mode)) {
-//     const aiInstance = getAiInstance();
-//     const chat = aiInstance.chats.create({
-//       model: mode,
-//       config: {
-//         systemInstruction:
-//           "You are an expert Bible scholar. Provide careful, text-aware explanations with references.",
-//       },
-//     });
-//     chatInstances.set(mode, chat);
-//   }
-//   return chatInstances.get(mode)!;
-// }
-
-// export const sendMessageToBot = async (
-//   message: string,
-//   history: any[],
-//   mode: ChatMode,
-//   lang: "EN" | "TE" = "EN"
-// ) => {
-//   const langText =
-//     lang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
-
-//   try {
-//     // Simple mode uses direct generate
-//     if (mode === "gemini-2.5-flash-lite") {
-//       const text = await safeGenerate(
-//         "gemini-2.5-flash-lite",
-//         `${message}\n\n${langText}`
-//       );
-//       return { text, sources: [] };
-//     }
-
-//     const chat = getChat(mode);
-//     const resp = await chat.sendMessage({
-//       message: `${message}\n\n${langText}`,
-//       history,
-//     } as any);
-
-//     return { text: (resp as any)?.text || "", sources: [] };
-//   } catch (err: any) {
-//     return { text: err.message || "AI error", sources: [] };
-//   }
-// };
-
-/* ============================================================
-  KEYWORD SEARCH
+  KEYWORD SEARCH (also via backend)
 ============================================================ */
 
 export const searchBibleByKeyword = async (
   keyword: string
 ): Promise<string> => {
   try {
-    const res = await safeGenerate(
-      "gemini-2.5-flash-lite",
-      `
+    const prompt = `
 Return ONLY Bible references related to "${keyword}".
 
 Rules:
 • Only references like: John 3:16; Romans 8:1–4
 • No commentary.
 • No extra text.
-`.trim()
-    );
+`.trim();
+
+    const cacheKey = `kw-${keyword.toLowerCase()}`;
+    const res = await callVerseToolsBackend(prompt, cacheKey);
 
     return res.replace(/\s+/g, " ").trim();
   } catch {
@@ -661,3 +504,29 @@ Rules:
     return "";
   }
 };
+export async function getVerseToolsFromBackend(payload: {
+  type: "cross" | "historical" | "interlinear";
+  book: string;
+  chapter: number;
+  verse: number;
+  lang: "EN" | "TE";
+}) {
+  const res = await fetch("/api/verse-tools", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await res.text();
+let data;
+
+try {
+  data = raw ? JSON.parse(raw) : null;
+} catch {
+  throw new Error("Backend returned invalid JSON: " + raw);
+}
+
+  if (!res.ok) throw new Error(data.error || "Backend error");
+
+  return data.text;
+}

@@ -100,7 +100,7 @@ export default async function handler(req: any, res: any) {
 
   const messages: ChatMessage[] = [
     ...groqHistory,
-    { role: "user", content: message },
+    { role: "user", content: `${message}\n\nRespond ONLY in clean markdown.`,  },
   ];
 
   // cache
