@@ -1,17 +1,30 @@
 // /api/llama-chat.ts
 import Groq from "groq-sdk";
 
+type ChatRole = "user" | "assistant" | "system";
+
+type ChatMessage = {
+  role: ChatRole;
+  content: string;
+};
+
+type CacheEntry = {
+  text: string;
+  sources: any[];
+  timestamp: number;
+};
+
 // ---------------------------
-// Persistent vars (per lambda instance)
+// Persistent vars
 // ---------------------------
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const cache = new Map<string, { text: string; timestamp: number }>();
+const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const MIN_GAP_MS = 250;
 
 let lastCall = 0;
-let globalCooldownUntil = 0;        // cooldown after 429
+let globalCooldownUntil = 0; // cooldown after 429
 const GLOBAL_COOLDOWN_MS = 60 * 1000;
 
 let activeRequests = 0;
@@ -21,21 +34,31 @@ const MAX_CONCURRENT = 3;
 // Helpers
 // ---------------------------
 
-function normalizeHistory(history: any[]) {
-  return (history || [])
+function normalizeHistory(history: any[] = []): ChatMessage[] {
+  return history
     .map((h) => {
-      if (h?.role && h?.content) return { role: h.role, content: String(h.content) };
+      if (h?.role && h?.content) {
+        return { role: h.role as ChatRole, content: String(h.content) };
+      }
 
-      const role = h.sender === "user" ? "user" : "assistant";
-      const content = typeof h.text === "string" ? h.text : "";
+      const role: ChatRole = h?.sender === "user" ? "user" : "assistant";
+      const content = typeof h?.text === "string" ? h.text : "";
+
       if (!content.trim()) return null;
+
       return { role, content };
     })
     .filter(Boolean)
-    .slice(-6); // only last 6 messages matter
+    .slice(-6); // last 6 messages only
 }
 
-function buildCacheKey(message: string, history: any[], lang: string) {
+
+
+function buildCacheKey(
+  message: string,
+  history: any[],
+  lang: string
+): string {
   return JSON.stringify({
     lang,
     message: message.trim(),
@@ -44,10 +67,10 @@ function buildCacheKey(message: string, history: any[], lang: string) {
 }
 
 // ---------------------------
-// API Route Handler
+// Handler
 // ---------------------------
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
@@ -59,69 +82,56 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.GROQ_API_KEY) {
-    return res.status(500).json({ error: "GROQ_API_KEY missing on Vercel" });
+    return res.status(500).json({ error: "GROQ_API_KEY missing" });
   }
 
   const now = Date.now();
 
-  // ---------------------------
-  // Global cooldown
-  // ---------------------------
+  // cooldown
   if (now < globalCooldownUntil) {
+    const retryAfter = Math.ceil((globalCooldownUntil - now) / 1000);
     return res.status(429).json({
       error: "Cooling down due to rate limit",
-      retryAfterSeconds: Math.ceil((globalCooldownUntil - now) / 1000),
+      retryAfterSeconds: retryAfter,
     });
   }
 
-  // ---------------------------
-  // Build request
-  // ---------------------------
   const groqHistory = normalizeHistory(history);
 
-  const messages = [
+  const messages: ChatMessage[] = [
     ...groqHistory,
     { role: "user", content: message },
   ];
 
-  // ---------------------------
-  // CACHE CHECK
-  // ---------------------------
+  // cache
   const cacheKey = buildCacheKey(message, history, lang);
   const cached = cache.get(cacheKey);
-
   if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-    return res.status(200).json({
+    return res.json({
       text: cached.text,
       cached: true,
-      sources: [],
+      sources: cached.sources,
     });
   }
 
-  // ---------------------------
-  // Concurrency limit
-  // ---------------------------
+  // concurrency guard
   if (activeRequests >= MAX_CONCURRENT) {
     return res.status(429).json({
-      error: "Too many requests in parallel. Try again soon.",
+      error: "Too many requests in parallel",
     });
   }
 
   activeRequests++;
 
-  // ---------------------------
-  // Pacing between calls
-  // ---------------------------
+  // pacing
   const diff = now - lastCall;
   if (diff < MIN_GAP_MS) {
     await new Promise((r) => setTimeout(r, MIN_GAP_MS - diff));
   }
   lastCall = Date.now();
 
-  // ---------------------------
-  // Call Groq LLaMA
-  // ---------------------------
-  let completion;
+  // call Groq
+  let completion: any;
   try {
     completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -131,36 +141,36 @@ export default async function handler(req, res) {
   } catch (err: any) {
     activeRequests--;
 
-    const errorMsg =
+    const msg =
       err?.error?.error?.message ||
       err?.error?.message ||
       err?.message ||
       String(err);
 
-    // Enter global cooldown on 429
     if (
-      err.status === 429 ||
-      errorMsg.includes("rate") ||
-      errorMsg.includes("quota") ||
-      errorMsg.includes("exceeded")
+      err?.status === 429 ||
+      msg.toLowerCase().includes("rate") ||
+      msg.toLowerCase().includes("quota")
     ) {
       globalCooldownUntil = Date.now() + GLOBAL_COOLDOWN_MS;
     }
 
-    return res.status(500).json({
-      error: "LLaMA request failed",
-      details: errorMsg,
-    });
+    return res.status(500).json({ error: "LLaMA error", details: msg });
   }
 
   activeRequests--;
 
   const text = completion?.choices?.[0]?.message?.content || "";
 
-  // SAVE CACHE
-  cache.set(cacheKey, { text, timestamp: Date.now() });
+  const entry: CacheEntry = {
+    text,
+    sources: [],
+    timestamp: Date.now(),
+  };
 
-  return res.status(200).json({
+  cache.set(cacheKey, entry);
+
+  return res.json({
     text,
     sources: [],
   });
