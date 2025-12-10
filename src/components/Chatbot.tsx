@@ -487,7 +487,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
                     : "Ask me anything about Scripture, doctrine, or theology, and I’ll help you explore God’s Word."}
                 </div>
 
-                {/* MODEL GUIDE (only when empty) */}
+                {/* MODEL GUIDE (only when empty)
                 <div className="p-3 bg-yellow-100 dark:bg-gray-600 rounded-md text-xs text-gray-800 dark:text-gray-200 border border-yellow-300 dark:border-gray-500 leading-relaxed">
                   <strong>{language === "TE" ? "మోడల్ సూచిక:" : "Model Guide:"}</strong>
 
@@ -504,7 +504,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
                   </span>
 
                   <span className="block mt-2 font-medium">{language === "TE" ? "పైన ఉన్న డ్రాప్‌డౌన్ ద్వారా ఎప్పుడైనా మోడల్‌ను మార్చవచ్చు." : "Switch models anytime using the dropdown above."}</span>
-                </div>
+                </div> */}
 
                 {/* TRY ASKING SECTION */}
                 <div className="text-xs text-gray-600 dark:text-gray-300 font-semibold">{language === "TE" ? UI_TEXT.tryQuestions_te : UI_TEXT.tryQuestions_en}</div>
