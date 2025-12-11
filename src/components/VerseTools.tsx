@@ -282,22 +282,29 @@ export const VerseTools: React.FC<{
   };
 
   const handleShareVerse = async () => {
+    // ALWAYS fetch correct verse fresh (fixes stale/wrong verse bug)
+    const chapterData = await fetchChapter(verseRef.book, verseRef.chapter);
+    const actual = chapterData.find(v => v.verse === verseRef.verse);
+  
+    const correctText =
+      language === "TE"
+        ? actual?.text.BSI_TELUGU || actual?.text.KJV || ""
+        : actual?.text[englishVersion] || actual?.text.KJV || "";
+  
     const bookName =
       language === "TE"
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book;
-
+  
     const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
-    const text = displayVerseText || "";
-
-    const message = `${ref}\n${text}`;
-
+  
+    const message = `${ref}\n${correctText}\n\n${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+  
     const shareData = {
       title: "Bible Verse",
-      text: message,
-      url: `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`,
+      text: message
     };
-
+  
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -306,7 +313,7 @@ export const VerseTools: React.FC<{
         console.error("Native share failed:", err);
       }
     }
-
+  
     try {
       await navigator.clipboard.writeText(message);
       alert(
@@ -318,6 +325,7 @@ export const VerseTools: React.FC<{
       console.error("Clipboard write failed:", err);
     }
   };
+  
 
   /* -------------------------
     loadReferenceText
@@ -729,7 +737,7 @@ ${reconstructed}
   </div>
 
   {/* Verse Text */}
-  <p className="text-gray-200 dark:text-gray-200 italic text-sm mt-2 leading-relaxed">
+  <p className="text-gray-800 dark:text-gray-200 italic text-sm mt-2 leading-relaxed">
     {displayVerseText ? `"${displayVerseText}"` : ""}
   </p>
 </div>
