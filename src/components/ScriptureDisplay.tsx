@@ -130,8 +130,10 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   // resolve version safely
   const resolveText = (v: Verse, version: string | undefined): string => {
     if (!version) return "";
-    return v.text[version as keyof typeof v.text] ?? "";
+    const raw = v.text[version as keyof typeof v.text] ?? "";
+    return raw.replace(/\s*\n+\s*/g, " ").trim();
   };
+  
 
   const isSingle = studyMode === "single";
 
@@ -210,21 +212,26 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                 {/* Desktop → side-by-side, Mobile → stacked */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* LEFT version */}
-                  <div>
-                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                      {v.verse}
-                    </span>
-                    <p className="text-[1.05rem] leading-relaxed font-telugu">
-                      {resolveText(v, leftVersion)}
-                    </p>
-                  </div>
+                  {/* LEFT version (English) */}
+<div className="flex gap-2">
+  <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
+    {v.verse}
+  </span>
+  <p className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
+    {resolveText(v, leftVersion)}
+  </p>
+</div>
 
-                  {/* RIGHT version */}
-                  <div>
-                    <p className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
-                      {resolveText(v, rightVersion)}
-                    </p>
-                  </div>
+{/* RIGHT version (Telugu) */}
+<div className="flex gap-2">
+  <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
+    {v.verse}
+  </span>
+  <p className="text-[1.05rem] leading-relaxed font-telugu">
+    {resolveText(v, rightVersion)}
+  </p>
+</div>
+
                 </div>
               </div>
             );

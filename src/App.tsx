@@ -18,6 +18,7 @@ import {
   fetchVersesByReferences,
   normalizeTeluguReference,
   searchTeluguKeyword,
+  searchEnglishKeyword
 } from "./services/bibleService";
 
 import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
@@ -25,7 +26,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import ProfileMenu from "./components/ProfileMenu";
 import { useAuth } from "./context/AuthContext";
 
-const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV", "NASB"];
+const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV"];
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -41,7 +42,8 @@ const App: React.FC = () => {
 
   // Study mode & versions
   const [studyMode, setStudyMode] = useLocalStorage<"single" | "parallel">("studyMode", "single");
-  const [singleVersion, setSingleVersion] = useLocalStorage("singleVersion", "BSI_TELUGU"); // default Telugu
+  const [singleVersion, setSingleVersion] = useLocalStorage("singleVersion", "KJV");
+// default Telugu
   const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "BSI_TELUGU");
   const [rightVersion, setRightVersion] = useLocalStorage("rightVersion", "ESV");
 
@@ -138,12 +140,14 @@ const App: React.FC = () => {
       setSelectedChapter(chap);
 
       if (verse) {
+        // Restore selection but DO NOT auto-open tools on reload
         setSelectedVerseRef({ book: meta.name, chapter: chap, verse });
-        if (window.innerWidth < 768) setIsToolsModalOpen(true);
+        setIsToolsModalOpen(false);
       } else {
         setSelectedVerseRef(null);
         setIsToolsModalOpen(false);
       }
+      
     };
     // Desktop-only: close search on click outside
 
@@ -184,7 +188,7 @@ const App: React.FC = () => {
 
     load();
   }, [selectedBook, selectedChapter, isSearchView]);
-
+  
   // Navigation helpers
   const handleBookChange = useCallback((book: string) => {
     setSelectedBook(book);
@@ -264,13 +268,15 @@ const App: React.FC = () => {
 
   const handleSearch = async (e?: FormEvent) => {
     e?.preventDefault();
+  
     const query = searchQuery.trim();
     if (!query) return;
-
+  
     setSearchError(null);
-
+  
+    // 1) Try parsing as reference (Telugu/English)
     const parsedRefs = parseReferencesFromString(normalizeTeluguReference(query));
-
+  
     if (parsedRefs.length > 1) {
       setIsSearching(true);
       try {
@@ -286,7 +292,7 @@ const App: React.FC = () => {
       }
       return;
     }
-
+  
     if (parsedRefs.length === 1) {
       const ref = parsedRefs[0];
       setIsSearchView(false);
@@ -301,25 +307,35 @@ const App: React.FC = () => {
       setSearchOpen(false);
       return;
     }
-    
-
-    // Keyword search
+  
+    // 2) Keyword search — detect Telugu vs English
+    const hasTelugu = /[\u0C00-\u0C7F]/.test(query);
+    let results: FullVerse[] = [];
+  
     setIsSearching(true);
     try {
-      const res = await searchTeluguKeyword(query, {
-        wholeWord: false,
-        requireAll: false,
-        highlight: true,
-      });
-
-      if (!res || res.length === 0) {
+      if (hasTelugu) {
+        // Telugu local search
+        results = await searchTeluguKeyword(query, {
+          wholeWord: false,
+          requireAll: false,
+          highlight: true,
+        });
+      } else {
+        // English search (Supabase) — uses the currently active English version
+        results = await searchEnglishKeyword(query, activeEnglishVersion);
+      }
+  
+      if (!results || results.length === 0) {
         setSearchError(`No results for "${query}"`);
         setSearchResults([]);
       } else {
-        setSearchResults(res);
+        setSearchResults(results);
       }
+  
       setIsSearchView(true);
-    } catch {
+    } catch (err) {
+      console.error("Search error:", err);
       setSearchError("Search failed.");
     } finally {
       setIsSearching(false);
@@ -327,6 +343,8 @@ const App: React.FC = () => {
       setSearchOpen(false);
     }
   };
+  
+  
 
   const handleClearSearch = () => {
     setIsSearchView(false);
@@ -423,7 +441,15 @@ useEffect(() => {
                     }}
                     
                     aria-label="Open search"
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-[#2A2F35] hover:scale-105 transition"
+                    className="
+  w-10 h-10 flex items-center justify-center rounded-xl 
+  bg-gray-50 dark:bg-gray-800 
+  border border-gray-200 dark:border-[#2A2F35]
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+  transition
+"
+
                   >
                     <i className="fas fa-search text-gray-700 dark:text-gray-300" />
                   </button>
@@ -449,7 +475,13 @@ rounded-full shadow-md overflow-hidden px-2"
                       <button
   type="submit"
   aria-label="Search"
-  className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white"
+  className="
+  w-10 h-10 flex items-center justify-center rounded-lg 
+  bg-blue-600 text-white
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+"
+
 >
   <i className="fas fa-arrow-right" />
 </button>
@@ -509,7 +541,13 @@ rounded-full shadow-md overflow-hidden px-2"
 
       <button
         type="submit"
-        className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white"
+        className="
+  w-10 h-10 flex items-center justify-center rounded-lg 
+  bg-gray-200 dark:bg-gray-700
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+"
+
       >
         <i className="fas fa-arrow-right" />
       </button>

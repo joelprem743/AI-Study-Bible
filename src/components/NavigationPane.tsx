@@ -49,22 +49,30 @@ export default function NavigationPane(props: Props) {
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isBookModal, setIsBookModal] = useState(false);
+  const [selectionStep, setSelectionStep] = useState<"BOOK" | "CHAPTER">("BOOK");
+  const [tempBook, setTempBook] = useState(selectedBook);
 
   const unifiedLabel = `${selectedBook} ${selectedChapter}`;
 
   const openBookModal = () => {
+    setTempBook(selectedBook);
+    setSelectionStep("BOOK");
     setIsBookModal(true);
   };
+  
 
   const handleBookSelect = (book: string) => {
-    onBookChange(book);
-    setIsBookModal(false);
+    setTempBook(book);
+    setSelectionStep("CHAPTER");
   };
+  
 
   const handleChapterSelect = (ch: number) => {
+    onBookChange(tempBook);
     onChapterChange(ch);
     setIsBookModal(false);
   };
+  
 
   // compute current chapter count for the selected book
   const currentBookMeta = BIBLE_META.find((b) => b.name === selectedBook);
@@ -75,12 +83,14 @@ export default function NavigationPane(props: Props) {
       {/* UNIFIED BOOK+CHAPTER BUTTON */}
       <div
         className="
-          group flex flex-1 items-center justify-between
-          bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-[#2A2F35]
-          rounded-xl px-3 py-2
-          transform-gpu transition-all duration-150 ease-out
-          hover:scale-[1.03] active:scale-[0.985]
-        "
+        group flex flex-1 items-center justify-between
+        bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-[#2A2F35]
+        rounded-xl px-3 py-2
+        transform-gpu transition-all duration-150 ease-out
+        hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+        dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+      "
+      
       >
         <button
           disabled={isFirstChapterOfBible}
@@ -113,11 +123,14 @@ export default function NavigationPane(props: Props) {
       <button
         onClick={() => setIsPickerOpen(true)}
         className="
-          w-10 h-10 flex items-center justify-center
-          rounded-xl bg-gray-50 dark:bg-gray-800
-          border border-gray-300 dark:border-[#2A2F35]
-          hover:scale-[1.06] active:scale-[0.96] transition
-        "
+  w-10 h-10 flex items-center justify-center
+  rounded-xl bg-gray-50 dark:bg-gray-800
+  border border-gray-300 dark:border-[#2A2F35]
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+  transition
+"
+
         aria-label="Open version picker"
       >
         <i className="fas fa-sliders-h text-gray-700 dark:text-gray-300" />
@@ -141,31 +154,47 @@ export default function NavigationPane(props: Props) {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-4">
-                {BIBLE_META.map((b) => (
-                  <button
-                    key={b.name}
-                    onClick={() => handleBookSelect(b.name)}
-                    className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white text-left"
-                  >
-                    <div className="text-sm truncate">{TELUGU_BOOK_NAMES[b.name]}</div>
-                    <div className="text-xs opacity-80 truncate">{b.name}</div>
-                  </button>
-                ))}
-              </div>
+              <div className="flex-grow overflow-y-auto p-4">
 
-              <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">Select Chapter</h3>
-              <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-                {Array.from({ length: currentChapterCount }, (_, i) => i + 1).map((ch) => (
-                  <button
-                    key={ch}
-                    onClick={() => handleChapterSelect(ch)}
-                    className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
-                  >
-                    {ch}
-                  </button>
-                ))}
-              </div>
+{selectionStep === "BOOK" && (
+  <>
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-4">
+      {BIBLE_META.map((b) => (
+        <button
+          key={b.name}
+          onClick={() => handleBookSelect(b.name)}
+          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+        >
+          <div className="text-sm truncate">{TELUGU_BOOK_NAMES[b.name]}</div>
+          <div className="text-xs opacity-80 truncate">{b.name}</div>
+        </button>
+      ))}
+    </div>
+  </>
+)}
+
+{selectionStep === "CHAPTER" && (
+  <>
+    <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
+      Select Chapter
+    </h3>
+    <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+      {Array.from({ length: BIBLE_META.find((b) => b.name === tempBook)?.chapters || 0 }, (_, i) => i + 1)
+        .map((ch) => (
+          <button
+            key={ch}
+            onClick={() => handleChapterSelect(ch)}
+            className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+          >
+            {ch}
+          </button>
+        ))}
+    </div>
+  </>
+)}
+
+</div>
+
             </div>
           </div>
         </ModalPortal>

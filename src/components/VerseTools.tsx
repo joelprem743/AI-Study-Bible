@@ -245,6 +245,8 @@ export const VerseTools: React.FC<{
   });
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -514,6 +516,25 @@ ${reconstructed}
     Effects
   ---------------------------*/
   useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (!menuOpen) return;
+  
+      const target = e.target as Node;
+  
+      // If clicking the button, don't auto-close.
+      if (menuButtonRef.current?.contains(target)) return;
+  
+      // If clicking inside menu, don't auto-close.
+      if (menuRef.current?.contains(target)) return;
+  
+      setMenuOpen(false);
+    };
+  
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [menuOpen]);
+  
+  useEffect(() => {
     localCache.current.clear();
     refCache.current.clear();
 
@@ -675,12 +696,14 @@ ${reconstructed}
       <div className="flex items-center gap-4">
 
   {/* Ellipsis Menu */}
-  <div className="relative">
-    <button
-      onClick={() => setMenuOpen((v) => !v)}
-      className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
-                 text-gray-600 dark:text-gray-300"
-    >
+  <div className="relative" ref={menuRef}>
+  <button
+    ref={menuButtonRef}
+    onClick={() => setMenuOpen((v) => !v)}
+    className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
+               text-gray-600 dark:text-gray-300"
+  >
+
       <i className="fas fa-ellipsis-v" />
     </button>
 

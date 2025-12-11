@@ -2,11 +2,13 @@
 import type { ReactNode } from "react";
 
 export interface VerseText {
-  ESV: string;
-  KJV: string;
-  NIV: string;
+  [version: string]: string;   // Allow any version key (KJV, ESV, NIV, others)
+  KJV?: string;
+  ESV?: string;
+  NIV?: string;
   BSI_TELUGU?: string;
 }
+
 
 export interface Verse {
   verse: number;
@@ -38,11 +40,11 @@ export interface Message {
   sources?: GroundingChunk[];
 }
 
-export enum ChatMode {
-  FAST = "gemini-2.5-flash-lite",
-  STANDARD = "gemini-2.5-flash",
-  DEEP_THOUGHT = "gemini-2.5-pro",
-}
+// export enum ChatMode {
+//   FAST = "gemini-2.5-flash-lite",
+//   STANDARD = "gemini-2.5-flash",
+//   DEEP_THOUGHT = "gemini-2.5-pro",
+// }
 
 export interface GroundingChunk {
   web?: {

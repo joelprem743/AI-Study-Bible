@@ -9,8 +9,8 @@ import { Verse, ParsedReference, FullVerse } from '..';
 import { BIBLE_META_WITH_VERSE_COUNTS } from '../data/bibleMetaWithVerseCounts';
 import { teluguBibleData } from '../data/telugubible';
 import { TELUGU_BOOK_NAMES } from '../data/teluguBookNames';
+import { supabase } from "../lib/supabaseClient";
 
-const API_BASE_URL = 'https://bible-api.com/';
 
 // ------------------------------
 // Book metadata
@@ -128,6 +128,23 @@ export const TELUGU_SYNONYMS: Record<string, string> = {
   // add numeric shorthand english
   "1cor": "1 Corinthians", "2cor": "2 Corinthians", "rom": "Romans", "roms": "Romans",
 };
+
+export async function fetchVerseSupabase(book: string, chapter: number, version: string) {
+  const { data, error } = await supabase
+    .from("bible_verses")
+    .select("verse, text")
+    .eq("book", book)
+    .eq("chapter", chapter)
+    .eq("version", version)
+    .order("verse", { ascending: true });
+
+  if (error) {
+    console.error("Supabase fetch error:", error);
+    throw error;
+  }
+
+  return data || [];
+}
 
 // Add reverse English -> synonyms (for lookup fallback): create a small English alias map
 const ENGLISH_ALIASES: Record<string, string> = {
@@ -320,52 +337,41 @@ export function normalizeTeluguReference(query: string): string {
 }
 
 // ------------------------------
-// Bible API fetcher
-// ------------------------------
-interface BibleApiResponseVerse {
-  book_id: string; book_name: string; chapter: number; verse: number; text: string;
-}
-interface BibleApiResponse {
-  reference: string; verses: BibleApiResponseVerse[]; text: string; translation_id: string; translation_name: string;
-}
-
-async function fetchTranslationForReference(referenceString: string, version: string): Promise<BibleApiResponse> {
-  const url = `${API_BASE_URL}${encodeURIComponent(referenceString)}?translation=${encodeURIComponent(version)}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP error ${r.status} for ${referenceString} (${version})`);
-  return r.json();
-}
-
-// ------------------------------
 // fetchChapter
 // ------------------------------
 export const fetchChapter = async (book: string, chapter: number): Promise<Verse[]> => {
   const engBook = canonicalizeBook(book);
-  const reference = `${engBook} ${chapter}`;
 
-  const [webData, kjvData] = await Promise.all([
-    fetchTranslationForReference(reference, 'web'),
-    fetchTranslationForReference(reference, 'kjv'),
-  ]);
+  // Fetch ALL versions for this book & chapter from Supabase
+  const { data, error } = await supabase
+    .from("bible_verses")
+    .select("verse, text, version")
+    .eq("book", engBook)
+    .eq("chapter", chapter)
+    .order("verse", { ascending: true });
 
-  if (!kjvData.verses || kjvData.verses.length === 0) {
-    throw new Error(`No KJV verses for ${reference}`);
+  if (error) {
+    console.error("Supabase fetch error:", error);
+    throw error;
   }
 
-  return kjvData.verses.map(kjvVerse => {
-    const webVerse = webData.verses.find(v => v.verse === kjvVerse.verse);
-    const teluguText = getTeluguVerse(engBook, chapter, kjvVerse.verse);
+  // Organize by verse number
+  const grouped: Record<number, any> = {};
 
-    return {
-      verse: kjvVerse.verse,
-      text: {
-        KJV: kjvVerse.text.replace(/\n/g, ' ').trim(),
-        ESV: webVerse?.text.replace(/\n/g, ' ').trim() || kjvVerse.text.replace(/\n/g, ' ').trim(),
-        NIV: webVerse?.text.replace(/\n/g, ' ').trim() || kjvVerse.text.replace(/\n/g, ' ').trim(),
-        ...(teluguText && { BSI_TELUGU: teluguText }),
-      }
-    } as Verse;
-  });
+  for (const row of data) {
+    if (!grouped[row.verse]) grouped[row.verse] = { verse: row.verse, text: {} };
+    grouped[row.verse].text[row.version] = row.text;
+  }
+
+  // Add Telugu from local
+  const verses: Verse[] = [];
+  for (const v of Object.values(grouped)) {
+    const teluguText = getTeluguVerse(engBook, chapter, v.verse);
+    if (teluguText) v.text["BSI_TELUGU"] = teluguText;
+    verses.push(v);
+  }
+
+  return verses;
 };
 
 // ------------------------------
@@ -530,4 +536,40 @@ export async function searchTeluguKeyword(
   results.sort((a, b) => b.score - a.score);
 
   return results.slice(0, limit).map((r) => r.verse);
+}
+
+// ------------------------------------------------------------
+// ENGLISH KEYWORD SEARCH (Supabase full-chapter text search)
+// Returns FullVerse[] matching the active English version
+// ------------------------------------------------------------
+export async function searchEnglishKeyword(
+  query: string,
+  version: string
+): Promise<FullVerse[]> {
+
+  if (!query || !query.trim()) return [];
+
+  const { data, error } = await supabase
+    .from("bible_verses")
+    .select("book, chapter, verse, text")
+    .ilike("text", `%${query}%`)
+    .eq("version", version)
+    .order("book", { ascending: true })
+    .order("chapter", { ascending: true })
+    .order("verse", { ascending: true });
+
+  if (error) {
+    console.error("English search error:", error);
+    return [];
+  }
+
+  return (data ?? []).map(row => ({
+    book: row.book,
+    chapter: row.chapter,
+    verse: row.verse,
+    text: {
+      [version]: row.text,
+      BSI_TELUGU: getTeluguVerse(row.book, row.chapter, row.verse) || ""
+    }
+  }));
 }

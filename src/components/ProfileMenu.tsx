@@ -93,14 +93,17 @@ export default function ProfileMenu() {
         <button
   onClick={() => handleAuthOpen("signin")}
   className="
-    w-10 h-10 rounded-full 
-    bg-gray-100 dark:bg-gray-800
-    border border-gray-300 dark:border-gray-600
-    flex items-center justify-center
-    text-gray-600 dark:text-gray-300
-    hover:bg-gray-200 dark:hover:bg-gray-700
-    transition-all
-  "
+  w-10 h-10 rounded-full 
+  bg-gray-100 dark:bg-gray-800
+  border border-gray-300 dark:border-gray-600
+  flex items-center justify-center
+  text-gray-600 dark:text-gray-300
+  hover:bg-gray-200 dark:hover:bg-gray-700
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+  transition
+"
+
 >
   <i className="fas fa-user text-lg" />
 </button>
@@ -144,15 +147,18 @@ export default function ProfileMenu() {
 <button
   onClick={() => setIsDropdownOpen((v) => !v)}
   className="
-    w-10 h-10 rounded-full 
-    bg-gray-100 dark:bg-gray-700
-    border border-gray-300 dark:border-gray-600
-    flex items-center justify-center
-    font-semibold
-    text-gray-800 dark:text-white
-    hover:bg-gray-200 dark:hover:bg-gray-600
-    transition-all
-  "
+  w-10 h-10 rounded-full 
+  bg-gray-100 dark:bg-gray-700
+  border border-gray-300 dark:border-gray-600
+  flex items-center justify-center
+  font-semibold
+  text-gray-800 dark:text-white
+  hover:bg-gray-200 dark:hover:bg-gray-600
+  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+  transition
+"
+
 >
   {firstLetter}
 </button>
