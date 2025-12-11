@@ -93,3 +93,77 @@ export async function deleteNoteById(id: string): Promise<void> {
   const { error } = await supabase.from("notes").delete().eq("id", id);
   if (error) throw error;
 }
+// -----------------------
+// Topical Notes Section
+// -----------------------
+
+export interface TopicalNote {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+function mapTopicalRow(d: any): TopicalNote {
+  return {
+    id: d.id,
+    userId: d.user_id,
+    title: d.title,
+    body: d.body,
+    createdAt: new Date(d.created_at).getTime(),
+    updatedAt: new Date(d.updated_at).getTime()
+  };
+}
+
+export async function getAllTopicalNotes(userId: string): Promise<TopicalNote[]> {
+  const { data, error } = await supabase
+    .from("topical_notes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(mapTopicalRow);
+}
+
+export async function createTopicalNote(
+  userId: string,
+  title: string,
+  body: string
+): Promise<TopicalNote> {
+  const { data, error } = await supabase
+    .from("topical_notes")
+    .insert({ user_id: userId, title, body })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapTopicalRow(data);
+}
+
+export async function updateTopicalNote(
+  id: string,
+  title: string,
+  body: string
+): Promise<TopicalNote> {
+  const { data, error } = await supabase
+    .from("topical_notes")
+    .update({ title, body, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapTopicalRow(data);
+}
+
+export async function deleteTopicalNoteById(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("topical_notes")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+}
