@@ -1,3 +1,4 @@
+//src/components/WelcomeScreen.tsx
 import React from 'react';
 
 interface WelcomeScreenProps {

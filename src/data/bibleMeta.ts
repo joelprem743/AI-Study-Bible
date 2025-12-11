@@ -1,4 +1,4 @@
-
+//src/data/bibleMeta.ts
 export const BIBLE_META = [
     { name: 'Genesis', chapters: 50 },
     { name: 'Exodus', chapters: 40 },

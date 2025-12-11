@@ -9,31 +9,29 @@ interface ScriptureDisplayProps {
   verses: Verse[];
   isLoading: boolean;
   error: string | null;
+
+  // Version handling
   englishVersion: string;
+  studyMode: "single" | "parallel";
+  leftVersion?: string;
+  rightVersion?: string;
+
   onVerseSelect: (verseNum: number) => void;
   selectedVerseRef: VerseReference | null;
+
   onNextChapter: () => void;
   onPreviousChapter: () => void;
+
   onScrollDirectionChange?: (direction: "up" | "down") => void;
   highlights: { [verse: number]: string };
 }
 
 const VerseSkeleton: React.FC = () => (
   <div className="p-3 rounded-lg animate-pulse">
-    <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3">
-      <div className="flex">
-        <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-8 mr-2" />
-        <div className="space-y-2 flex-grow">
-          <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-full" />
-          <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-5/6" />
-        </div>
-      </div>
-      <div className="hidden md:flex">
-        <div className="space-y-2 flex-grow">
-          <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-full" />
-          <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-3/4" />
-        </div>
-      </div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-32" />
+      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-full" />
+      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-3/4" />
     </div>
   </div>
 );
@@ -44,184 +42,195 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   verses,
   isLoading,
   error,
+
   englishVersion,
+  studyMode,
+  leftVersion,
+  rightVersion,
+
   onVerseSelect,
   selectedVerseRef,
+
   onNextChapter,
   onPreviousChapter,
   onScrollDirectionChange,
+
   highlights,
 }) => {
-  const getHighlightClasses = (color: string) => {
-    switch (color) {
+  const getHighlightClass = (c: string | undefined) => {
+    switch (c) {
       case "yellow":
-        return "bg-yellow-200/50 dark:bg-yellow-400/15";
+        return "bg-yellow-200/50 dark:bg-yellow-500/20";
       case "green":
-        return "bg-green-200/50 dark:bg-green-400/15";
+        return "bg-green-200/50 dark:bg-green-500/20";
       case "pink":
-        return "bg-rose-200/50 dark:bg-rose-400/15";
+        return "bg-rose-200/50 dark:bg-rose-500/20";
       case "blue":
-        return "bg-sky-200/50 dark:bg-sky-400/15";
+        return "bg-sky-200/50 dark:bg-sky-500/20";
       default:
         return "";
     }
   };
 
-  // auto-scroll to selected verse
+  // Auto-scroll to selected verse
   useEffect(() => {
     if (
-      selectedVerseRef &&
-      selectedVerseRef.book === bookName &&
-      selectedVerseRef.chapter === chapterNum
-    ) {
-      setTimeout(() => {
-        const verseElement = document.getElementById(
-          `verse-${selectedVerseRef.verse}`
-        );
-        if (verseElement) {
-          verseElement.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      }, 100);
-    }
+      !selectedVerseRef ||
+      selectedVerseRef.book !== bookName ||
+      selectedVerseRef.chapter !== chapterNum
+    )
+      return;
+
+    const el = document.getElementById(`verse-${selectedVerseRef.verse}`);
+    if (!el) return;
+
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
-  const lastScrollTop = useRef(0);
-  const SCROLL_THRESHOLD = 50;
-
+  // Scroll detection → hide/show NavPane
+  const lastScroll = useRef(0);
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       if (!onScrollDirectionChange) return;
 
-      const currentScrollTop = e.currentTarget.scrollTop;
-      const delta = Math.abs(currentScrollTop - lastScrollTop.current);
+      const top = e.currentTarget.scrollTop;
+      const diff = top - lastScroll.current;
 
-      if (currentScrollTop < 10) {
-        onScrollDirectionChange("up");
-        lastScrollTop.current = currentScrollTop;
-        return;
-      }
+      if (Math.abs(diff) < 40) return;
 
-      if (delta < SCROLL_THRESHOLD) return;
+      if (diff > 0) onScrollDirectionChange("down");
+      else onScrollDirectionChange("up");
 
-      if (currentScrollTop > lastScrollTop.current) {
-        onScrollDirectionChange("down");
-      } else {
-        onScrollDirectionChange("up");
-      }
-
-      lastScrollTop.current = currentScrollTop;
+      lastScroll.current = top;
     },
     [onScrollDirectionChange]
   );
 
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-[#111418]">
-        <div className="h-8 bg-gray-300 dark:bg-[#1A1D21] rounded w-1/3 mb-4 animate-pulse" />
-        <div className="space-y-4">
-          {[...Array(10)].map((_, i) => (
-            <VerseSkeleton key={i} />
-          ))}
-        </div>
+      <div className="flex-grow overflow-y-auto p-4 bg-gray-50 dark:bg-[#111418]">
+        {[...Array(10)].map((_, i) => (
+          <VerseSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-[#111418] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 font-semibold">Error</p>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">{error}</p>
-        </div>
+      <div className="flex flex-col items-center justify-center p-6">
+        <p className="text-red-600 dark:text-red-400 font-semibold">{error}</p>
       </div>
     );
   }
+
+  // resolve version safely
+  const resolveText = (v: Verse, version: string | undefined): string => {
+    if (!version) return "";
+    return v.text[version as keyof typeof v.text] ?? "";
+  };
+
+  const isSingle = studyMode === "single";
 
   return (
     <div
       className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-[#111418]"
       onScroll={handleScroll}
     >
-      {/* Mobile header */}
-      <div className="md:hidden text-center mb-3 pb-2 border-b border-gray-300 dark:border-[#2A2F35]">
-        <h2 className="text-base font-normal text-gray-900 dark:text-gray-100 font-telugu leading-tight px-3 truncate">
-          {TELUGU_BOOK_NAMES[bookName]} – {bookName} {chapterNum}
-        </h2>
-      </div>
-
-      {/* Desktop Header */}
-      <div className="hidden md:grid md:grid-cols-2 w-full mb-4 pb-3 border-b border-gray-300 dark:border-[#2A2F35]">
-        <div className="flex justify-center">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-telugu">
+      {/* Header — only ONE title in single mode */}
+      {isSingle && (
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 font-telugu">
             {TELUGU_BOOK_NAMES[bookName]} {chapterNum}
           </h2>
         </div>
-        <div className="flex justify-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {bookName} {chapterNum}
-          </h2>
-        </div>
-      </div>
+      )}
 
-      {/* VERSES */}
-      <div className="space-y-4">
-        {verses.map((verse) => {
-          const isHighlighted = highlights[verse.verse] !== undefined;
-          const color = highlights[verse.verse];
+      {/* -------------------------------
+             SINGLE MODE RENDERING
+         ------------------------------- */}
+      {isSingle && (
+        <div className="max-w-3xl mx-auto space-y-4">
+          {verses.map((v) => {
+            const isSel =
+              selectedVerseRef?.verse === v.verse &&
+              selectedVerseRef?.chapter === chapterNum;
 
-          const englishText =
-            verse.text[englishVersion as keyof typeof verse.text] ||
-            verse.text.KJV;
+            const hl = highlights[v.verse];
 
-          return (
-            <div
-              id={`verse-${verse.verse}`}
-              key={verse.verse}
-              onClick={() => onVerseSelect(verse.verse)} // only selects verse, no highlight logic
-              className="rounded-lg transition-all duration-200"
-            >
+            return (
               <div
-  className={`
-    grid grid-cols-1 md:grid-cols-2 md:gap-6 p-3 rounded-lg cursor-pointer transition-all duration-200
-    ${isHighlighted ? getHighlightClasses(color) : ""}
-    ${
-      selectedVerseRef?.verse === verse.verse
-        ? "border-2 border-gray-300 dark:border-gray-500"
-        : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
-    }
-  `}
->
+                id={`verse-${v.verse}`}
+                key={v.verse}
+                onClick={() => onVerseSelect(v.verse)}
+                className={`p-4 rounded-lg cursor-pointer transition-all ${
+                  isSel
+                    ? "border-2 border-blue-400 dark:border-blue-500"
+                    : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
+                } ${getHighlightClass(hl)}`}
+              >
+                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mr-2">
+                  {v.verse}
+                </span>
+                <span className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
+                  {resolveText(v, englishVersion)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-                {/* TELUGU */}
-                <div className="flex">
-                  <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 select-none">
-                    {verse.verse}
-                  </span>
-                  <p className="text-base leading-relaxed font-telugu">
-                    {verse.text.BSI_TELUGU || (
-                      <span className="text-sm italic text-gray-500 dark:text-gray-400">
-                        [Telugu translation not available]
-                      </span>
-                    )}
-                  </p>
-                </div>
+      {/* -------------------------------
+             PARALLEL MODE RENDERING
+         ------------------------------- */}
+      {!isSingle && (
+        <div className="space-y-4">
+          {verses.map((v) => {
+            const isSel =
+              selectedVerseRef?.verse === v.verse &&
+              selectedVerseRef?.chapter === chapterNum;
 
-                {/* ENGLISH */}
-                <div className="flex mt-2 md:mt-0">
-                  <span className="text-sm font-bold w-8 text-gray-500 dark:text-gray-400 md:hidden select-none">
-                    {verse.verse}
-                  </span>
-                  <p className="text-[1.05rem] leading-[1.55]">{englishText}</p>
+            const hl = highlights[v.verse];
+
+            return (
+              <div
+                id={`verse-${v.verse}`}
+                key={v.verse}
+                onClick={() => onVerseSelect(v.verse)}
+                className={`p-3 rounded-lg cursor-pointer transition-all ${
+                  isSel
+                    ? "border-2 border-blue-400 dark:border-blue-500"
+                    : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
+                } ${getHighlightClass(hl)}`}
+              >
+                {/* Desktop → side-by-side, Mobile → stacked */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* LEFT version */}
+                  <div>
+                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                      {v.verse}
+                    </span>
+                    <p className="text-[1.05rem] leading-relaxed font-telugu">
+                      {resolveText(v, leftVersion)}
+                    </p>
+                  </div>
+
+                  {/* RIGHT version */}
+                  <div>
+                    <p className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
+                      {resolveText(v, rightVersion)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

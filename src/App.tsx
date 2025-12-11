@@ -1,703 +1,592 @@
-  // src/App.tsx
-  import React, { useState, useEffect, useCallback, FormEvent } from "react";
+// src/App.tsx
+import React, { useState, useEffect, useCallback, FormEvent } from "react";
 
-  import NavigationPane from "./components/NavigationPane";
-  import { ScriptureDisplay } from "./components/ScriptureDisplay";
-  import { VerseTools } from "./components/VerseTools";
-  import { Chatbot } from "./components/Chatbot";
-  import { WelcomeScreen } from "./components/WelcomeScreen";
-  import { SearchResultDisplay } from "./components/SearchResultDisplay";
+import NavigationPane from "./components/NavigationPane";
+import { ScriptureDisplay } from "./components/ScriptureDisplay";
+import { VerseTools } from "./components/VerseTools";
+import { Chatbot } from "./components/Chatbot";
+import { WelcomeScreen } from "./components/WelcomeScreen";
+import { SearchResultDisplay } from "./components/SearchResultDisplay";
 
-  import { useLocalStorage } from "./hooks/useLocalStorage";
-  import { useHighlights } from "./hooks/useHighlights";
+import { useLocalStorage } from "./hooks/useLocalStorage";
+import { useHighlights } from "./hooks/useHighlights";
 
+import {
+  fetchChapter,
+  BIBLE_META,
+  findBookMetadata,
+  fetchVersesByReferences,
+  normalizeTeluguReference,
+  searchTeluguKeyword,
+} from "./services/bibleService";
 
+import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
+import { LanguageProvider } from "./context/LanguageContext";
+import ProfileMenu from "./components/ProfileMenu";
+import { useAuth } from "./context/AuthContext";
 
-  import {
-    fetchChapter,
-    BIBLE_META,
-    findBookMetadata,
-    fetchVersesByReferences,
-    normalizeTeluguReference,
-    searchTeluguKeyword,
-  } from "./services/bibleService";
+const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV", "NASB"];
 
-  import { searchBibleByKeyword } from "./services/geminiService";
+const App: React.FC = () => {
+  const { user, loading } = useAuth();
 
-  import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
+  // Core state
+  const [verses, setVerses] = useState<Verse[]>([]);
+  const [isLoadingVerses, setIsLoadingVerses] = useState(true);
+  const [verseError, setVerseError] = useState<string | null>(null);
 
-  import { LanguageProvider } from "./context/LanguageContext";
-  import ProfileMenu from "./components/ProfileMenu";
-  import { useAuth } from "./context/AuthContext";
+  const [selectedBook, setSelectedBook] = useLocalStorage("selectedBook", "Genesis");
+  const [selectedChapter, setSelectedChapter] = useLocalStorage("selectedChapter", 1);
+  const [selectedVerseRef, setSelectedVerseRef] = useState<VerseReference | null>(null);
 
-  const App: React.FC = () => {
-    const { user, loading } = useAuth();
+  // Study mode & versions
+  const [studyMode, setStudyMode] = useLocalStorage<"single" | "parallel">("studyMode", "single");
+  const [singleVersion, setSingleVersion] = useLocalStorage("singleVersion", "BSI_TELUGU"); // default Telugu
+  const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "BSI_TELUGU");
+  const [rightVersion, setRightVersion] = useLocalStorage("rightVersion", "ESV");
 
-    // ------------------ CORE STATE ------------------
-    const [verses, setVerses] = useState<Verse[]>([]);
-    const [isLoadingVerses, setIsLoadingVerses] = useState(true);
-    const [verseError, setVerseError] = useState<string | null>(null);
+  const activeEnglishVersion = studyMode === "single" ? singleVersion : rightVersion;
 
-    const [selectedBook, setSelectedBook] = useLocalStorage<string>(
-      "selectedBook",
-      "Genesis"
-    );
-    const [selectedChapter, setSelectedChapter] = useLocalStorage<number>(
-      "selectedChapter",
-      1
-    );
+  const [showWelcome, setShowWelcome] = useState(false);
 
-    const [selectedVerseRef, setSelectedVerseRef] =
-      useState<VerseReference | null>(null);
-    const [englishVersion, setEnglishVersion] = useLocalStorage<string>(
-      "englishVersion",
-      "ESV"
-    );
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchView, setIsSearchView] = useState(false);
+  const [searchResults, setSearchResults] = useState<FullVerse[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-    const [showWelcome, setShowWelcome] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
+  // UI
+  const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
 
-    const [isSearchView, setIsSearchView] = useState(false);
-    const [searchResults, setSearchResults] = useState<FullVerse[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchError, setSearchError] = useState<string | null>(null);
-
-    const [isChatOpen, setIsChatOpen] = useState(false);
-    const [isNavVisible, setIsNavVisible] = useState(true);
-
-    // ------------------ HIGHLIGHTS (must be AFTER selectedBook/chapter) ------------------
-    const { highlights, toggleHighlight } = useHighlights(
-      user?.id,
-      selectedBook,
-      selectedChapter
-    );
-
-    // ------------------ SHOW WELCOME ------------------
-    useEffect(() => {
-      if (!sessionStorage.getItem("welcomeShown")) {
-        setShowWelcome(true);
-      }
-    }, []);
-
-    const handleWelcomeDismiss = () => {
-      setShowWelcome(false);
-      sessionStorage.setItem("welcomeShown", "true");
-    };
-
-    // ------------------ SYNC URL HASH (OAuth-safe) ------------------
-    /**
-     * IMPORTANT:
-     * Supabase OAuth sends tokens in the URL hash:
-     *   #access_token=...&refresh_token=...
-     *
-     * If we overwrite that hash too early (e.g., with "#/Genesis/1"),
-     * Supabase cannot hydrate the session and `user` stays null.
-     *
-     * So: if the current hash looks like an OAuth callback,
-     * we leave it alone and let Supabase process it first.
-     * 
-     */
-    const suppressHash = React.useRef(false);
+  // Expandable search (material-like)
+  // NOTE: searchOpen controls the expanded state. On mobile we show a fixed overlay when true.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const desktopSearchRef = React.useRef<HTMLDivElement | null>(null);
 
 
-    useEffect(() => {
-      if (isSearchView || isLoadingVerses) return;
-    
-      const currentHash = window.location.hash;
-    
-      if (
-        currentHash.startsWith("#access_token") ||
-        currentHash.includes("access_token=") ||
-        currentHash.includes("refresh_token=")
-      ) {
-        return;
-      }
-    
-      let desiredHash = `#/${encodeURIComponent(selectedBook)}/${selectedChapter}`;
-    
-      if (
-        selectedVerseRef &&
-        selectedVerseRef.book === selectedBook &&
-        selectedVerseRef.chapter === selectedChapter
-      ) {
-        desiredHash += `/${selectedVerseRef.verse}`;
-      }
-    
-      if (currentHash !== desiredHash) {
-        suppressHash.current = true;  // <<< IMPORTANT
-        window.location.hash = desiredHash;
-      }
-    }, [
-      isSearchView,
-      isLoadingVerses,
-      selectedBook,
-      selectedChapter,
-      selectedVerseRef,
-    ]);
-    
-    
-    // ------------------ HANDLE URL HASH CHANGE (OAuth-safe) ------------------
-    /**
-     * This parser reads our own deep-link hashes like:
-     *   #/Genesis/1
-     *   #/Genesis/1/3
-     *
-     * But it must ignore Supabase's auth hashes:
-     *   #access_token=...
-     */
-    useEffect(() => {
-      const parseHashAndSetState = (hash: string) => {
-        // Ignore Supabase OAuth hashes entirely
-        if (
-          hash.startsWith("#access_token") ||
-          hash.includes("access_token=") ||
-          hash.includes("refresh_token=")
-        ) {
-          return;
-        }
+  // Highlights
+  const { highlights, toggleHighlight } = useHighlights(user?.id, selectedBook, selectedChapter);
 
-        setIsSearchView(false);
-
-        const parts = hash.replace(/^#\/?/, "").split("/");
-        if (parts.length < 2 || !parts[0]) return;
-
-        const bookName = decodeURIComponent(parts[0].replace(/\+/g, " "));
-        const chapterNum = parseInt(parts[1], 10);
-        const verseNum = parts[2] ? parseInt(parts[2], 10) : null;
-
-        const bookMeta = findBookMetadata(bookName);
-        if (
-          !bookMeta ||
-          isNaN(chapterNum) ||
-          chapterNum < 1 ||
-          chapterNum > bookMeta.chapters
-        ) {
-          console.warn("Invalid reference in URL hash:", hash);
-          return;
-        }
-
-        setSelectedBook(bookMeta.name);
-        setSelectedChapter(chapterNum);
-
-        if (verseNum) {
-          const newVerseRef = {
-            book: bookMeta.name,
-            chapter: chapterNum,
-            verse: verseNum,
-          };
-          setSelectedVerseRef(newVerseRef);
-
-          if (window.innerWidth < 768) setIsToolsModalOpen(true);
-        } else {
-          setSelectedVerseRef(null);
-          setIsToolsModalOpen(false);
-        }
-      };
-
-      const handleHashChange = () => {
-        if (suppressHash.current) {
-          suppressHash.current = false;
-          return; // Skip — this hash change was triggered by us
-        }
-      
-        const hash = window.location.hash;
-        parseHashAndSetState(hash);
-      };
-      
-      
-
-      const initialHash = window.location.hash;
-
-      // Process initial hash only if it's NOT an OAuth hash
-      if (
-        initialHash &&
-        !initialHash.startsWith("#access_token") &&
-        !initialHash.includes("access_token=") &&
-        !initialHash.includes("refresh_token=")
-      ) {
-        parseHashAndSetState(initialHash);
-      }
-
-      window.addEventListener("hashchange", handleHashChange);
-      return () => window.removeEventListener("hashchange", handleHashChange);
-    }, []);
-
-    // ------------------ LOAD VERSES ------------------
-    useEffect(() => {
-      if (isSearchView) return;
-
-      const loadVerses = async () => {
-        setIsLoadingVerses(true);
-        setVerseError(null);
-
-        try {
-          const fetchedVerses = await fetchChapter(selectedBook, selectedChapter);
-          setVerses(fetchedVerses);
-        } catch (err) {
-          console.error(err);
-          setVerseError("Failed to load chapter.");
-          setVerses([]);
-        } finally {
-          setIsLoadingVerses(false);
-        }
-      };
-
-      loadVerses();
-    }, [selectedBook, selectedChapter, isSearchView]);
-
-    // ------------------ NAVIGATION HELPERS ------------------
-    const handleBookChange = useCallback((book: string) => {
-      setSelectedBook(book);
-      setSelectedChapter(1);
-      setSelectedVerseRef(null);
-      setIsToolsModalOpen(false);
-    }, []);
-
-    const handleChapterChange = useCallback((chapter: number) => {
-      setSelectedChapter(chapter);
-      setSelectedVerseRef(null);
-      setIsToolsModalOpen(false);
-    }, []);
-
-    const handleNextChapter = useCallback(() => {
-      const bookMeta = BIBLE_META.find((b) => b.name === selectedBook);
-      if (!bookMeta) return;
-
-      if (selectedChapter < bookMeta.chapters) {
-        handleChapterChange(selectedChapter + 1);
-      } else {
-        const currentBookIndex = BIBLE_META.findIndex(
-          (b) => b.name === selectedBook
-        );
-        if (currentBookIndex < BIBLE_META.length - 1) {
-          const nextBook = BIBLE_META[currentBookIndex + 1];
-          handleBookChange(nextBook.name);
-        }
-      }
-    }, [selectedBook, selectedChapter, handleBookChange, handleChapterChange]);
-
-    const handlePreviousChapter = useCallback(() => {
-      if (selectedChapter > 1) {
-        handleChapterChange(selectedChapter - 1);
-      } else {
-        const currentBookIndex = BIBLE_META.findIndex(
-          (b) => b.name === selectedBook
-        );
-        if (currentBookIndex > 0) {
-          const prevBook = BIBLE_META[currentBookIndex - 1];
-          setSelectedBook(prevBook.name);
-          setSelectedChapter(prevBook.chapters);
-          setSelectedVerseRef(null);
-          setIsToolsModalOpen(false);
-        }
-      }
-    }, [selectedBook, selectedChapter, handleChapterChange]);
-
-    // ------------------ SCROLL DIRECTION ------------------
-    const handleScrollDirectionChange = useCallback((direction: "up" | "down") => {
-      setIsNavVisible(direction === "up");
-    }, []);
-
-    // ------------------ VERSE SELECTION ------------------
-    const handleVerseSelect = useCallback(
-      (verseNum: number) => {
-        setSelectedVerseRef({
-          book: selectedBook,
-          chapter: selectedChapter,
-          verse: verseNum,
-        });
-        if (window.innerWidth < 768) setIsToolsModalOpen(true);
-        setIsChatOpen(false);
-      },
-      [selectedBook, selectedChapter]
-    );
-
-    // ------------------ SEARCH LOGIC ------------------
-    const parseReferencesFromString = (refString: string): ParsedReference[] => {
-      const parts = refString.split(/\s*[;,]\s*/);
-      const parsed: ParsedReference[] = [];
-
-      const referenceRegex =
-        /^([1-3]?\s*[A-Za-z\u0C00-\u0C7F.'’\-\u00A0]+?)\s+(\d+)\s*:\s*(\d+)(?:-(\d+))?$/u;
-
-      for (const rawPart of parts) {
-        const text = rawPart.trim();
-        if (!text) continue;
-
-        const normalizedWhole = normalizeTeluguReference(text);
-        const m = normalizedWhole.match(referenceRegex);
-        if (!m) continue;
-
-        const bookCandidate = m[1].trim();
-        const chapterNum = parseInt(m[2], 10);
-        const startVerseNum = parseInt(m[3], 10);
-        const endVerseNum = m[4] ? parseInt(m[4], 10) : undefined;
-
-        if (isNaN(chapterNum) || isNaN(startVerseNum)) continue;
-
-        const bookMeta = findBookMetadata(bookCandidate);
-        if (!bookMeta) continue;
-
-        if (chapterNum < 1 || chapterNum > bookMeta.chapters) continue;
-        if (endVerseNum !== undefined && endVerseNum < startVerseNum) continue;
-
-        parsed.push({
-          book: bookMeta.name,
-          chapter: chapterNum,
-          startVerse: startVerseNum,
-          endVerse: endVerseNum,
-        });
-      }
-
-      return parsed;
-    };
-
-    // ------------------ SEARCH LOGIC ------------------
-  const handleSearch = async (event: FormEvent) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
-
-    setSearchError(null);
-
-    // Try parse reference
-    const normalizedQueryForParse = normalizeTeluguReference(query);
-    const parsedRefs = parseReferencesFromString(normalizedQueryForParse);
-
-    // Multiple references ("John 3:16, John 4:5")
-    if (parsedRefs.length > 1) {
-      setIsSearching(true);
-      try {
-        const results = await fetchVersesByReferences(parsedRefs);
-        setSearchResults(results);
-        setIsSearchView(true);
-      } catch (err) {
-        console.error(err);
-        setSearchError("Failed to fetch results.");
-      } finally {
-        setIsSearching(false);
-        setSearchQuery("");
-      }
-      return;
+  useEffect(() => {
+    if (!sessionStorage.getItem("welcomeShown")) {
+      setShowWelcome(true);
     }
+  }, []);
 
-    // Single reference
-    if (parsedRefs.length === 1) {
-      const ref = parsedRefs[0];
-      const bookMeta = BIBLE_META.find((b) => b.name === ref.book);
-
-      if (!bookMeta || ref.chapter < 1 || ref.chapter > bookMeta.chapters) {
-        setSearchError(`Invalid chapter for ${ref.book}.`);
-        return;
-      }
-
-      setIsSearchView(false);
-      setSelectedBook(ref.book);
-      setSelectedChapter(ref.chapter);
-
-      if (ref.startVerse) {
-        setSelectedVerseRef({
-          book: ref.book,
-          chapter: ref.chapter,
-          verse: ref.startVerse,
-        });
-      } else {
-        setSelectedVerseRef(null);
-      }
-
-      setSearchQuery("");
-      return;
-    }
-
-    // ----------------------
-    // TELUGU KEYWORD SEARCH (REPLACES AI)
-    // ----------------------
-    setIsSearching(true);
-
-    try {
-      const results = await searchTeluguKeyword(query, {
-        wholeWord: false,
-        requireAll: false,
-        highlight: true,
-        limit: 500,
-      });
-
-      if (results.length === 0) {
-        setSearchError(`No verses found for "${query}".`);
-        setSearchResults([]);
-        setIsSearchView(true);
-        return;
-      }
-
-      setSearchResults(results);
-      setIsSearchView(true);
-    } catch (err) {
-      console.error(err);
-      setSearchError("Telugu search failed.");
-    } finally {
-      setIsSearching(false);
-      setSearchQuery("");
-    }
+  const handleWelcomeDismiss = () => {
+    setShowWelcome(false);
+    sessionStorage.setItem("welcomeShown", "true");
   };
 
-    const handleClearSearch = () => {
+  // URL hash sync (OAuth-safe)
+  const suppressHash = React.useRef(false);
+
+  useEffect(() => {
+    if (isSearchView || isLoadingVerses) return;
+
+    const current = window.location.hash;
+
+    if (
+      current.startsWith("#access_token") ||
+      current.includes("access_token=") ||
+      current.includes("refresh_token=")
+    ) {
+      return;
+    }
+
+    let hash = `#/${encodeURIComponent(selectedBook)}/${selectedChapter}`;
+    if (
+      selectedVerseRef &&
+      selectedVerseRef.book === selectedBook &&
+      selectedVerseRef.chapter === selectedChapter
+    ) {
+      hash += `/${selectedVerseRef.verse}`;
+    }
+
+    if (hash !== current) {
+      suppressHash.current = true;
+      window.location.hash = hash;
+    }
+  }, [isSearchView, isLoadingVerses, selectedBook, selectedChapter, selectedVerseRef]);
+
+  useEffect(() => {
+    const parseHash = (hash: string) => {
+      if (
+        hash.startsWith("#access_token") ||
+        hash.includes("access_token=") ||
+        hash.includes("refresh_token=")
+      ) {
+        return;
+      }
+
       setIsSearchView(false);
-      setSearchResults([]);
-      setSearchError(null);
-    };
-      // ------------------ UNIFIED NAVIGATION ENGINE ------------------
 
-  // ------------------ UNIFIED NAVIGATION ENGINE ------------------
-  const navigateTo = useCallback(
-    (book: string, chapter: number, verse?: number) => {
-      // 1) Exit search mode so ScriptureDisplay actually renders
-      setIsSearchView(false);
-      setSearchResults([]);
-      setSearchError(null);
+      const parts = hash.replace(/^#\/?/, "").split("/");
+      if (parts.length < 2 || !parts[0]) return;
 
-      // 2) Navigate core state
-      setSelectedBook(book);
-      setSelectedChapter(chapter);
+      const bookCandidate = decodeURIComponent(parts[0].replace(/\+/g, " "));
+      const chap = parseInt(parts[1], 10);
+      const verse = parts[2] ? parseInt(parts[2], 10) : null;
 
-      if (verse !== undefined) {
-        setSelectedVerseRef({ book, chapter, verse });
+      const meta = findBookMetadata(bookCandidate);
+      if (!meta) return;
+
+      setSelectedBook(meta.name);
+      setSelectedChapter(chap);
+
+      if (verse) {
+        setSelectedVerseRef({ book: meta.name, chapter: chap, verse });
         if (window.innerWidth < 768) setIsToolsModalOpen(true);
       } else {
         setSelectedVerseRef(null);
         setIsToolsModalOpen(false);
       }
-
-      // Hash sync is still handled by the effect that runs when isSearchView is false
-    },
-    []
-  );
+    };
+    // Desktop-only: close search on click outside
 
 
+    const handleHashChange = () => {
+      if (suppressHash.current) {
+        suppressHash.current = false;
+        return;
+      }
+      parseHash(window.location.hash);
+    };
 
-    // ------------------ METADATA ------------------
-    const selectedBookMeta = BIBLE_META.find((b) => b.name === selectedBook);
-    const chapterCount = selectedBookMeta ? selectedBookMeta.chapters : 0;
-    const selectedVerseData = selectedVerseRef
-      ? verses.find((v) => v.verse === selectedVerseRef.verse)
-      : null;
+    if (window.location.hash) parseHash(window.location.hash);
 
-    const isFirstChapterOfBible =
-      selectedBook === "Genesis" && selectedChapter === 1;
-    const isLastChapterOfBible =
-      selectedBook === "Revelation" && selectedChapter === 22;
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
-    // ------------------ RENDER ------------------
-    return (
-      <LanguageProvider>
-        {loading ? (
-          // SAFE LOADING SCREEN (no hooks used here)
-          <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">
-            Loading...
-          </div>
-        ) : (
-          // FULL APP UI — all hooks run before this block
-          <div className="flex flex-col h-screen font-sans">
-            {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
+  // Load verses
+  useEffect(() => {
+    if (isSearchView) return;
 
-            
-  {/* HEADER */}
-  <header
-    className="
-      bg-white dark:bg-slate-900 p-3 shadow-md z-10 
-      border-b border-gray-200 dark:border-slate-700
-      flex flex-col md:flex-row md:items-center md:justify-between gap-3
-    "
-  >
+    const load = async () => {
+      setIsLoadingVerses(true);
+      setVerseError(null);
 
-    {/* MOBILE: Logo + Title + Profile */}
-    <div className="flex md:hidden items-center justify-between px-2">
-      
-      {/* Brand Logo (Rounded Square — NOT Circle) */}
-      <div className="flex items-center gap-3 py-1">
-        <div
-          className="
-            w-10 h-10 rounded-lg 
-            bg-gradient-to-br from-blue-500 to-blue-700
-            flex items-center justify-center shadow-sm
-          "
-        >
-          <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="w-6 h-6 text-white"
-  >
-    {/* Bible cover */}
-    <rect x="5" y="3" width="14" height="18" rx="2" />
+      try {
+        const data = await fetchChapter(selectedBook, selectedChapter);
+        setVerses(data);
+      } catch (e) {
+        console.error(e);
+        setVerseError("Failed to load chapter.");
+        setVerses([]);
+      } finally {
+        setIsLoadingVerses(false);
+      }
+    };
 
-    {/* Cross vertical — longer */}
-    <path d="M12 8v8" />
+    load();
+  }, [selectedBook, selectedChapter, isSearchView]);
 
-    {/* Cross horizontal — shorter, placed above center */}
-    <path d="M10 10h4" />
-  </svg>
+  // Navigation helpers
+  const handleBookChange = useCallback((book: string) => {
+    setSelectedBook(book);
+    setSelectedChapter(1);
+    setSelectedVerseRef(null);
+    setIsToolsModalOpen(false);
+  }, []);
+
+  const handleChapterChange = useCallback((ch: number) => {
+    setSelectedChapter(ch);
+    setSelectedVerseRef(null);
+    setIsToolsModalOpen(false);
+  }, []);
+
+  const handleNextChapter = useCallback(() => {
+    const meta = BIBLE_META.find((b) => b.name === selectedBook);
+    if (!meta) return;
+    if (selectedChapter < meta.chapters) {
+      handleChapterChange(selectedChapter + 1);
+    } else {
+      const idx = BIBLE_META.findIndex((b) => b.name === selectedBook);
+      if (idx < BIBLE_META.length - 1) {
+        handleBookChange(BIBLE_META[idx + 1].name);
+      }
+    }
+  }, [selectedBook, selectedChapter, handleBookChange, handleChapterChange]);
+
+  const handlePreviousChapter = useCallback(() => {
+    if (selectedChapter > 1) {
+      handleChapterChange(selectedChapter - 1);
+    } else {
+      const idx = BIBLE_META.findIndex((b) => b.name === selectedBook);
+      if (idx > 0) {
+        const prev = BIBLE_META[idx - 1];
+        setSelectedBook(prev.name);
+        setSelectedChapter(prev.chapters);
+        setSelectedVerseRef(null);
+        setIsToolsModalOpen(false);
+      }
+    }
+  }, [selectedBook, selectedChapter, handleChapterChange]);
+
+  const handleScrollDirectionChange = useCallback((dir: "up" | "down") => {
+    setIsNavVisible(dir === "up");
+  }, []);
+
+  const handleVerseSelect = useCallback((v: number) => {
+    setSelectedVerseRef({ book: selectedBook, chapter: selectedChapter, verse: v });
+    if (window.innerWidth < 768) setIsToolsModalOpen(true);
+    setIsChatOpen(false);
+  }, [selectedBook, selectedChapter]);
+
+  // Search parsing
+  const parseReferencesFromString = (refString: string): ParsedReference[] => {
+    const parts = refString.split(/\s*[;,]\s*/);
+    const parsed: ParsedReference[] = [];
+    const regex =
+      /^([1-3]?\s*[A-Za-z\u0C00-\u0C7F.'’\-\u00A0]+?)\s+(\d+)\s*:\s*(\d+)(?:-(\d+))?$/u;
+
+    for (const raw of parts) {
+      const cleaned = raw.trim();
+      if (!cleaned) continue;
+      const normalized = normalizeTeluguReference(cleaned);
+      const m = normalized.match(regex);
+      if (!m) continue;
+      const bookCandidate = m[1].trim();
+      const chap = parseInt(m[2], 10);
+      const startVerse = parseInt(m[3], 10);
+      const endVerse = m[4] ? parseInt(m[4], 10) : undefined;
+      const meta = findBookMetadata(bookCandidate);
+      if (!meta) continue;
+      if (chap < 1 || chap > meta.chapters) continue;
+      parsed.push({ book: meta.name, chapter: chap, startVerse, endVerse });
+    }
+    return parsed;
+  };
+
+  const handleSearch = async (e?: FormEvent) => {
+    e?.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setSearchError(null);
+
+    const parsedRefs = parseReferencesFromString(normalizeTeluguReference(query));
+
+    if (parsedRefs.length > 1) {
+      setIsSearching(true);
+      try {
+        const res = await fetchVersesByReferences(parsedRefs);
+        setSearchResults(res);
+        setIsSearchView(true);
+      } catch {
+        setSearchError("Failed to fetch results.");
+      } finally {
+        setIsSearching(false);
+        setSearchQuery("");
+        setSearchOpen(false);
+      }
+      return;
+    }
+
+    if (parsedRefs.length === 1) {
+      const ref = parsedRefs[0];
+      setIsSearchView(false);
+      setSelectedBook(ref.book);
+      setSelectedChapter(ref.chapter);
+      if (ref.startVerse) {
+        setSelectedVerseRef({ book: ref.book, chapter: ref.chapter, verse: ref.startVerse });
+      } else {
+        setSelectedVerseRef(null);
+      }
+      setSearchQuery("");
+      setSearchOpen(false);
+      return;
+    }
+    
+
+    // Keyword search
+    setIsSearching(true);
+    try {
+      const res = await searchTeluguKeyword(query, {
+        wholeWord: false,
+        requireAll: false,
+        highlight: true,
+      });
+
+      if (!res || res.length === 0) {
+        setSearchError(`No results for "${query}"`);
+        setSearchResults([]);
+      } else {
+        setSearchResults(res);
+      }
+      setIsSearchView(true);
+    } catch {
+      setSearchError("Search failed.");
+    } finally {
+      setIsSearching(false);
+      setSearchQuery("");
+      setSearchOpen(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setIsSearchView(false);
+    setSearchResults([]);
+    setSearchError(null);
+  };
+
+  const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
+    setIsSearchView(false);
+    setSearchResults([]);
+    setSearchError(null);
+    setSelectedBook(book);
+    setSelectedChapter(chap);
+    if (verse !== undefined) {
+      setSelectedVerseRef({ book, chapter: chap, verse });
+      if (window.innerWidth < 768) setIsToolsModalOpen(true);
+    } else {
+      setSelectedVerseRef(null);
+      setIsToolsModalOpen(false);
+    }
+  }, []);
+
+  // Desktop-only: close search on click outside
+useEffect(() => {
+  if (!searchOpen) return;
+
+  const handleClick = (e: MouseEvent) => {
+    if (window.innerWidth < 768) return; // desktop only
+
+    const target = e.target as HTMLElement;
+    if (desktopSearchRef.current && !desktopSearchRef.current.contains(target)) {
+      setSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
+
+  document.addEventListener("mousedown", handleClick);
+  return () => document.removeEventListener("mousedown", handleClick);
+}, [searchOpen]);
 
 
-        </div>
+  // Meta
+  const selectedBookMeta = BIBLE_META.find((b) => b.name === selectedBook);
+  const chapterCount = selectedBookMeta?.chapters ?? 0;
 
-        <div className="flex flex-col leading-tight">
-          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            AI Bible Study Companion
-          </span>
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            by Joel Prem
-          </span>
-        </div>
-      </div>
+  const selectedVerseData = selectedVerseRef && verses.find((v) => v.verse === selectedVerseRef.verse);
 
-      {/* Profile Menu (Mobile) */}
-      <ProfileMenu />
-    </div>
+  const isFirstChapter = selectedBook === "Genesis" && selectedChapter === 1;
+  const isLastChapter = selectedBook === "Revelation" && selectedChapter === 22;
 
-    {/* DESKTOP: Logo + Title */}
-    <div className="hidden md:flex items-center gap-4 ml-4 py-1">
+  // Render
+  return (
+    <LanguageProvider>
+      {loading ? (
+        <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
+      ) : (
+        <div className="flex flex-col h-screen">
 
-      {/* Brand Logo (Rounded Square — PROPER version) */}
-      <div
-        className="
-          w-10 h-10 rounded-lg
-          bg-gradient-to-br from-blue-500 to-blue-700
-          flex items-center justify-center shadow-sm
-        "
-      >
-        <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="w-6 h-6 text-white"
-  >
-    {/* Bible cover */}
-    <rect x="5" y="3" width="14" height="18" rx="2" />
+          {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
 
-    {/* Cross vertical — longer */}
-    <path d="M12 8v8" />
+          {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
+          <header className="bg-white dark:bg-slate-900 p-3 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            {/* Left: Logo & title */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-6 h-6">
+                  <rect x="5" y="3" width="14" height="18" rx="2" />
+                  <path d="M12 8v8" /><path d="M10 10h4" />
+                </svg>
+              </div>
 
-    {/* Cross horizontal — shorter, placed above center */}
-    <path d="M10 10h4" />
-  </svg>
+              <div className="hidden md:flex flex-col leading-tight">
+                <span className="text-2xl font-semibold text-gray-900 dark:text-gray-100">AI Bible Study Companion</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">by Joel Prem</span>
+              </div>
+            </div>
 
+            {/* MOBILE title (still shown in mobile header) */}
+            <div className="flex md:hidden flex-col leading-tight ml-2">
+              <span className="text-base font-semibold text-gray-900 dark:text-gray-100">AI Bible Study Companion</span>
+            </div>
 
+            {/* Right: compact search + profile */}
+            <div className="flex items-center gap-3">
+              {/* Expandable Search (Material-style) */}
+              <div className="relative">
+                {/* Always show the small icon button when search is closed */}
+                {!searchOpen && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSearchOpen(true);
+                    }}
+                    
+                    aria-label="Open search"
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-[#2A2F35] hover:scale-105 transition"
+                  >
+                    <i className="fas fa-search text-gray-700 dark:text-gray-300" />
+                  </button>
+                )}
 
-      </div>
+                {/* DESKTOP: expanded search inline (keeps old behaviour) */}
+                {searchOpen && (
+                  <div
+                  ref={desktopSearchRef}
+                  className="hidden md:flex items-center bg-white dark:bg-gray-800 
+border border-gray-300 dark:border-[#2A2F35] 
+rounded-full shadow-md overflow-hidden px-2"
 
-      <div className="flex flex-col leading-tight">
-        <span className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-          AI Bible Study Companion
-        </span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          by Joel Prem
-        </span>
-      </div>
-    </div>
-
-    {/* SEARCH + PROFILE (Desktop) */}
-    <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-3 px-2 md:px-0">
-
-      {/* Search Bar */}
-      <form
-        onSubmit={handleSearch}
-        className="flex-1 md:w-80 max-w-md flex items-center"
-      >
-        <div
-          className="
-            flex w-full rounded-lg overflow-hidden 
-            transition-all duration-200 ease-out
-            hover:shadow-[0_0_14px_rgba(59,130,246,0.55)] 
-            dark:hover:shadow-[0_0_16px_rgba(59,130,246,0.65)]
-          "
-        >
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
-            className="
-              bg-gray-50 border border-gray-300 text-gray-900 text-sm 
-              dark:bg-gray-800 dark:border-slate-700 dark:text-gray-100
-              w-full p-2.5 outline-none
-            "
-          />
-
-          <button
-            type="submit"
-            className="
-              px-4 text-white bg-blue-600 hover:bg-blue-700 
-              border border-blue-600 
-              dark:bg-blue-600 dark:hover:bg-blue-700
-            "
-          >
-            <i className="fas fa-search" />
-          </button>
-        </div>
-      </form>
-
-      {/* Profile Avatar (Desktop) */}
-      <div className="hidden md:block">
-        <ProfileMenu />
-      </div>
-    </div>
-  </header>
-
-
-
-
-            {/* MAIN CONTENT */}
-            <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
-              {isSearchView ? (
-                <SearchResultDisplay
-                  results={searchResults}
-                  isLoading={isSearching}
-                  error={searchError}
-                  onClear={handleClearSearch}
-                  englishVersion={englishVersion}
-                  onNavigate={navigateTo} 
-                />
-              ) : (
-                <>
-                  <div className="w-full md:w-2/3 flex flex-col h-full min-h-0 overflow-hidden">
-                    <div
-                      className={`transition-all duration-300 ease-in-out relative z-0 ${
-                        isNavVisible ? "mt-0" : "-mt-32"
-                      } md:mt-0`}
-                    >
-                      <NavigationPane
-                        books={BIBLE_META.map((b) => b.name)}
-                        selectedBook={selectedBook}
-                        selectedChapter={selectedChapter}
-                        chapterCount={chapterCount}
-                        onBookChange={handleBookChange}
-                        onChapterChange={handleChapterChange}
-                        englishVersion={englishVersion}
-                        onEnglishVersionChange={setEnglishVersion}
-                        englishVersions={["ESV", "NIV", "KJV"]}
-                        onNextChapter={handleNextChapter}
-                        onPreviousChapter={handlePreviousChapter}
-                        isFirstChapterOfBible={isFirstChapterOfBible}
-                        isLastChapterOfBible={isLastChapterOfBible}
+                >                
+                    <form onSubmit={(e) => void handleSearch(e)} className="flex items-center">
+                      <input
+                        autoFocus
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
+                        className="px-3 py-2 w-80 max-w-[420px] bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100"
                       />
-                    </div>
+                      <button
+  type="submit"
+  aria-label="Search"
+  className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white"
+>
+  <i className="fas fa-arrow-right" />
+</button>
 
+                      <button
+  type="button"
+  onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+  className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700"
+>
+  <i className="fas fa-times text-gray-700 dark:text-gray-300" />
+</button>
+
+                    </form>
+                  </div>
+                )}
+
+                {/* MOBILE: fixed overlay that covers header/title when search is open */}
+                {/* MOBILE SEARCH OVERLAY */}
+{searchOpen && (
+  <div
+    id="mobile-search-overlay"
+    className="
+      md:hidden 
+      fixed inset-0 
+      z-[9999] 
+      bg-white/95 dark:bg-gray-900/95 
+      backdrop-blur-sm 
+      flex items-start
+      p-3
+    "
+    onClick={() => {
+      setSearchOpen(false);
+      setSearchQuery("");
+    }}
+  >
+    <form
+      id="mobile-search-box"
+      onClick={(e) => e.stopPropagation()}
+      onSubmit={(e) => void handleSearch(e)}
+      className="
+        w-full 
+        flex items-center gap-2 
+        bg-white dark:bg-gray-800
+        border border-gray-300 dark:border-[#2A2F35]
+        rounded-full 
+        shadow-md 
+        p-2
+      "
+    >
+      <input
+        autoFocus
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="flex-1 px-3 py-2 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100"
+        placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
+      />
+
+      <button
+        type="submit"
+        className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white"
+      >
+        <i className="fas fa-arrow-right" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+        className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700"
+      >
+        <i className="fas fa-times text-gray-700 dark:text-gray-300" />
+      </button>
+    </form>
+  </div>
+)}
+
+              </div>
+
+              {/* Profile menu */}
+              <div className="ml-2">
+                <ProfileMenu />
+              </div>
+            </div>
+          </header>
+
+          {/* MAIN */}
+          <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
+            {isSearchView ? (
+              <SearchResultDisplay
+                results={searchResults}
+                isLoading={isSearching}
+                error={searchError}
+                onClear={handleClearSearch}
+                englishVersion={activeEnglishVersion}
+                onNavigate={navigateTo}
+              />
+            ) : (
+              <>
+                {/* LEFT: Navigation (fixed/sticky) + Scripture (scrollable) */}
+                <div className="w-full md:w-2/3 flex flex-col min-h-0">
+
+                  {/* NavigationPane remains visible (sticky) and outside the scripture scroll area */}
+                  <div className="mt-0">
+                    <NavigationPane
+                      selectedBook={selectedBook}
+                      selectedChapter={selectedChapter}
+                      onBookChange={handleBookChange}
+                      onChapterChange={handleChapterChange}
+                      onNextChapter={handleNextChapter}
+                      onPreviousChapter={handlePreviousChapter}
+                      isFirstChapterOfBible={isFirstChapter}
+                      isLastChapterOfBible={isLastChapter}
+
+                      studyMode={studyMode}
+                      singleVersion={singleVersion}
+                      leftVersion={leftVersion}
+                      rightVersion={rightVersion}
+                      onSetStudyMode={setStudyMode}
+                      onSetSingleVersion={setSingleVersion}
+                      onSetLeftVersion={setLeftVersion}
+                      onSetRightVersion={setRightVersion}
+
+                      versions={AVAILABLE_VERSIONS}
+                    />
+                  </div>
+
+                  {/* ScriptureDisplay should be the only scrollable area inside the left column */}
+                  <div className="flex-grow overflow-y-auto min-h-0">
                     <ScriptureDisplay
                       bookName={selectedBook}
                       chapterNum={selectedChapter}
                       verses={verses}
                       isLoading={isLoadingVerses}
                       error={verseError}
-                      englishVersion={englishVersion}
+                      englishVersion={activeEnglishVersion}
+                      studyMode={studyMode}
+                      leftVersion={leftVersion}
+                      rightVersion={rightVersion}
                       onVerseSelect={handleVerseSelect}
                       selectedVerseRef={selectedVerseRef}
                       onNextChapter={handleNextChapter}
@@ -706,80 +595,73 @@
                       highlights={highlights}
                     />
                   </div>
-
-                  <div className="w-full md:w-1/3 hidden md:block overflow-y-auto bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-[#2A2F35]">
-                    {selectedVerseRef && selectedVerseData ? (
-                      <VerseTools
-                        verseRef={selectedVerseRef}
-                        verseData={selectedVerseData}
-                        englishVersion={englishVersion}
-                        currentHighlight={highlights[selectedVerseRef.verse] || null}
-                        onHighlightChange={(color) => {
-                          if (!user) {
-                            alert("Please sign in to highlight verses.");
-                            return;
-                          }
-                          toggleHighlight(selectedVerseRef.verse, color);
-                        }}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8 text-center">
-                        <p>
-                          Select a verse to see detailed tools like Interlinear, Cross-references,
-                          Historical Context, and Notes.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </main>
-
-            {/* MOBILE MODAL */}
-            {isToolsModalOpen && selectedVerseRef && selectedVerseData && (
-              <div
-                className="md:hidden fixed inset-0 bg-black bg-opacity-60 z-30"
-                onClick={() => setIsToolsModalOpen(false)}
-              >
-                <div
-                  className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-900 rounded-t-2xl shadow-lg overflow-hidden flex flex-col"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <VerseTools
-                    verseRef={selectedVerseRef}
-                    verseData={selectedVerseData}
-                    englishVersion={englishVersion}
-                    currentHighlight={highlights[selectedVerseRef.verse] || null}
-                    onHighlightChange={(color) => {
-                      if (!user) {
-                        alert("Please sign in to highlight verses.");
-                        return;
-                      }
-                      toggleHighlight(selectedVerseRef.verse, color);
-                    }}
-                    onClose={() => setIsToolsModalOpen(false)}
-                  />
                 </div>
-              </div>
+
+                {/* RIGHT PANEL */}
+                <div className="w-full md:w-1/3 hidden md:block bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-[#2A2F35] overflow-y-auto">
+                  {selectedVerseRef && selectedVerseData ? (
+                    <VerseTools
+                      verseRef={selectedVerseRef}
+                      verseData={selectedVerseData}
+                      englishVersion={activeEnglishVersion}
+                      currentHighlight={highlights[selectedVerseRef.verse] || null}
+                      onHighlightChange={(color) => {
+                        if (!user) {
+                          alert("Please sign in to highlight verses.");
+                          return;
+                        }
+                        toggleHighlight(selectedVerseRef.verse, color);
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
+                      <p>Select a verse to view tools.</p>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
+          </main>
 
-            <footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-[#9CA3AF] border-t border-gray-300 dark:border-[#2A2F35]">
-              Contact: joelpremtej@gmail.com
-            </footer>
+          {/* Mobile tools modal */}
+          {isToolsModalOpen && selectedVerseRef && selectedVerseData && (
+            <div className="fixed inset-0 z-[1000] md:hidden bg-black/60" onClick={() => setIsToolsModalOpen(false)}>
+              <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-900 rounded-t-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <VerseTools
+                  verseRef={selectedVerseRef}
+                  verseData={selectedVerseData}
+                  englishVersion={activeEnglishVersion}
+                  currentHighlight={highlights[selectedVerseRef.verse] || null}
+                  onHighlightChange={(color) => {
+                    if (!user) {
+                      alert("Please sign in to highlight verses.");
+                      return;
+                    }
+                    toggleHighlight(selectedVerseRef.verse, color);
+                  }}
+                  onClose={() => setIsToolsModalOpen(false)}
+                />
+              </div>
+            </div>
+          )}
 
-            <Chatbot
-              selectedBook={selectedBook}
-              selectedChapter={selectedChapter}
-              selectedVerseRef={selectedVerseRef}
-              verses={verses}
-              englishVersion={englishVersion}
-              isOpen={isChatOpen}
-              onToggle={() => setIsChatOpen(!isChatOpen)}
-            />
-          </div>
-        )}
-      </LanguageProvider>
-    );
-  };
+          <footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-gray-400">
+            Contact: joelpremtej@gmail.com
+          </footer>
 
-  export default App;
+          <Chatbot
+            selectedBook={selectedBook}
+            selectedChapter={selectedChapter}
+            selectedVerseRef={selectedVerseRef}
+            verses={verses}
+            englishVersion={activeEnglishVersion}
+            isOpen={isChatOpen}
+            onToggle={() => setIsChatOpen(!isChatOpen)}
+          />
+        </div>
+      )}
+    </LanguageProvider>
+  );
+};
+
+export default App;

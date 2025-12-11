@@ -1,3 +1,4 @@
+//src/data/teluguBook Nasmes.ts
 export const TELUGU_BOOK_NAMES: Record<string, string> = {
     "Genesis": "ఆదికాండము",
     "Exodus": "నిర్గమకాండము",
