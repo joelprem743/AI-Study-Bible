@@ -13,7 +13,14 @@ interface AuthContextType {
   ) => Promise<any>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<any>;
+
+  // ✅ ADD THESE
+  language: "EN" | "TE";
+  setLanguage: (lang: "EN" | "TE") => void;
+  bibleVersion: string;
+  setBibleVersion: (v: string) => void;
 }
+
 
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -42,8 +49,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     return supabase.auth.signInWithPassword({ email, password });
   };
+  const [bibleVersion, setBibleVersion] = useState(
+    localStorage.getItem("bible_version") || "KJV"
+  );
+  
+  useEffect(() => {
+    localStorage.setItem("bible_version", bibleVersion);
+  }, [bibleVersion]);
+  
 
-
+  const [language, setLanguage] = useState<"EN" | "TE">(
+    (localStorage.getItem("ui_language") as "EN" | "TE") || "EN"
+  );
+  
+  useEffect(() => {
+    localStorage.setItem("ui_language", language);
+  }, [language]);
   
   
   const signInWithGoogle = async () => {
@@ -77,7 +98,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut,signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut,signInWithGoogle,language,setLanguage,bibleVersion,
+      setBibleVersion, }}>
       {children}
     </AuthContext.Provider>
   );

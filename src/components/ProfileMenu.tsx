@@ -7,8 +7,7 @@ import ProfileHighlights from "./ProfileHighlights";
 type AuthMode = "signin" | "signup";
 
 export default function ProfileMenu() {
-  const { user, signIn, signUp, signOut, signInWithGoogle } = useAuth();
-
+  const { user, signIn, signUp, signOut, signInWithGoogle, language, setLanguage,  bibleVersion, } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
@@ -19,7 +18,6 @@ export default function ProfileMenu() {
   const [firstName, setFirstName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -203,6 +201,20 @@ export default function ProfileMenu() {
             My Notes
           </button>
 
+          <button
+  onClick={() => setLanguage(language === "EN" ? "TE" : "EN")}
+  className="
+    w-full text-left px-4 py-2 text-sm
+    text-gray-700 dark:text-gray-200
+    hover:bg-gray-100 dark:hover:bg-slate-800
+    flex items-center justify-between
+  "
+>
+  <span>Language</span>
+  <span className="font-semibold">{language}</span>
+</button>
+
+
 
           <button
             onClick={handleLogout}
@@ -222,6 +234,7 @@ export default function ProfileMenu() {
         <ProfileHighlights
           userId={user.id}
           onClose={() => setIsHighlightsOpen(false)}
+          bibleVersion={language === "TE" ? "BSI_TELUGU" : "KJV"}
         />
       )}
       {isNotesOpen && (

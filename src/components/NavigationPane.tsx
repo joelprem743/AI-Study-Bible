@@ -51,8 +51,73 @@ export default function NavigationPane(props: Props) {
   const [isBookModal, setIsBookModal] = useState(false);
   const [selectionStep, setSelectionStep] = useState<"BOOK" | "CHAPTER">("BOOK");
   const [tempBook, setTempBook] = useState(selectedBook);
+  const OLD_TESTAMENT = [
+    "Genesis","Exodus","Leviticus","Numbers","Deuteronomy",
+    "Joshua","Judges","Ruth","1 Samuel","2 Samuel",
+    "1 Kings","2 Kings","1 Chronicles","2 Chronicles",
+    "Ezra","Nehemiah","Esther","Job","Psalms","Proverbs",
+    "Ecclesiastes","Song of Solomon","Isaiah","Jeremiah",
+    "Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos",
+    "Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah",
+    "Haggai","Zechariah","Malachi",
+  ];
+  
+  const NEW_TESTAMENT = [
+    "Matthew","Mark","Luke","John","Acts","Romans",
+    "1 Corinthians","2 Corinthians","Galatians","Ephesians",
+    "Philippians","Colossians","1 Thessalonians","2 Thessalonians",
+    "1 Timothy","2 Timothy","Titus","Philemon","Hebrews",
+    "James","1 Peter","2 Peter","1 John","2 John","3 John",
+    "Jude","Revelation",
+  ];
+  
+  // ---------- Version / language helpers ----------
 
-  const unifiedLabel = `${selectedBook} ${selectedChapter}`;
+
+    const isTeluguVersion = (version?: string) =>
+      version === "BSI_TELUGU" || version?.toLowerCase().includes("telugu");
+    
+    const getBookNameByVersion = (version?: string) => {
+      if (isTeluguVersion(version)) {
+        return TELUGU_BOOK_NAMES[selectedBook] || selectedBook;
+      }
+      return selectedBook;
+    };
+    
+
+const getBookLabelForPicker = (book: string) => {
+  const telugu = TELUGU_BOOK_NAMES[book] || book;
+  const english = book;
+
+  if (studyMode === "single") {
+    return isTeluguVersion(singleVersion) ? telugu : english;
+  }
+
+  // parallel
+  const leftIsTelugu = isTeluguVersion(leftVersion);
+  const rightIsTelugu = isTeluguVersion(rightVersion);
+
+  if (leftIsTelugu === rightIsTelugu) {
+    return leftIsTelugu ? telugu : english;
+  }
+
+  return `${english} / ${telugu}`;
+};
+
+
+
+const unifiedLabel =
+studyMode === "single"
+  ? `${getBookNameByVersion(singleVersion)} ${selectedChapter}`
+  : (() => {
+      const left = getBookNameByVersion(leftVersion);
+      const right = getBookNameByVersion(rightVersion);
+
+      const bookPart = left === right ? left : `${left}–${right}`;
+      return `${bookPart} ${selectedChapter}`;
+    })();
+
+
 
   const openBookModal = () => {
     setTempBook(selectedBook);
@@ -102,12 +167,30 @@ export default function NavigationPane(props: Props) {
         </button>
 
         <button
-          onClick={openBookModal}
-          className="flex-1 text-center text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
-          title={unifiedLabel}
-        >
-          {unifiedLabel}
-        </button>
+  onClick={openBookModal}
+  className="flex-1 text-center text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
+  title={unifiedLabel}
+>
+<span
+  className={`
+    font-semibold tracking-tight
+    ${
+      studyMode === "single"
+        ? isTeluguVersion(singleVersion)
+          ? "font-telugu"
+          : ""
+        : isTeluguVersion(leftVersion) && isTeluguVersion(rightVersion)
+        ? "font-telugu"
+        : ""
+    }
+  `}
+>
+  {unifiedLabel}
+</span>
+
+
+</button>
+
 
         <button
           disabled={isLastChapterOfBible}
@@ -156,22 +239,78 @@ export default function NavigationPane(props: Props) {
 
               <div className="flex-grow overflow-y-auto p-4">
 
-{selectionStep === "BOOK" && (
+              {selectionStep === "BOOK" && (
   <>
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-4">
-      {BIBLE_META.map((b) => (
+    {/* OLD TESTAMENT */}
+    <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
+      Old Testament
+    </h3>
+
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
+      {BIBLE_META.filter(b => OLD_TESTAMENT.includes(b.name)).map((b) => (
         <button
           key={b.name}
           onClick={() => handleBookSelect(b.name)}
           className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
         >
-          <div className="text-sm truncate">{TELUGU_BOOK_NAMES[b.name]}</div>
-          <div className="text-xs opacity-80 truncate">{b.name}</div>
+          {studyMode === "single" ? (
+            <div
+              className={`text-sm truncate font-semibold ${
+                isTeluguVersion(singleVersion) ? "font-telugu" : ""
+              }`}
+            >
+              {getBookLabelForPicker(b.name)}
+            </div>
+          ) : (
+            <>
+              <div className="text-sm truncate">
+                {TELUGU_BOOK_NAMES[b.name]}
+              </div>
+              <div className="text-xs opacity-80 truncate">
+                {b.name}
+              </div>
+            </>
+          )}
+        </button>
+      ))}
+    </div>
+
+    {/* NEW TESTAMENT */}
+    <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
+      New Testament
+    </h3>
+
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+      {BIBLE_META.filter(b => NEW_TESTAMENT.includes(b.name)).map((b) => (
+        <button
+          key={b.name}
+          onClick={() => handleBookSelect(b.name)}
+          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+        >
+          {studyMode === "single" ? (
+            <div
+              className={`text-sm truncate font-semibold ${
+                isTeluguVersion(singleVersion) ? "font-telugu" : ""
+              }`}
+            >
+              {getBookLabelForPicker(b.name)}
+            </div>
+          ) : (
+            <>
+              <div className="text-sm truncate">
+                {TELUGU_BOOK_NAMES[b.name]}
+              </div>
+              <div className="text-xs opacity-80 truncate">
+                {b.name}
+              </div>
+            </>
+          )}
         </button>
       ))}
     </div>
   </>
 )}
+
 
 {selectionStep === "CHAPTER" && (
   <>
@@ -223,7 +362,7 @@ export default function NavigationPane(props: Props) {
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => onSetStudyMode("single")}
-                  className={`flex-1 py-2 rounded ${studyMode === "single" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"}`}
+                  className={`flex-1 py-2 rounded ${  studyMode === "single" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"}`}
                 >
                   Single
                 </button>

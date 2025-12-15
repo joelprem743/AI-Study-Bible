@@ -377,15 +377,42 @@ export const fetchChapter = async (book: string, chapter: number): Promise<Verse
 // ------------------------------
 // fetchVersesByReferences
 // ------------------------------
-export const fetchVersesByReferences = async (references: ParsedReference[]): Promise<FullVerse[]> => {
+// ------------------------------
+// fetchVersesByReferences — FIXED (English + Telugu)
+// ------------------------------
+export const fetchVersesByReferences = async (
+  references: ParsedReference[]
+): Promise<FullVerse[]> => {
+
   const results: FullVerse[] = [];
 
   for (const ref of references) {
     const engBook = canonicalizeBook(ref.book);
-
     const start = ref.startVerse;
     const end = ref.endVerse ?? start;
 
+    // 1️⃣ Fetch ALL English versions for this chapter in ONE query
+    const { data: engRows, error } = await supabase
+      .from("bible_verses")
+      .select("verse, text, version")
+      .eq("book", engBook)
+      .eq("chapter", ref.chapter)
+      .gte("verse", start)
+      .lte("verse", end);
+
+    if (error) {
+      console.error("English verse fetch failed:", error);
+      continue;
+    }
+
+    // 2️⃣ Group English by verse
+    const engByVerse: Record<number, Record<string, string>> = {};
+    for (const row of engRows ?? []) {
+      if (!engByVerse[row.verse]) engByVerse[row.verse] = {};
+      engByVerse[row.verse][row.version] = row.text;
+    }
+
+    // 3️⃣ Build FullVerse objects
     for (let v = start; v <= end; v++) {
       const teluguText = getTeluguVerse(engBook, ref.chapter, v);
 
@@ -394,10 +421,8 @@ export const fetchVersesByReferences = async (references: ParsedReference[]): Pr
         chapter: ref.chapter,
         verse: v,
         text: {
-          KJV: "",          // no english for highlights
-          ESV: "",
-          NIV: "",
-          ...(teluguText && { BSI_TELUGU: teluguText })
+          ...(engByVerse[v] ?? {}),              // ✅ KJV / ESV / NIV
+          ...(teluguText && { BSI_TELUGU: teluguText }) // ✅ Telugu
         }
       });
     }

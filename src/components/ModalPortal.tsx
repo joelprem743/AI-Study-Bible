@@ -1,7 +1,10 @@
-import React from "react";
+// src/components/ModalPortal.tsx
 import { createPortal } from "react-dom";
 
-export default function ModalPortal({ children }: { children: React.ReactNode }) {
-const root = document.getElementById("modal-root");
-return root ? createPortal(children, root) : null;
+export default function ModalPortal({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return createPortal(children, document.body);
 }

@@ -6,6 +6,8 @@ import "./styles/scrollbar.css";
 import { AuthProvider } from "./context/AuthContext";
 import { NotesProvider } from "./context/NotesContext";   // <-- IMPORTANT
 import { useAuth } from "./context/AuthContext";
+import "./index.css";
+
 
 function Root() {
   const { user } = useAuth();

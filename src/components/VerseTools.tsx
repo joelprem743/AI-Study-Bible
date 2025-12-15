@@ -229,7 +229,9 @@ export const VerseTools: React.FC<{
   onHighlightChange,
 }) => {
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
-
+  const isTeluguVersion = (version?: string) =>
+    version === "BSI_TELUGU" || version?.toLowerCase().includes("telugu");
+  
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -346,6 +348,7 @@ export const VerseTools: React.FC<{
 
         const m = refString.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/u);
         if (!m) return "";
+       
 
         const rawBook = m[1].trim();
         const chapter = Number(m[2]);
@@ -516,6 +519,18 @@ ${reconstructed}
     Effects
   ---------------------------*/
   useEffect(() => {
+    if (isPreviewOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isPreviewOpen]);
+
+  useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
       if (!menuOpen) return;
   
@@ -553,6 +568,15 @@ ${reconstructed}
     const existing = getNoteFor(verseRef);
     setNoteText(existing?.content ?? "");
   }, [verseRef, getNoteFor]);
+  useEffect(() => {
+    // Sync VerseTools language with selected version (SINGLE mode behavior)
+    if (isTeluguVersion(englishVersion)) {
+      setLanguage("TE");
+    } else {
+      setLanguage("EN");
+    }
+  }, [englishVersion, verseRef]);
+  
 
   useEffect(() => {
     if (activeTab === "Notes") return;
@@ -607,13 +631,24 @@ ${reconstructed}
 
           parts.push(
             <span
-              key={parts.length + "-" + start}
-              className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
-              onClick={() => void handleClickReference(match)}
+              key={`ref-${start}-${match}`}
+              role="button"
+              tabIndex={0}
+              className="
+                text-blue-600 dark:text-blue-400
+                underline cursor-pointer
+                select-none
+              "
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClickReference(match);
+              }}
             >
               {match}
             </span>
           );
+          
+
 
           lastIndex = start + match.length;
         }
@@ -859,6 +894,8 @@ ${reconstructed}
 
       {/* Main content */}
       <div className="flex-grow overflow-y-auto pr-2">
+
+
         {activeTab === "Notes" ? (
           <div className="flex flex-col gap-3">
             <textarea
@@ -938,9 +975,12 @@ ${reconstructed}
                       {renderNodeWithRefs(children)}
                     </div>
                   ),
-                  li: ({ children, ...props }) => (
-                    <li {...props}>{renderNodeWithRefs(children)}</li>
+                  li: ({ node, children, ...props }) => (
+                    <li key={node?.position?.start?.offset} {...props}>
+                      {renderNodeWithRefs(children)}
+                    </li>
                   ),
+                  
                   strong: ({ children, ...props }) => (
                     <strong {...props}>{renderNodeWithRefs(children)}</strong>
                   ),
@@ -998,9 +1038,12 @@ ${reconstructed}
       {isPreviewOpen && (
         <ModalPortal>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={() => setIsPreviewOpen(false)}
-          >
+  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+
+  onClick={() => setIsPreviewOpen(false)}
+  style={{ pointerEvents: "auto" }}
+>
+
             <div
               className="
                 bg-white dark:bg-gray-800 

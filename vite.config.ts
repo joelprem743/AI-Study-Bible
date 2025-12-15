@@ -8,9 +8,11 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       port: 3000,
-      host: "0.0.0.0",
-
-      // Reverse proxy for backend
+      strictPort: true,        // 🔴 DO NOT allow port hopping
+      host: "localhost",      // 🔴 FIXES Windows + HMR issues
+      hmr: {
+        port: 3000,           // 🔴 FORCE HMR to same port
+      },
       proxy: {
         "/api": {
           target: "http://localhost:8000",

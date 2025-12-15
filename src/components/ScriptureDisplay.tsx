@@ -90,6 +90,25 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
   // Scroll detection → hide/show NavPane
+  // ---------- Version / language helpers ----------
+  const isTeluguVersion = (version?: string) =>
+  version === "BSI_TELUGU" ||
+  version?.toLowerCase().includes("telugu");
+
+  const getBookNameByVersion = (version?: string) => {
+  if (isTeluguVersion(version)) {
+    return TELUGU_BOOK_NAMES[bookName] || bookName;
+  }
+  return bookName;
+};
+  const getParallelBookHeading = () => {
+    const left = getBookNameByVersion(leftVersion);
+    const right = getBookNameByVersion(rightVersion);
+
+    return left === right ? left : `${left}–${right}`;
+};
+
+
   const lastScroll = useRef(0);
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -142,14 +161,24 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
       className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-[#111418]"
       onScroll={handleScroll}
     >
-      {/* Header — only ONE title in single mode */}
+      {/* Header — only ONE title in single mode
       {isSingle && (
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 font-telugu">
-            {TELUGU_BOOK_NAMES[bookName]} {chapterNum}
-          </h2>
-        </div>
-      )}
+  <div className="text-center mb-4">
+    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+      {getBookNameByVersion(englishVersion)} {chapterNum}
+    </h2>
+  </div>
+)}
+      {!isSingle && (
+  <div className="text-center mb-4">
+    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      {getParallelBookHeading()} {chapterNum}
+    </h2>
+  </div>
+)}
+
+ */}
+
 
       {/* -------------------------------
              SINGLE MODE RENDERING
