@@ -9,11 +9,21 @@ import { BIBLE_META_WITH_VERSE_COUNTS } from "../data/bibleMetaWithVerseCounts";
 /* ------------------ Testament helpers ------------------ */
 
 const BOOK_INDEX = new Map<string, number>();
-BIBLE_META_WITH_VERSE_COUNTS.forEach((b, i) => BOOK_INDEX.set(b.name, i));
+BIBLE_META_WITH_VERSE_COUNTS.forEach((b, i) =>
+  BOOK_INDEX.set(b.name, i)
+);
 
 function getTestament(book: string): "OLD" | "NEW" {
   const idx = BOOK_INDEX.get(book);
   return idx !== undefined && idx < 39 ? "OLD" : "NEW";
+}
+
+function sortBooksByBibleOrder(books: Record<string, any>) {
+  return Object.keys(books).sort((a, b) => {
+    const ia = BOOK_INDEX.get(a) ?? 999;
+    const ib = BOOK_INDEX.get(b) ?? 999;
+    return ia - ib;
+  });
 }
 
 /* ------------------ Types ------------------ */
@@ -54,7 +64,6 @@ export default function ProfileHighlights({
 }: Props) {
   const { language } = useAuth();
 
-  const [highlights, setHighlights] = useState<HighlightRow[]>([]);
   const [grouped, setGrouped] = useState<GroupedHighlights>({
     OLD: {},
     NEW: {},
@@ -98,7 +107,6 @@ export default function ProfileHighlights({
       groupedBooks[testament][h.book][h.chapter].push(h);
     });
 
-    setHighlights(data || []);
     setGrouped(groupedBooks);
     setLoading(false);
   }
@@ -109,19 +117,17 @@ export default function ProfileHighlights({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-2xl"
+        className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700
+                   w-full max-w-2xl max-h-[85vh] rounded-xl shadow-2xl
+                   overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-          My Highlights
+        <h2 className="text-xl font-semibold mb-4">
+          {language === "TE" ? "నా హైలైట్స్" : "My Highlights"}
         </h2>
 
         {loading ? (
-          <div className="text-gray-700 dark:text-gray-300">Loading…</div>
-        ) : highlights.length === 0 ? (
-          <div className="text-gray-600 dark:text-gray-400">
-            You have no highlights yet.
-          </div>
+          <div className="text-gray-500">Loading…</div>
         ) : (
           (["OLD", "NEW"] as const).map((testament) => {
             const books = grouped[testament];
@@ -129,7 +135,8 @@ export default function ProfileHighlights({
 
             return (
               <div key={testament} className="mb-8">
-                <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">
+                <div className="mb-4 px-3 py-2 bg-gray-100 dark:bg-slate-800/60
+                                border-l-4 border-indigo-500 text-xs font-bold uppercase">
                   {language === "TE"
                     ? testament === "OLD"
                       ? "పాత నిబంధన"
@@ -137,35 +144,38 @@ export default function ProfileHighlights({
                     : testament === "OLD"
                     ? "Old Testament"
                     : "New Testament"}
-                </h2>
+                </div>
 
-                {Object.keys(books).map((book) => (
-                  <div key={book} className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-blue-300 mb-2">
+                {sortBooksByBibleOrder(books).map((book) => (
+                  <div key={book} className="mb-5">
+                    <h3 className="text-lg font-semibold">
                       {language === "TE"
                         ? TELUGU_BOOK_NAMES[book] || book
                         : book}
                     </h3>
 
-                    {Object.keys(books[book]).map((chapter) => (
-                      <div key={chapter} className="ml-4 mb-4">
-                        <h4 className="text-sm text-gray-700 dark:text-gray-400 mb-1 font-medium">
-                          {language === "TE" ? "అధ్యాయం" : "Chapter"} {chapter}
-                        </h4>
+                    {Object.keys(books[book])
+                      .sort((a, b) => Number(a) - Number(b))
+                      .map((chapter) => (
+                        <div key={chapter} className="ml-4 mt-2">
+                          <div className="text-sm opacity-70">
+                            {language === "TE" ? "అధ్యాయం" : "Chapter"}{" "}
+                            {chapter}
+                          </div>
 
-                        <div className="space-y-2">
-                          {books[book][Number(chapter)].map((h) => (
-                            <HighlightItem
-                              key={`${book}-${chapter}-${h.verse}`}
-                              highlight={h}
-                              onClose={onClose}
-                              language={language}
-                              bibleVersion={bibleVersion}
-                            />
-                          ))}
+                          <div className="space-y-2 mt-1">
+                            {books[book][Number(chapter)].map((h) => (
+                              <HighlightItem
+                                key={`${book}-${chapter}-${h.verse}`}
+                                highlight={h}
+                                language={language}
+                                bibleVersion={bibleVersion}
+                                onClose={onClose}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ))}
               </div>
@@ -175,7 +185,8 @@ export default function ProfileHighlights({
 
         <button
           onClick={onClose}
-          className="mt-4 px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-900 dark:text-gray-100 rounded-md"
+          className="mt-4 px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300
+                     dark:bg-slate-700 dark:hover:bg-slate-600 rounded"
         >
           Close
         </button>
@@ -193,7 +204,7 @@ interface ItemProps {
   bibleVersion: string;
 }
 
-const chapterCache: Record<string, any[]> = {};
+const verseCache: Record<string, string> = {};
 
 function HighlightItem({
   highlight,
@@ -209,58 +220,57 @@ function HighlightItem({
 
   async function loadText() {
     const key = `${highlight.book}-${highlight.chapter}-${highlight.verse}-${bibleVersion}`;
+    if (verseCache[key]) return setText(verseCache[key]);
 
-    if (!chapterCache[key]) {
-      chapterCache[key] = await fetchVersesByReferences([
-        {
-          book: highlight.book,
-          chapter: highlight.chapter,
-          startVerse: highlight.verse,
-          endVerse: highlight.verse,
-        },
-      ]);
-    }
+    const res = await fetchVersesByReferences([
+      {
+        book: highlight.book,
+        chapter: highlight.chapter,
+        startVerse: highlight.verse,
+        endVerse: highlight.verse,
+      },
+    ]);
 
-    const verseObj = chapterCache[key]?.[0];
-    if (!verseObj?.text) return setText("");
+    const v = res?.[0];
+    if (!v?.text) return;
 
-    const raw = verseObj.text;
+    const t =
+      typeof v.text === "string"
+        ? v.text
+        : bibleVersion === "BSI_TELUGU"
+        ? v.text.BSI_TELUGU
+        : v.text.KJV || v.text.ESV || v.text.NIV || "";
 
-    if (typeof raw === "string") return setText(raw);
-
-    if (bibleVersion === "BSI_TELUGU") {
-      return setText(raw.BSI_TELUGU || "");
-    }
-
-    setText(raw.KJV || raw.ESV || raw.NIV || "");
+    verseCache[key] = t;
+    setText(t);
   }
 
   const goToVerse = () => {
-    window.location.hash = `#/${encodeURIComponent(
-      highlight.book
-    )}/${highlight.chapter}/${highlight.verse}`;
+    window.location.hash = `#/${highlight.book}/${highlight.chapter}/${highlight.verse}`;
     onClose();
   };
 
   return (
     <button
       onClick={goToVerse}
-      className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md border border-gray-300 dark:border-slate-700 transition-colors"
+      className="w-full text-left px-3 py-2 rounded-lg
+                 bg-white dark:bg-slate-800
+                 border border-gray-200 dark:border-slate-700
+                 hover:shadow transition"
     >
       <div className="flex items-center gap-2 mb-1">
         <div
           className="w-3 h-3 rounded"
           style={{ backgroundColor: COLOR_MAP[highlight.color] }}
         />
-
-        <span className="font-semibold text-sm text-gray-800 dark:text-blue-200">
+        <span className="text-sm font-semibold">
           {language === "TE"
             ? `${TELUGU_BOOK_NAMES[highlight.book] || highlight.book} ${highlight.chapter}:${highlight.verse}`
             : `${highlight.book} ${highlight.chapter}:${highlight.verse}`}
         </span>
       </div>
 
-      <p className="text-xs text-gray-700 dark:text-slate-300 truncate">
+      <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
         {text}
       </p>
     </button>

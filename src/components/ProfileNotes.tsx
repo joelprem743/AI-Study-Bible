@@ -18,6 +18,14 @@ function getTestament(book: string): "OLD" | "NEW" {
   const idx = BOOK_INDEX.get(book);
   return idx !== undefined && idx < 39 ? "OLD" : "NEW";
 }
+function sortBooksByBibleOrder(books: Record<string, any>) {
+  return Object.keys(books).sort((a, b) => {
+    const ia = BOOK_INDEX.get(a) ?? 999;
+    const ib = BOOK_INDEX.get(b) ?? 999;
+    return ia - ib;
+  });
+}
+
 
 function getDisplayBookName(book: string, language: "EN" | "TE") {
   return language === "TE"
@@ -30,9 +38,17 @@ function getDisplayBookName(book: string, language: "EN" | "TE") {
 interface Props {
   userId: string;
   onClose: () => void;
+  incomingVerse?: {
+    ref: {
+      book: string;
+      chapter: number;
+      verse: number;
+    };
+    text: string;
+  };
 }
 
-export default function ProfileNotes({ userId, onClose }: Props) {
+export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   const { language } = useAuth();
 
   const {
@@ -43,6 +59,7 @@ export default function ProfileNotes({ userId, onClose }: Props) {
     createTopicalNote,
     updateTopicalNote,
     deleteTopicalNote,
+    appendVerseToTopicalNote, 
   } = useNotes();
 
   const [activeTab, setActiveTab] = useState<"verse" | "topical">("verse");
@@ -95,7 +112,14 @@ export default function ProfileNotes({ userId, onClose }: Props) {
     setExpandedVerseKey(null);
   }, [activeTab]);
   
-
+  useEffect(() => {
+    if (!incomingVerse) return;
+  
+    setActiveTab("topical");
+    setEditorMode("view");
+    setActiveNoteId(null);
+  }, [incomingVerse]);
+  
   /* ---------------- UI ---------------- */
 
   return (
@@ -165,13 +189,17 @@ export default function ProfileNotes({ userId, onClose }: Props) {
                         : "New Testament"}
                     </div>
 
-                    {Object.keys(books).map((book) => (
+                    {sortBooksByBibleOrder(books).map((book) => (
+
                       <div key={book} className="mb-5">
                         <h3 className="text-lg font-semibold">
                           {getDisplayBookName(book, language)}
                         </h3>
 
-                        {Object.keys(books[book]).map((chapter) => (
+                        {Object.keys(books[book])
+  .sort((a, b) => Number(a) - Number(b))
+  .map((chapter) => (
+
                           <div key={chapter} className="ml-4 mt-2">
                             <div className="text-sm opacity-70">
                               {language === "TE" ? "అధ్యాయం" : "Chapter"}{" "}
@@ -259,52 +287,43 @@ export default function ProfileNotes({ userId, onClose }: Props) {
             </>
           )}
 
-          {/* ================= TOPICAL NOTES (CARDS) ================= */}
-          {activeTab === "topical" && editorMode === "view" && (
-            <div className="p-4 grid gap-4">
-              {topicalArray.length === 0 && (
-                <div className="text-center text-gray-400 py-12">
-                  No notes yet. Tap + to create one.
-                </div>
-              )}
+{activeTab === "topical" && editorMode === "view" && (
+  <>
+    {incomingVerse && (
+      <div
+        className="
+          mx-4 mt-4 mb-2 px-3 py-2
+          rounded-md
+          bg-blue-50 dark:bg-slate-800
+          text-xs
+          text-blue-700 dark:text-blue-300
+        "
+      >
+        Adding verse:
+        <strong className="ml-1">
+          {incomingVerse.ref.book}{" "}
+          {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
+        </strong>
+      </div>
+    )}
 
-              {topicalArray.map((note) => (
-                <div
-                  key={note.id}
-                  onClick={() => {
-                    setActiveNoteId(note.id);
-                    setDraftTitle(note.title || "");
-                    setDraftBody(note.body || "");
-                    setEditorMode("edit");
-                  }}
-                  className="
-  bg-white dark:bg-slate-800
-  rounded-xl
-  border border-gray-200 dark:border-slate-700
-  p-4
-  shadow-sm
-  hover:shadow-md
-  hover:border-blue-400/60
-  transition
-  cursor-pointer
-"
-                >
-                  <h3 className="font-semibold text-base mb-1 truncate">
-  {note.title}
-</h3>
+    <div className="p-4 grid gap-4">
+      {topicalArray.length === 0 && (
+        <div className="text-center text-gray-400 py-12">
+          No notes yet. Tap + to create one.
+        </div>
+      )}
 
-<p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-  {note.body || "(empty)"}
-</p>
+      {topicalArray.map((note) => (
+        <div key={note.id}>
+          {/* card content */}
+        </div>
+      ))}
+    </div>
+  </>
+)}
 
-                  <div className="mt-2 text-xs text-gray-400">
-                    Updated{" "}
-                    {new Date(note.updatedAt || 0).toLocaleDateString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+
 
           {/* ================= TOPICAL NOTES (EDITOR) ================= */}
           {activeTab === "topical" && editorMode !== "view" && (
@@ -380,11 +399,22 @@ export default function ProfileNotes({ userId, onClose }: Props) {
         {/* Floating Add Button */}
 {activeTab === "topical" && editorMode === "view" && (
   <button
-    onClick={() => {
+  onClick={() => {
+    if (incomingVerse) {
+      setDraftTitle(
+        `${incomingVerse.ref.book} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}`
+      );
+      setDraftBody(
+        `${incomingVerse.ref.book} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}\n${incomingVerse.text}`
+      );
+    } else {
       setDraftTitle("");
       setDraftBody("");
-      setEditorMode("create");
-    }}
+    }
+  
+    setEditorMode("create");
+  }}
+  
     className="
       absolute bottom-6 right-6
       flex items-center gap-2
