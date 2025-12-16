@@ -128,8 +128,10 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   };
 
   /* ---------------- Topical notes ---------------- */
+
   const [expandedTopicalId, setExpandedTopicalId] = useState<string | null>(null);
 
+  const [isAddingVerse, setIsAddingVerse] = useState(false);
 
   const [editorMode, setEditorMode] =
     useState<"view" | "edit" | "create">("view");
@@ -155,7 +157,9 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     setActiveTab("topical");
     setEditorMode("view");
     setActiveNoteId(null);
+    setIsAddingVerse(true); // ✅ enter add mode
   }, [incomingVerse]);
+  
   
   /* ---------------- UI ---------------- */
 
@@ -338,23 +342,24 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
 
 {activeTab === "topical" && editorMode === "view" && (
   <>
-    {incomingVerse && (
-      <div
-        className="
-          mx-4 mt-4 mb-2 px-3 py-2
-          rounded-md
-          bg-blue-50 dark:bg-slate-800
-          text-xs
-          text-blue-700 dark:text-blue-300
-        "
-      >
-        Adding verse:
-        <strong className="ml-1">
-          {incomingVerse.ref.book}{" "}
-          {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
-        </strong>
-      </div>
-    )}
+    {incomingVerse && isAddingVerse && (
+  <div
+    className="
+      mx-4 mt-4 mb-2 px-3 py-2
+      rounded-md
+      bg-blue-50 dark:bg-slate-800
+      text-xs
+      text-blue-700 dark:text-blue-300
+    "
+  >
+    Select a note to add the:
+    <strong className="ml-1">
+      {incomingVerse.ref.book}{" "}
+      {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
+    </strong>
+  </div>
+)}
+
 
 <div className="p-3 sm:p-4 grid gap-3 sm:gap-4">
 
@@ -378,19 +383,20 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   className="flex-1 min-w-0 cursor-pointer"
   onClick={async () => {
     // MODE 1: Adding a verse to an existing note
-    if (incomingVerse) {
+    if (incomingVerse && isAddingVerse) {
       await appendVerseToTopicalNote(
         note.id,
         incomingVerse.ref,
         incomingVerse.text
       );
     
-      // Stay in topical notes view after adding verse
-      setEditorMode("view");
-      setActiveNoteId(null);
+      // 🔥 IMPORTANT: exit add mode after first use
+      setIsAddingVerse(false);
     
       return;
     }
+    
+    
     
 
     // MODE 2: Normal note open/edit
