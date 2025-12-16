@@ -27,7 +27,11 @@ function sortBooksByBibleOrder(books: Record<string, any>) {
 }
 
 function downloadTextFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const BOM = "\uFEFF"; // UTF-8 BOM
+  const blob = new Blob([BOM + content], {
+  type: "text/plain;charset=utf-8",
+});
+
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
