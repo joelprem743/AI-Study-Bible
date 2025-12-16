@@ -352,7 +352,7 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       text-blue-700 dark:text-blue-300
     "
   >
-    Select a note to add the:
+    Select a note to add the Verse:
     <strong className="ml-1">
       {incomingVerse.ref.book}{" "}
       {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
