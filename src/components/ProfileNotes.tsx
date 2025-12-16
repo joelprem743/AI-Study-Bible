@@ -165,9 +165,21 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       }}
     >
       <div
-        className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 w-full max-w-2xl max-h-[85vh] rounded-xl shadow-2xl overflow-hidden flex flex-col relative"
-        onClick={(e) => e.stopPropagation()}
-      >
+  className="
+    bg-white dark:bg-slate-900
+    border border-gray-200 dark:border-slate-700
+    w-[92vw] sm:w-[90vw] md:w-full
+    max-w-md md:max-w-2xl
+    max-h-[85vh]
+    rounded-xl
+    shadow-2xl
+    overflow-hidden
+    flex flex-col
+    relative
+  "
+  onClick={(e) => e.stopPropagation()}
+>
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">My Notes</h2>
@@ -204,7 +216,7 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {/* ================= VERSE NOTES ================= */}
           {activeTab === "verse" && !loading && (
             <>
@@ -342,7 +354,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       </div>
     )}
 
-    <div className="p-4 grid gap-4">
+<div className="p-3 sm:p-4 grid gap-3 sm:gap-4">
+
       {topicalArray.length === 0 && (
         <div className="text-center text-gray-400 py-12">
           No notes yet. Tap + to create one.
@@ -357,23 +370,33 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       hover:bg-gray-100 dark:hover:bg-slate-800
     "
   >
-    <div className="flex items-start justify-between gap-3">
-      <div
-        className="flex-1 cursor-pointer"
-        onClick={async () => {
-          if (!incomingVerse) return;
+<div className="flex items-start gap-3 w-full">
 
-          await appendVerseToTopicalNote(
-            note.id,
-            incomingVerse.ref,
-            incomingVerse.text
-          );
+<div
+  className="flex-1 min-w-0 cursor-pointer"
+  onClick={async () => {
+    // MODE 1: Adding a verse to an existing note
+    if (incomingVerse) {
+      await appendVerseToTopicalNote(
+        note.id,
+        incomingVerse.ref,
+        incomingVerse.text
+      );
+      onClose();
+      return;
+    }
 
-          onClose();
-        }}
-      >
+    // MODE 2: Normal note open/edit
+    setActiveNoteId(note.id);
+    setDraftTitle(note.title || "");
+    setDraftBody(note.body || "");
+    setEditorMode("edit");
+  }}
+>
+
         <div className="font-semibold">{note.title}</div>
-        <div className="text-xs text-gray-500 truncate">
+        <div className="flex-1 min-w-0 cursor-pointer">
+
           {note.body?.slice(0, 80)}
         </div>
       </div>
