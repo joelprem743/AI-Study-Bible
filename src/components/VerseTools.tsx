@@ -772,7 +772,7 @@ ${reconstructed}
   onClick={() => {
     setMenuOpen(false);
 
-    // Open ProfileNotes via hash + state
+    // Open ProfileNotes with incoming verse
     window.dispatchEvent(
       new CustomEvent("open-profile-notes", {
         detail: {
@@ -781,6 +781,9 @@ ${reconstructed}
         },
       })
     );
+
+    // ✅ CLOSE VerseTools (important for mobile UX)
+    onClose?.();
   }}
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
              text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -788,6 +791,7 @@ ${reconstructed}
   <i className="fas fa-bookmark w-4" />
   Add to Topical Notes
 </button>
+
 
 
         <button

@@ -128,6 +128,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   };
 
   /* ---------------- Topical notes ---------------- */
+  const [expandedTopicalId, setExpandedTopicalId] = useState<string | null>(null);
+
 
   const [editorMode, setEditorMode] =
     useState<"view" | "edit" | "create">("view");
@@ -382,23 +384,46 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
         incomingVerse.ref,
         incomingVerse.text
       );
-      onClose();
+    
+      // Stay in topical notes view after adding verse
+      setEditorMode("view");
+      setActiveNoteId(null);
+    
       return;
     }
+    
 
     // MODE 2: Normal note open/edit
-    setActiveNoteId(note.id);
-    setDraftTitle(note.title || "");
-    setDraftBody(note.body || "");
-    setEditorMode("edit");
+    setExpandedTopicalId(
+      expandedTopicalId === note.id ? null : note.id
+    );
+    
   }}
 >
 
         <div className="font-semibold">{note.title}</div>
-        <div className="flex-1 min-w-0 cursor-pointer">
+        <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 whitespace-pre-wrap">
+  {expandedTopicalId === note.id
+    ? note.body || "(empty)"
+    : note.body?.slice(0, 80)}
+</div>
+{expandedTopicalId === note.id && (
+  <div className="mt-3 flex items-center gap-4 text-sm">
+    <button
+      className="text-blue-600 hover:underline"
+      onClick={() => {
+        setActiveNoteId(note.id);
+        setDraftTitle(note.title || "");
+        setDraftBody(note.body || "");
+        setEditorMode("edit");
+      }}
+    >
+      Edit
+    </button>
+  </div>
+)}
 
-          {note.body?.slice(0, 80)}
-        </div>
+
       </div>
 
       {/* Download button */}
@@ -435,7 +460,7 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
 
           {/* ================= TOPICAL NOTES (EDITOR) ================= */}
           {activeTab === "topical" && editorMode !== "view" && (
-            <div className="p-4 flex flex-col h-full">
+              <div className="p-4 flex flex-col h-[70vh]">
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
   {editorMode === "create" ? "New Note" : "Edit Note"}
 </div>
@@ -448,7 +473,16 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
               />
 
               <textarea
-                className="flex-1 resize-none bg-transparent outline-none"
+  className="
+    flex-1
+    min-h-[200px]
+    resize-none
+    bg-transparent
+    outline-none
+    text-base
+    leading-relaxed
+  "
+
                 placeholder="Write your note..."
                 value={draftBody}
                 onChange={(e) => setDraftBody(e.target.value)}
