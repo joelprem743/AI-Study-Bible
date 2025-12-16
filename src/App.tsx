@@ -7,6 +7,7 @@ import { VerseTools } from "./components/VerseTools";
 import { Chatbot } from "./components/Chatbot";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { SearchResultDisplay } from "./components/SearchResultDisplay";
+import ProfileNotes from "./components/ProfileNotes";
 
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
@@ -57,6 +58,13 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<FullVerse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [notesOpen, setNotesOpen] = useState(false);
+const [incomingVerse, setIncomingVerse] = useState<{
+  ref: { book: string; chapter: number; verse: number };
+  text: string;
+} | null>(null);
+
 
   // UI
   const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
@@ -366,6 +374,17 @@ const App: React.FC = () => {
       setIsToolsModalOpen(false);
     }
   }, []);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      setIncomingVerse(e.detail);
+      setNotesOpen(true);
+    };
+  
+    window.addEventListener("open-profile-notes", handler);
+    return () => window.removeEventListener("open-profile-notes", handler);
+  }, []);
+  
 
   // Desktop-only: close search on click outside
 useEffect(() => {
@@ -682,6 +701,17 @@ rounded-full shadow-md overflow-hidden px-2"
               </div>
             </div>
           )}
+          {notesOpen && user && (
+  <ProfileNotes
+    userId={user.id}
+    incomingVerse={incomingVerse ?? undefined}
+    onClose={() => {
+      setNotesOpen(false);
+      setIncomingVerse(null);
+    }}
+  />
+)}
+
 
           <footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-gray-400">
             Contact: joelpremtej@gmail.com

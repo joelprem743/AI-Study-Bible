@@ -769,6 +769,28 @@ ${reconstructed}
         </button>
 
         <button
+  onClick={() => {
+    setMenuOpen(false);
+
+    // Open ProfileNotes via hash + state
+    window.dispatchEvent(
+      new CustomEvent("open-profile-notes", {
+        detail: {
+          ref: verseRef,
+          text: displayVerseText,
+        },
+      })
+    );
+  }}
+  className="w-full px-4 py-2 flex items-center gap-3 text-left 
+             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+>
+  <i className="fas fa-bookmark w-4" />
+  Add to Topical Notes
+</button>
+
+
+        <button
           onClick={() => { setLanguage(language === 'EN' ? 'TE' : 'EN'); setMenuOpen(false); }}
           className="w-full px-4 py-2 flex items-center gap-3 text-left 
                      text-sm hover:bg-gray-100 dark:hover:bg-gray-700"

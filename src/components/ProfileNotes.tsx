@@ -314,11 +314,32 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
         </div>
       )}
 
-      {topicalArray.map((note) => (
-        <div key={note.id}>
-          {/* card content */}
-        </div>
-      ))}
+{topicalArray.map((note) => (
+  <button
+    key={note.id}
+    className="
+      w-full text-left p-3 rounded-lg border
+      hover:bg-gray-100 dark:hover:bg-slate-800
+    "
+    onClick={async () => {
+      if (!incomingVerse) return;
+
+      await appendVerseToTopicalNote(
+        note.id,
+        incomingVerse.ref,
+        incomingVerse.text
+      );
+
+      onClose();
+    }}
+  >
+    <div className="font-semibold">{note.title}</div>
+    <div className="text-xs text-gray-500 truncate">
+      {note.body?.slice(0, 80)}
+    </div>
+  </button>
+))}
+
     </div>
   </>
 )}
