@@ -26,6 +26,41 @@ function sortBooksByBibleOrder(books: Record<string, any>) {
   });
 }
 
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function buildTopicalNoteText(note: any) {
+  const title = note.title || "Untitled Note";
+  const body = note.body || "";
+
+  const updated =
+    note.updatedAt
+      ? new Date(note.updatedAt).toLocaleString()
+      : "";
+
+  return [
+    `Title: ${title}`,
+    updated ? `Last Updated: ${updated}` : "",
+    "",
+    "--------------------",
+    "",
+    body.trim(),
+    "",
+  ].join("\n");
+}
+
+
 
 function getDisplayBookName(book: string, language: "EN" | "TE") {
   return language === "TE"
@@ -315,30 +350,59 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       )}
 
 {topicalArray.map((note) => (
-  <button
+  <div
     key={note.id}
     className="
-      w-full text-left p-3 rounded-lg border
+      w-full p-3 rounded-lg border
       hover:bg-gray-100 dark:hover:bg-slate-800
     "
-    onClick={async () => {
-      if (!incomingVerse) return;
-
-      await appendVerseToTopicalNote(
-        note.id,
-        incomingVerse.ref,
-        incomingVerse.text
-      );
-
-      onClose();
-    }}
   >
-    <div className="font-semibold">{note.title}</div>
-    <div className="text-xs text-gray-500 truncate">
-      {note.body?.slice(0, 80)}
+    <div className="flex items-start justify-between gap-3">
+      <div
+        className="flex-1 cursor-pointer"
+        onClick={async () => {
+          if (!incomingVerse) return;
+
+          await appendVerseToTopicalNote(
+            note.id,
+            incomingVerse.ref,
+            incomingVerse.text
+          );
+
+          onClose();
+        }}
+      >
+        <div className="font-semibold">{note.title}</div>
+        <div className="text-xs text-gray-500 truncate">
+          {note.body?.slice(0, 80)}
+        </div>
+      </div>
+
+      {/* Download button */}
+      <button
+        className="
+          text-gray-500 hover:text-blue-600
+          text-sm px-2
+        "
+        title="Download note"
+        onClick={() => {
+          const content = buildTopicalNoteText(note);
+          const safeTitle = note.title
+            ?.replace(/[^\w\d]+/g, "_")
+            .slice(0, 50);
+
+          downloadTextFile(
+            `${safeTitle || "note"}.txt`,
+            content
+          );
+        }}
+      >
+        <i className="fas fa-download" />
+      </button>
     </div>
-  </button>
+  </div>
 ))}
+
 
     </div>
   </>
