@@ -342,20 +342,44 @@ export const VerseTools: React.FC<{
   
       const file = new File([blob], "verse.png", { type: "image/png" });
   
+      const bookName =
+        language === "TE"
+          ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+          : verseRef.book;
+  
+      const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+  
+      const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+  
+      // 🔑 THIS is what YouVersion does
+      const shareText = `${refText}\n\n${verseUrl}`;
+  
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
-          files: [file],
           title: "Bible Verse",
+          text: shareText,   // ✅ URL OUTSIDE the image
+          files: [file],     // ✅ Image
         });
-      } else {
-        // Fallback: download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "verse.png";
-        a.click();
-        URL.revokeObjectURL(url);
+        return;
       }
+  
+      // ---------- Fallback ----------
+      // Download image
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "verse.png";
+      a.click();
+      URL.revokeObjectURL(url);
+  
+      // Copy verse + URL
+      await navigator.clipboard.writeText(shareText);
+  
+      alert(
+        language === "TE"
+          ? "చిత్రం డౌన్‌లోడ్ అయ్యింది. లింక్ క్లిప్‌బోర్డ్‌కి కాపీ అయింది."
+          : "Image downloaded. Link copied to clipboard."
+      );
     } catch (err) {
       console.error("Image share failed", err);
     }
