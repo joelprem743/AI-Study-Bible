@@ -5,6 +5,14 @@ import { useAuth } from "../context/AuthContext";
 import type { Note } from "../lib/noteService";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { BIBLE_META_WITH_VERSE_COUNTS } from "../data/bibleMetaWithVerseCounts";
+import { saveAs } from "file-saver";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+} from "docx";
 
 
 /* ---------------- Bible helpers ---------------- */
@@ -26,23 +34,60 @@ function sortBooksByBibleOrder(books: Record<string, any>) {
   });
 }
 
-function downloadTextFile(filename: string, content: string) {
-  const BOM = "\uFEFF"; // UTF-8 BOM
-  const blob = new Blob([BOM + content], {
-  type: "text/plain;charset=utf-8",
-});
+async function downloadTopicalNoteDocx(note: any) {
+  const title = note.title || "Untitled Note";
+  const body = note.body || "";
+  const updated = note.updatedAt
+    ? new Date(note.updatedAt).toLocaleString()
+    : "";
 
-  const url = URL.createObjectURL(blob);
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          // Title
+          new Paragraph({
+            text: title,
+            heading: HeadingLevel.HEADING_1,
+          }),
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
+          // Updated time
+          ...(updated
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Last Updated: ${updated}`,
+                      italics: true,
+                    }),
+                  ],
+                }),
+              ]
+            : []),
 
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+          new Paragraph({ text: "" }),
+
+          // Body (supports Telugu perfectly)
+          ...body.split("\n").map(
+            (line) =>
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: line,
+                  }),
+                ],
+              })
+          ),
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `${title.replace(/[^\w\d]+/g, "_")}.docx`);
 }
+
+
 
 function buildTopicalNoteText(note: any) {
   const title = note.title || "Untitled Note";
@@ -444,16 +489,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
         "
         title="Download note"
         onClick={() => {
-          const content = buildTopicalNoteText(note);
-          const safeTitle = note.title
-            ?.replace(/[^\w\d]+/g, "_")
-            .slice(0, 50);
-
-          downloadTextFile(
-            `${safeTitle || "note"}.txt`,
-            content
-          );
-        }}
+          downloadTopicalNoteDocx(note);
+        }}        
       >
         <i className="fas fa-download" />
       </button>
