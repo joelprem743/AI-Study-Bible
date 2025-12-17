@@ -18,6 +18,8 @@ import { findBookMetadata, fetchChapter } from "../services/bibleService";
 import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { useNotes } from "../context/NotesContext";
+import { generateVerseImage } from "../utils/verseImage";
+
 
 /* -------------------------
   Small utils / transliteration
@@ -329,6 +331,36 @@ export const VerseTools: React.FC<{
       console.error("Clipboard write failed:", err);
     }
   };
+
+  const handleShareAsImage = async () => {
+    try {
+      const blob = await generateVerseImage(
+        verseRef,
+        displayVerseText,
+        language
+      );
+  
+      const file = new File([blob], "verse.png", { type: "image/png" });
+  
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Bible Verse",
+        });
+      } else {
+        // Fallback: download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "verse.png";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("Image share failed", err);
+    }
+  };
+  
   
 
   /* -------------------------
@@ -767,6 +799,19 @@ ${reconstructed}
           <i className="fas fa-share w-4" />
           Share Verse
         </button>
+
+        <button
+  onClick={() => {
+    setMenuOpen(false);
+    handleShareAsImage();
+  }}
+  className="w-full px-4 py-2 flex items-center gap-3 text-left 
+             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+>
+  <i className="fas fa-image w-4" />
+  Share as Image
+</button>
+
 
         <button
   onClick={() => {
