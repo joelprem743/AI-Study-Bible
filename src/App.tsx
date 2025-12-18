@@ -320,6 +320,15 @@ const [incomingVerse, setIncomingVerse] = useState<{
     return parsed;
   };
 
+  function recomputeGroupedResults(
+    verses: FullVerse[],
+    filters: SearchFilters
+  ) {
+    const filtered = applySearchFilters(verses, filters);
+    return groupVersesByTestamentAndBook(filtered);
+  }
+  
+
   const handleSearch = async (e?: FormEvent) => {
     e?.preventDefault();
   
@@ -396,10 +405,16 @@ const [incomingVerse, setIncomingVerse] = useState<{
         setGroupedSearchResults(null);
 
       } else {
-        setRawSearchResults(results);
+        const initialFilters: SearchFilters = {};
 
-const filtered = applySearchFilters(results, searchFilters);
-setGroupedSearchResults(groupVersesByTestamentAndBook(filtered));
+setRawSearchResults(results);
+setSearchFilters(initialFilters);
+
+setGroupedSearchResults(
+  recomputeGroupedResults(results, initialFilters)
+);
+
+
 
 
 
@@ -420,11 +435,10 @@ setGroupedSearchResults(groupVersesByTestamentAndBook(filtered));
 
   const handleClearSearch = () => {
     setIsSearchView(false);
-    setGroupedSearchResults(null);
-
+    setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
     setSearchError(null);
   };
-
+  
   const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
     setIsSearchView(false);
     setGroupedSearchResults(null);
@@ -876,10 +890,14 @@ rounded-full shadow-md overflow-hidden px-2"
       <div className="flex justify-end gap-2">
         <button
           onClick={() => {
-            setSearchFilters({});
-            setGroupedSearchResults(
-  groupVersesByTestamentAndBook(rawSearchResults)
+            const clearedFilters: SearchFilters = {};
+
+setSearchFilters(clearedFilters);
+setGroupedSearchResults(
+  recomputeGroupedResults(rawSearchResults, {})
 );
+
+
             setFiltersOpen(false);
 
           }}
@@ -890,13 +908,12 @@ rounded-full shadow-md overflow-hidden px-2"
 
         <button
   onClick={() => {
-    const filtered = applySearchFilters(
-      rawSearchResults,
-      searchFilters
-    );
+    const currentFilters = { ...searchFilters };
+
     setGroupedSearchResults(
-      groupVersesByTestamentAndBook(filtered)
+      recomputeGroupedResults(rawSearchResults, currentFilters)
     );
+    
     setFiltersOpen(false);
   }}
   className="px-4 py-2 rounded bg-blue-600 text-white"
