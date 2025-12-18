@@ -336,96 +336,85 @@ const [incomingVerse, setIncomingVerse] = useState<{
     if (!query) return;
   
     setSearchError(null);
+    setIsSearching(true);
   
-    // 1) Try parsing as reference (Telugu/English)
-    const parsedRefs = parseReferencesFromString(normalizeTeluguReference(query));
+    try {
+      // 1) Reference search (Psalm 23:1, యోహాను 3:16, etc.)
+      const parsedRefs = parseReferencesFromString(
+        normalizeTeluguReference(query)
+      );
   
-    if (parsedRefs.length > 1) {
-      setIsSearching(true);
-      try {
+      if (parsedRefs.length > 1) {
         const res = await fetchVersesByReferences(parsedRefs);
-    
+  
         if (res.length === 0) {
           setSearchError(`No results for "${query}"`);
           setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
         } else {
-          const grouped = groupVersesByTestamentAndBook(res);
-          setGroupedSearchResults(grouped);
+          setGroupedSearchResults(groupVersesByTestamentAndBook(res));
         }
-    
+  
         setIsSearchView(true);
-      } catch (e) {
-        console.error(e);
-        setSearchError("Failed to fetch results.");
+        return;
+      }
+  
+      if (parsedRefs.length === 1) {
+        const ref = parsedRefs[0];
+        setIsSearchView(false);
+        setSelectedBook(ref.book);
+        setSelectedChapter(ref.chapter);
+        setSelectedVerseRef(
+          ref.startVerse
+            ? { book: ref.book, chapter: ref.chapter, verse: ref.startVerse }
+            : null
+        );
+        return;
+      }
+  
+      // 2) Keyword search
+      const hasTelugu = /[\u0C00-\u0C7F]/.test(query);
+      let results: FullVerse[] = [];
+  
+      // 🔴 HARD GUARD: English keyword + Telugu-only version
+      if (!hasTelugu && activeEnglishVersion === "BSI_TELUGU") {
+        setSearchError(
+          "You searched in English, but the selected version is Telugu. Switch to an English version (KJV, NIV, ESV)."
+        );
         setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
-      } finally {
-        setIsSearching(false);
-        setSearchQuery("");
-        setSearchOpen(false);
+        setIsSearchView(true);
+        return;
       }
-      return;
-    }
-    
   
-    if (parsedRefs.length === 1) {
-      const ref = parsedRefs[0];
-      setIsSearchView(false);
-      setSelectedBook(ref.book);
-      setSelectedChapter(ref.chapter);
-      if (ref.startVerse) {
-        setSelectedVerseRef({ book: ref.book, chapter: ref.chapter, verse: ref.startVerse });
-      } else {
-        setSelectedVerseRef(null);
-      }
-      setSearchQuery("");
-      setSearchOpen(false);
-      return;
-    }
-  
-    // 2) Keyword search — detect Telugu vs English
-    const hasTelugu = /[\u0C00-\u0C7F]/.test(query);
-    let results: FullVerse[] = [];
-  
-    setIsSearching(true);
-    try {
       if (hasTelugu) {
-        // Telugu local search
         results = await searchTeluguKeyword(query, {
           wholeWord: false,
           requireAll: false,
           highlight: true,
         });
       } else {
-        // English search (Supabase) — uses the currently active English version
         results = await searchEnglishKeyword(query, activeEnglishVersion);
       }
   
-      if (!results || results.length === 0) {
+      if (results.length === 0) {
         setSearchError(`No results for "${query}"`);
-        setRawSearchResults([]);
         setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
+        setIsSearchView(true);
         return;
       }
-       else {
-        const initialFilters: SearchFilters = {};
-
-setRawSearchResults(results);
-setSearchFilters(initialFilters);
-
-setGroupedSearchResults(
-  recomputeGroupedResults(results, initialFilters)
-);
-
-
-
-
-
-      }
   
+      // 3) Success path
+      const initialFilters: SearchFilters = {};
+      setRawSearchResults(results);
+      setSearchFilters(initialFilters);
+      setGroupedSearchResults(
+        recomputeGroupedResults(results, initialFilters)
+      );
       setIsSearchView(true);
     } catch (err) {
       console.error("Search error:", err);
       setSearchError("Search failed.");
+      setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
+      setIsSearchView(true);
     } finally {
       setIsSearching(false);
       setSearchQuery("");
