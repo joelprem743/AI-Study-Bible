@@ -402,9 +402,11 @@ const [incomingVerse, setIncomingVerse] = useState<{
   
       if (!results || results.length === 0) {
         setSearchError(`No results for "${query}"`);
-        setGroupedSearchResults(null);
-
-      } else {
+        setRawSearchResults([]);
+        setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
+        return;
+      }
+       else {
         const initialFilters: SearchFilters = {};
 
 setRawSearchResults(results);
@@ -441,7 +443,7 @@ setGroupedSearchResults(
   
   const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
     setIsSearchView(false);
-    setGroupedSearchResults(null);
+ 
 
     setSearchError(null);
     setSelectedBook(book);
