@@ -33,10 +33,12 @@ const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV"];
 const App: React.FC = () => {
   const { user, loading } = useAuth();
   type SearchFilters = {
-    book?: string;           // exact book name
-    chapterFrom?: number;    // inclusive
-    chapterTo?: number;      // inclusive
+    testament?: "OLD" | "NEW";
+    books?: string[];           // multiple selection
+    chapterFrom?: number;
+    chapterTo?: number;
   };
+  
   
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   
@@ -255,7 +257,15 @@ const [incomingVerse, setIncomingVerse] = useState<{
     filters: SearchFilters
   ): FullVerse[] {
     return verses.filter(v => {
-      if (filters.book && v.book !== filters.book) return false;
+      if (filters.testament) {
+        const isOT = BIBLE_META.findIndex(b => b.name === v.book) < 39;
+        if (filters.testament === "OLD" && !isOT) return false;
+        if (filters.testament === "NEW" && isOT) return false;
+      }
+  
+      if (filters.books && filters.books.length > 0) {
+        if (!filters.books.includes(v.book)) return false;
+      }
   
       if (
         filters.chapterFrom !== undefined &&
@@ -272,6 +282,7 @@ const [incomingVerse, setIncomingVerse] = useState<{
       return true;
     });
   }
+  
   
 
   const handleScrollDirectionChange = useCallback((dir: "up" | "down") => {
@@ -468,7 +479,7 @@ useEffect(() => {
 
   const isFirstChapter = selectedBook === "Genesis" && selectedChapter === 1;
   const isLastChapter = selectedBook === "Revelation" && selectedChapter === 22;
-
+  
   // Render
   return (
     <LanguageProvider>
@@ -780,64 +791,86 @@ rounded-full shadow-md overflow-hidden px-2"
     >
       <h2 className="text-xl font-bold mb-4">Filter Search Results</h2>
 
-      {/* Book filter */}
-      <div className="mb-4">
-        <label className="block text-sm mb-1">Book</label>
-        <select
-          value={searchFilters.book ?? ""}
-          onChange={(e) =>
-            setSearchFilters(f => ({
-              ...f,
-              book: e.target.value || undefined,
-            }))
-          }
-          className="w-full p-2 rounded border dark:bg-gray-800"
-        >
-          <option value="">All Books</option>
-          {BIBLE_META.map(b => (
-            <option key={b.name} value={b.name}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
+{/* Testament filter */}
+<div className="mb-4">
+  <label className="block text-sm mb-1">Testament</label>
+  <select
+    value={searchFilters.testament ?? ""}
+    onChange={(e) =>
+      setSearchFilters(f => ({
+        ...f,
+        testament: e.target.value
+          ? (e.target.value as "OLD" | "NEW")
+          : undefined,
+      }))
+    }
+    className="w-full p-2 rounded border dark:bg-gray-800"
+  >
+    <option value="">All</option>
+    <option value="OLD">Old Testament</option>
+    <option value="NEW">New Testament</option>
+  </select>
+</div>
 
-      {/* Chapter range */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1">
-          <label className="block text-sm mb-1">From Chapter</label>
+{/* Multi-book selection */}
+<div className="mb-4">
+  <label className="block text-sm mb-2">Books</label>
+  <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1 dark:bg-gray-800">
+    {BIBLE_META.map(b => {
+      const checked = searchFilters.books?.includes(b.name) ?? false;
+      return (
+        <label key={b.name} className="flex items-center gap-2 text-sm">
           <input
-            type="number"
-            value={searchFilters.chapterFrom ?? ""}
+            type="checkbox"
+            checked={checked}
             onChange={(e) =>
-              setSearchFilters(f => ({
-                ...f,
-                chapterFrom: e.target.value
-                  ? Number(e.target.value)
-                  : undefined,
-              }))
+              setSearchFilters(f => {
+                const set = new Set(f.books ?? []);
+                e.target.checked ? set.add(b.name) : set.delete(b.name);
+                return { ...f, books: [...set] };
+              })
             }
-            className="w-full p-2 rounded border dark:bg-gray-800"
           />
-        </div>
+          {b.name}
+        </label>
+      );
+    })}
+  </div>
+</div>
 
-        <div className="flex-1">
-          <label className="block text-sm mb-1">To Chapter</label>
-          <input
-            type="number"
-            value={searchFilters.chapterTo ?? ""}
-            onChange={(e) =>
-              setSearchFilters(f => ({
-                ...f,
-                chapterTo: e.target.value
-                  ? Number(e.target.value)
-                  : undefined,
-              }))
-            }
-            className="w-full p-2 rounded border dark:bg-gray-800"
-          />
-        </div>
-      </div>
+{/* Chapter range */}
+<div className="flex gap-3 mb-4">
+  <div className="flex-1">
+    <label className="block text-sm mb-1">From Chapter</label>
+    <input
+      type="number"
+      value={searchFilters.chapterFrom ?? ""}
+      onChange={(e) =>
+        setSearchFilters(f => ({
+          ...f,
+          chapterFrom: e.target.value ? Number(e.target.value) : undefined,
+        }))
+      }
+      className="w-full p-2 rounded border dark:bg-gray-800"
+    />
+  </div>
+
+  <div className="flex-1">
+    <label className="block text-sm mb-1">To Chapter</label>
+    <input
+      type="number"
+      value={searchFilters.chapterTo ?? ""}
+      onChange={(e) =>
+        setSearchFilters(f => ({
+          ...f,
+          chapterTo: e.target.value ? Number(e.target.value) : undefined,
+        }))
+      }
+      className="w-full p-2 rounded border dark:bg-gray-800"
+    />
+  </div>
+</div>
+
 
       {/* Actions */}
       <div className="flex justify-end gap-2">
