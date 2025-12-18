@@ -377,9 +377,10 @@ export const VerseTools: React.FC<{
   
       alert(
         language === "TE"
-          ? "చిత్రం డౌన్‌లోడ్ అయ్యింది. లింక్ క్లిప్‌బోర్డ్‌కి కాపీ అయింది."
-          : "Image downloaded. Link copied to clipboard."
+          ? "చిత్రం షేర్ అయింది. లింక్ ఆటోమేటిక్‌గా కాపీ అయింది — క్యాప్షన్‌లో పేస్ట్ చేయండి."
+          : "Image shared. Link copied — paste it in the caption."
       );
+      
     } catch (err) {
       console.error("Image share failed", err);
     }

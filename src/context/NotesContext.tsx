@@ -7,6 +7,7 @@ import React, {
   useState,
   useMemo,
 } from "react";
+import { useAuth } from "./AuthContext";
 
 import {
   Note,
@@ -56,16 +57,18 @@ console.log("Loaded NotesContext:", import.meta.url);
 const NotesContext = createContext<NotesContextValue | undefined>(undefined);
 
 export function NotesProvider({
-  userId,
   children,
 }: {
-  userId: string | null;
   children: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
   const [notesByKey, setNotes] = useState<Record<string, Note>>({});
   const [topicalNotes, setTopicalNotes] =
     useState<Record<string, TopicalNote>>({});
   const [loading, setLoading] = useState(false);
+
 
   // ------------------------------------------------------------
   // LOAD notes (both verse notes & topical notes)

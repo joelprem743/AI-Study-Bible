@@ -49,6 +49,15 @@ const abbreviationToBookName: { [key: string]: string } = Object.entries(bookNam
     return acc;
   }, {} as { [key:string]: string });
 
+
+
+  const BOOK_INDEX_MAP = new Map<string, number>();
+
+BIBLE_META_WITH_VERSE_COUNTS.forEach((b, i) => {
+  BOOK_INDEX_MAP.set(b.name, i);
+});
+
+
 // ------------------------------
 // Telugu mappings
 // ------------------------------
@@ -128,6 +137,8 @@ export const TELUGU_SYNONYMS: Record<string, string> = {
   // add numeric shorthand english
   "1cor": "1 Corinthians", "2cor": "2 Corinthians", "rom": "Romans", "roms": "Romans",
 };
+
+
 
 export async function fetchVerseSupabase(book: string, chapter: number, version: string) {
   const { data, error } = await supabase
@@ -374,6 +385,54 @@ export const fetchChapter = async (book: string, chapter: number): Promise<Verse
   return verses;
 };
 
+
+export interface GroupedVerses {
+  oldTestament: Record<string, FullVerse[]>;
+  newTestament: Record<string, FullVerse[]>;
+}
+
+
+export function groupVersesByTestamentAndBook(
+  verses: FullVerse[]
+): GroupedVerses {
+
+  const oldTestament: Record<string, FullVerse[]> = {};
+  const newTestament: Record<string, FullVerse[]> = {};
+
+  // 1️⃣ Sort verses by canonical Bible order
+  const sorted = [...verses].sort((a, b) => {
+    const ia = BOOK_INDEX_MAP.get(a.book) ?? 999;
+    const ib = BOOK_INDEX_MAP.get(b.book) ?? 999;
+
+    if (ia !== ib) return ia - ib;
+    if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+    return a.verse - b.verse;
+  });
+
+  // 2️⃣ Group
+  for (const v of sorted) {
+    const bookIndex = BOOK_INDEX_MAP.get(v.book);
+
+    if (bookIndex === undefined) {
+      console.warn("Unknown book during grouping:", v.book);
+      continue;
+    }
+    
+
+    const target =
+      bookIndex < 39 ? oldTestament : newTestament;
+
+    if (!target[v.book]) {
+      target[v.book] = [];
+    }
+
+    target[v.book].push(v);
+  }
+
+  return { oldTestament, newTestament };
+}
+
+
 // ------------------------------
 // fetchVersesByReferences
 // ------------------------------
@@ -492,7 +551,10 @@ export async function searchTeluguKeyword(
   const results: Array<{ score: number; verse: FullVerse }> = [];
 
   typedTeluguBibleData.Book.forEach((book, bookIndex) => {
-    const bookName = BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name;
+    const bookName = canonicalizeBook(
+      BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name
+    );
+    
 
     book.Chapter.forEach((chapter, chapterIndex) => {
       chapter.Verse.forEach((v, verseIndex) => {
@@ -563,6 +625,8 @@ export async function searchTeluguKeyword(
   return results.slice(0, limit).map((r) => r.verse);
 }
 
+
+
 // ------------------------------------------------------------
 // ENGLISH KEYWORD SEARCH (Supabase full-chapter text search)
 // Returns FullVerse[] matching the active English version
@@ -597,4 +661,7 @@ export async function searchEnglishKeyword(
       BSI_TELUGU: getTeluguVerse(row.book, row.chapter, row.verse) || ""
     }
   }));
+}
+export function getBookIndex(book: string): number {
+  return BOOK_INDEX_MAP.get(book) ?? 999;
 }

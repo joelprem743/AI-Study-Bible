@@ -19,7 +19,8 @@ import {
   fetchVersesByReferences,
   normalizeTeluguReference,
   searchTeluguKeyword,
-  searchEnglishKeyword
+  searchEnglishKeyword,
+  groupVersesByTestamentAndBook, GroupedVerses
 } from "./services/bibleService";
 
 import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
@@ -31,7 +32,14 @@ const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV"];
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
-
+  type SearchFilters = {
+    book?: string;           // exact book name
+    chapterFrom?: number;    // inclusive
+    chapterTo?: number;      // inclusive
+  };
+  
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  
   // Core state
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoadingVerses, setIsLoadingVerses] = useState(true);
@@ -55,7 +63,11 @@ const App: React.FC = () => {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchView, setIsSearchView] = useState(false);
-  const [searchResults, setSearchResults] = useState<FullVerse[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [rawSearchResults, setRawSearchResults] = useState<FullVerse[]>([]);
+  const [groupedSearchResults, setGroupedSearchResults] =
+    useState<GroupedVerses | null>(null);
+  
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -238,6 +250,29 @@ const [incomingVerse, setIncomingVerse] = useState<{
       }
     }
   }, [selectedBook, selectedChapter, handleChapterChange]);
+  function applySearchFilters(
+    verses: FullVerse[],
+    filters: SearchFilters
+  ): FullVerse[] {
+    return verses.filter(v => {
+      if (filters.book && v.book !== filters.book) return false;
+  
+      if (
+        filters.chapterFrom !== undefined &&
+        v.chapter < filters.chapterFrom
+      )
+        return false;
+  
+      if (
+        filters.chapterTo !== undefined &&
+        v.chapter > filters.chapterTo
+      )
+        return false;
+  
+      return true;
+    });
+  }
+  
 
   const handleScrollDirectionChange = useCallback((dir: "up" | "down") => {
     setIsNavVisible(dir === "up");
@@ -289,10 +324,20 @@ const [incomingVerse, setIncomingVerse] = useState<{
       setIsSearching(true);
       try {
         const res = await fetchVersesByReferences(parsedRefs);
-        setSearchResults(res);
+    
+        if (res.length === 0) {
+          setSearchError(`No results for "${query}"`);
+          setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
+        } else {
+          const grouped = groupVersesByTestamentAndBook(res);
+          setGroupedSearchResults(grouped);
+        }
+    
         setIsSearchView(true);
-      } catch {
+      } catch (e) {
+        console.error(e);
         setSearchError("Failed to fetch results.");
+        setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
       } finally {
         setIsSearching(false);
         setSearchQuery("");
@@ -300,6 +345,7 @@ const [incomingVerse, setIncomingVerse] = useState<{
       }
       return;
     }
+    
   
     if (parsedRefs.length === 1) {
       const ref = parsedRefs[0];
@@ -336,9 +382,16 @@ const [incomingVerse, setIncomingVerse] = useState<{
   
       if (!results || results.length === 0) {
         setSearchError(`No results for "${query}"`);
-        setSearchResults([]);
+        setGroupedSearchResults(null);
+
       } else {
-        setSearchResults(results);
+        setRawSearchResults(results);
+
+const filtered = applySearchFilters(results, searchFilters);
+setGroupedSearchResults(groupVersesByTestamentAndBook(filtered));
+
+
+
       }
   
       setIsSearchView(true);
@@ -356,13 +409,15 @@ const [incomingVerse, setIncomingVerse] = useState<{
 
   const handleClearSearch = () => {
     setIsSearchView(false);
-    setSearchResults([]);
+    setGroupedSearchResults(null);
+
     setSearchError(null);
   };
 
   const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
     setIsSearchView(false);
-    setSearchResults([]);
+    setGroupedSearchResults(null);
+
     setSearchError(null);
     setSelectedBook(book);
     setSelectedChapter(chap);
@@ -595,13 +650,16 @@ rounded-full shadow-md overflow-hidden px-2"
           <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
             {isSearchView ? (
               <SearchResultDisplay
-                results={searchResults}
-                isLoading={isSearching}
-                error={searchError}
-                onClear={handleClearSearch}
-                englishVersion={activeEnglishVersion}
-                onNavigate={navigateTo}
-              />
+              groupedResults={groupedSearchResults ?? { oldTestament: {}, newTestament: {} }}
+              isLoading={isSearching}
+              error={searchError}
+              onClear={handleClearSearch}
+              onOpenFilters={() => setFiltersOpen(true)}  
+              englishVersion={activeEnglishVersion}
+              onNavigate={navigateTo}
+            />
+            
+            
             ) : (
               <>
                 {/* LEFT: Navigation (fixed/sticky) + Scripture (scrollable) */}
@@ -711,6 +769,113 @@ rounded-full shadow-md overflow-hidden px-2"
     }}
   />
 )}
+          {filtersOpen && (
+  <div
+    className="fixed inset-0 z-[1000] bg-black/60 flex items-center justify-center"
+    onClick={() => setFiltersOpen(false)}
+  >
+    <div
+      className="bg-white dark:bg-gray-900 rounded-xl p-6 w-[90%] max-w-md"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-xl font-bold mb-4">Filter Search Results</h2>
+
+      {/* Book filter */}
+      <div className="mb-4">
+        <label className="block text-sm mb-1">Book</label>
+        <select
+          value={searchFilters.book ?? ""}
+          onChange={(e) =>
+            setSearchFilters(f => ({
+              ...f,
+              book: e.target.value || undefined,
+            }))
+          }
+          className="w-full p-2 rounded border dark:bg-gray-800"
+        >
+          <option value="">All Books</option>
+          {BIBLE_META.map(b => (
+            <option key={b.name} value={b.name}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Chapter range */}
+      <div className="flex gap-3 mb-4">
+        <div className="flex-1">
+          <label className="block text-sm mb-1">From Chapter</label>
+          <input
+            type="number"
+            value={searchFilters.chapterFrom ?? ""}
+            onChange={(e) =>
+              setSearchFilters(f => ({
+                ...f,
+                chapterFrom: e.target.value
+                  ? Number(e.target.value)
+                  : undefined,
+              }))
+            }
+            className="w-full p-2 rounded border dark:bg-gray-800"
+          />
+        </div>
+
+        <div className="flex-1">
+          <label className="block text-sm mb-1">To Chapter</label>
+          <input
+            type="number"
+            value={searchFilters.chapterTo ?? ""}
+            onChange={(e) =>
+              setSearchFilters(f => ({
+                ...f,
+                chapterTo: e.target.value
+                  ? Number(e.target.value)
+                  : undefined,
+              }))
+            }
+            className="w-full p-2 rounded border dark:bg-gray-800"
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => {
+            setSearchFilters({});
+            setGroupedSearchResults(
+  groupVersesByTestamentAndBook(rawSearchResults)
+);
+            setFiltersOpen(false);
+
+          }}
+          className="px-4 py-2 rounded bg-gray-300 dark:bg-gray-700"
+        >
+          Clear
+        </button>
+
+        <button
+  onClick={() => {
+    const filtered = applySearchFilters(
+      rawSearchResults,
+      searchFilters
+    );
+    setGroupedSearchResults(
+      groupVersesByTestamentAndBook(filtered)
+    );
+    setFiltersOpen(false);
+  }}
+  className="px-4 py-2 rounded bg-blue-600 text-white"
+>
+  Apply
+</button>
+
+      </div>
+    </div>
+  </div>
+)}
+
 
 
           <footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-gray-400">
