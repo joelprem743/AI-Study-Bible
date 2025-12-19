@@ -44,36 +44,57 @@ async function downloadTopicalNoteDocx(note: any) {
   const doc = new Document({
     sections: [
       {
+        properties: {
+          page: {
+            margin: {
+              top: 720,     // 0.5 inch
+              bottom: 720,
+              left: 720,
+              right: 720,
+            },
+          },
+        },
         children: [
-          // Title
+          /* ---------- TITLE ---------- */
           new Paragraph({
-            text: title,
-            heading: HeadingLevel.HEADING_1,
+            spacing: { after: 300 },
+            children: [
+              new TextRun({
+                text: title,
+                bold: true,
+                size: 32, // 16pt
+              }),
+            ],
           }),
 
-          // Updated time
+          /* ---------- UPDATED TIME ---------- */
           ...(updated
             ? [
                 new Paragraph({
+                  spacing: { after: 300 },
                   children: [
                     new TextRun({
                       text: `Last Updated: ${updated}`,
                       italics: true,
+                      size: 20, // 10pt
                     }),
                   ],
                 }),
               ]
             : []),
 
-          new Paragraph({ text: "" }),
-
-          // Body (supports Telugu perfectly)
+          /* ---------- BODY ---------- */
           ...body.split("\n").map(
             (line) =>
               new Paragraph({
+                spacing: {
+                  after: 200,
+                  line: 360, // 1.5 line spacing
+                },
                 children: [
                   new TextRun({
-                    text: line,
+                    text: line || " ", // preserve blank lines
+                    size: 24, // 12pt — ideal for mobile
                   }),
                 ],
               })

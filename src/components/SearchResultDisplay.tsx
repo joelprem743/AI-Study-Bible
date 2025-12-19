@@ -1,6 +1,7 @@
 import React from "react";
 import { GroupedVerses } from "@/services/bibleService";
 import type { FullVerse } from "..";
+import { TELUGU_BOOK_NAMES } from "@/data/teluguBookNames";
 
 /* ---------------- SAFE DEFAULT ---------------- */
 
@@ -9,6 +10,23 @@ const EMPTY_GROUPED_RESULTS: GroupedVerses = {
   newTestament: {},
 };
 
+const TESTAMENT_LABELS = {
+  EN: {
+    old: "Old Testament",
+    new: "New Testament",
+  },
+  TE: {
+    old: "పాత నిబంధన",
+    new: "కొత్త నిబంధన",
+  },
+};
+
+const CHAPTER_LABELS = {
+  EN: "Chapter",
+  TE: "అధ్యాయం",
+};
+
+
 /* ---------------- TYPES ---------------- */
 
 interface SearchResultDisplayProps {
@@ -16,12 +34,30 @@ interface SearchResultDisplayProps {
   isLoading: boolean;
   error: string | null;
   onClear: () => void;
+  searchQuery: string;
+
   onOpenFilters: () => void; // ✅ REQUIRED
   englishVersion: string;
+  studyMode: "single" | "parallel"; 
   onNavigate: (book: string, chapter: number, verse: number) => void;
 }
 
 /* ---------------- HELPERS ---------------- */
+function highlight(text: string, query: string) {
+  if (!query) return text;
+  const safe = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(
+    new RegExp(`(${safe})`, "giu"),
+    "<mark>$1</mark>"
+  );
+}
+
+
+function getDisplayBookName(book: string, isTelugu: boolean) {
+  if (!isTelugu) return book;
+  return TELUGU_BOOK_NAMES[book] ?? book;
+}
+
 
 function groupByChapter(verses: FullVerse[]) {
   const map: Record<number, FullVerse[]> = {};
@@ -68,11 +104,29 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
   isLoading,
   error,
   onClear,
+  searchQuery, 
   onOpenFilters,
   englishVersion,
+  studyMode, 
   onNavigate,
 }) => {
+  const isSingle = studyMode === "single";
+const isParallel = studyMode === "parallel";
+const isTeluguSingle = isSingle && englishVersion === "BSI_TELUGU";
+const isEnglishSingle = isSingle && englishVersion !== "BSI_TELUGU";
+
+
   const { oldTestament, newTestament } = groupedResults;
+  const isTeluguMode = englishVersion === "BSI_TELUGU";
+  const chapterLabel = isTeluguMode
+  ? CHAPTER_LABELS.TE
+  : CHAPTER_LABELS.EN;
+
+
+const labels = isTeluguMode
+  ? TESTAMENT_LABELS.TE
+  : TESTAMENT_LABELS.EN;
+
 
   const hasResults =
     Object.keys(oldTestament).length > 0 ||
@@ -133,9 +187,10 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             return (
               <div key={testamentKey} className="mb-12">
                 <h2 className="text-3xl font-extrabold mb-6 text-blue-700 dark:text-blue-400">
-                  {testamentKey === "oldTestament"
-                    ? "Old Testament"
-                    : "New Testament"}
+                {testamentKey === "oldTestament"
+  ? labels.old
+  : labels.new}
+
                 </h2>
 
                 {Object.entries(books).map(([book, verses]) => {
@@ -146,47 +201,63 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
 
                   return (
                     <div key={book} className="mb-10">
-                      <h3 className="text-2xl font-bold mb-4">{book}</h3>
+                      <h3 className="text-2xl font-bold mb-4">
+  {getDisplayBookName(book, isTeluguMode)}
+</h3>
+
 
                       {chapterNumbers.map(chapter => (
                         <div key={chapter} className="mb-6">
                           <h4 className="text-lg font-semibold mb-3 text-gray-600 dark:text-gray-300">
-                            Chapter {chapter}
-                          </h4>
+  {chapterLabel} {chapter}
+</h4>
+
 
                           <div className="space-y-4">
-                            {chapters[chapter].map(v => {
-                              const englishText =
-                                v.text[englishVersion as keyof typeof v.text] ??
-                                v.text.KJV;
+                          {chapters[chapter].map(v => (
+  <div
+    key={`${v.book}-${v.chapter}-${v.verse}`}
+    className="p-3 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+    onClick={() => onNavigate(v.book, v.chapter, v.verse)}
+  >
+    <div
+      className={`grid grid-cols-1 ${
+        isParallel ? "md:grid-cols-2 md:gap-6" : ""
+      }`}
+    >
+      {/* TELUGU */}
+      {(isTeluguSingle || isParallel) && (
+        <div className="flex">
+          <span className="w-8 font-bold text-gray-500">
+            {v.verse}
+          </span>
+          <div
+            dangerouslySetInnerHTML={{
+              __html: highlight(
+                v.text.BSI_TELUGU ?? "",
+                searchQuery
+              ),
+            }}
+          />
+        </div>
+      )}
 
-                              return (
-                                <div
-                                  key={`${v.book}-${v.chapter}-${v.verse}`}
-                                  className="p-3 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-                                  onClick={() =>
-                                    onNavigate(v.book, v.chapter, v.verse)
-                                  }
-                                >
-                                  <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6">
-                                    <div className="flex">
-                                      <span className="w-8 font-bold text-gray-500">
-                                        {v.verse}
-                                      </span>
-                                      <div
-                                        dangerouslySetInnerHTML={{
-                                          __html:
-                                            v.text.BSI_TELUGU ??
-                                            "[Telugu not available]",
-                                        }}
-                                      />
-                                    </div>
+      {/* ENGLISH */}
+      {(isEnglishSingle || isParallel) && (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: highlight(
+              v.text[englishVersion as keyof typeof v.text] ?? "",
+              searchQuery
+            ),
+          }}
+        />
+      )}
+    </div>
+  </div>
+))}
 
-                                    <div>{englishText}</div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+
                           </div>
                         </div>
                       ))}

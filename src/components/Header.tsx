@@ -1,3 +1,4 @@
+//src/components/Header.tsx
 import ProfileMenu from "./ProfileMenu";
 
 export function Header() {

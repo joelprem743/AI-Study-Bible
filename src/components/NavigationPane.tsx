@@ -47,6 +47,9 @@ export default function NavigationPane(props: Props) {
     versions,
   } = props;
 
+  const isTeluguSingleMode =
+  studyMode === "single" && singleVersion === "BSI_TELUGU";
+
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isBookModal, setIsBookModal] = useState(false);
   const [selectionStep, setSelectionStep] = useState<"BOOK" | "CHAPTER">("BOOK");
@@ -231,7 +234,10 @@ studyMode === "single"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Select Book</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+  {isTeluguSingleMode ? "గ్రంథము ఎంచుకోండి" : "Select Book"}
+</h2>
+
                 <button onClick={() => setIsBookModal(false)} className="p-2 text-gray-500">
                   <i className="fas fa-times" />
                 </button>
@@ -243,8 +249,8 @@ studyMode === "single"
   <>
     {/* OLD TESTAMENT */}
     <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-      Old Testament
-    </h3>
+  {isTeluguSingleMode ? "పాత నిబంధన" : "Old Testament"}
+</h3>
 
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
       {BIBLE_META.filter(b => OLD_TESTAMENT.includes(b.name)).map((b) => (
@@ -277,8 +283,9 @@ studyMode === "single"
 
     {/* NEW TESTAMENT */}
     <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-      New Testament
-    </h3>
+  {isTeluguSingleMode ? "కొత్త నిబంధన" : "New Testament"}
+</h3>
+
 
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
       {BIBLE_META.filter(b => NEW_TESTAMENT.includes(b.name)).map((b) => (
@@ -315,8 +322,9 @@ studyMode === "single"
 {selectionStep === "CHAPTER" && (
   <>
     <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
-      Select Chapter
-    </h3>
+  {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
+</h3>
+
     <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
       {Array.from({ length: BIBLE_META.find((b) => b.name === tempBook)?.chapters || 0 }, (_, i) => i + 1)
         .map((ch) => (

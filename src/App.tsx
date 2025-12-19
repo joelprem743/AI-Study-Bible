@@ -69,7 +69,8 @@ const App: React.FC = () => {
   const [rawSearchResults, setRawSearchResults] = useState<FullVerse[]>([]);
   const [groupedSearchResults, setGroupedSearchResults] =
     useState<GroupedVerses | null>(null);
-  
+    const [lastSearchQuery, setLastSearchQuery] = useState("");
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -409,6 +410,8 @@ const [incomingVerse, setIncomingVerse] = useState<{
       setGroupedSearchResults(
         recomputeGroupedResults(results, initialFilters)
       );
+      setLastSearchQuery(query);
+
       setIsSearchView(true);
     } catch (err) {
       console.error("Search error:", err);
@@ -670,6 +673,8 @@ rounded-full shadow-md overflow-hidden px-2"
               isLoading={isSearching}
               error={searchError}
               onClear={handleClearSearch}
+              searchQuery={lastSearchQuery} 
+              studyMode={studyMode}
               onOpenFilters={() => setFiltersOpen(true)}  
               englishVersion={activeEnglishVersion}
               onNavigate={navigateTo}
