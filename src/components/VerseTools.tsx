@@ -142,6 +142,11 @@ function replaceParentheticalTranslitsWithTelugu(aiText: string) {
   });
 }
 
+function isValidBibleRef(ref: string) {
+  return /^((?:[1-3]\s*)?[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?$/.test(ref);
+}
+
+
 // Split Gemini "1.,2.,3.,4." structure into sections
 function splitSections(txt: string) {
   const lines = txt.split("\n");
@@ -211,8 +216,9 @@ const TABS: Tab[] = [
 /* -------------------------
   Inline reference regex
 ---------------------------*/
-const INLINE_REF_REGEX =
-  /((?:[1-3]\s*)?(?:[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?)/gu;
+
+const INLINE_REF_RENDER_REGEX =
+  /((?:[1-3]\s*)?(?:[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?)/u;
 
 /* -------------------------
   Component
@@ -474,6 +480,104 @@ export const VerseTools: React.FC<{
     [language, englishVersion]
   );
 
+  const loadCrossRefsWithLlamaFallback = useCallback(async () => {
+    const key = buildKey("Cross-references", language) + "::llama";
+    const cached = localCache.current.get(key);
+    if (cached != null) return cached;
+  
+    try {
+      const verseText =
+        language === "TE"
+          ? verseData.text.BSI_TELUGU || verseData.text.KJV
+          : verseData.text[englishVersion] || verseData.text.KJV;
+  
+      const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+  
+      const prompt = `
+  Suggest Bible cross-references related to the THEMES of the verse below.
+  
+  STRICT RULES:
+  - Return ONLY Bible references (example: John 10:11)
+  - If unsure, OMIT the reference
+  - Do NOT invent verse numbers
+  - Prefer well-known, widely accepted passages
+  - Maximum 5 references
+  - One reference per line
+  - NO commentary or explanation
+  
+  Verse: ${refLabel}
+  Text: "${verseText}"
+  `.trim();
+  
+      const res = await sendMessageToLlama(prompt, [], language);
+      const raw = res.text || "";
+  
+      const refs = raw
+        .split(/\r?\n/)
+        .map(r => r.trim())
+        .filter(isValidBibleRef);
+  
+      const output =
+        refs.length > 0
+          ? `⚠️ *AI-suggested cross-references (verify)*\n\n${refs.join("\n")}`
+          : "";
+  
+      localCache.current.set(key, output);
+      return output;
+    } catch (e) {
+      console.error("LLaMA cross-ref fallback failed", e);
+      localCache.current.set(key, "");
+      return "";
+    }
+  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  
+  
+  const loadHistoricalWithLlamaFallback = useCallback(async () => {
+    const key = buildKey("Historical Context", language) + "::llama";
+    const cached = localCache.current.get(key);
+    if (cached != null) return cached;
+  
+    try {
+      const verseText =
+        language === "TE"
+          ? verseData.text.BSI_TELUGU || verseData.text.KJV
+          : verseData.text[englishVersion] || verseData.text.KJV;
+  
+      const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+  
+      const prompt = `
+  Provide ONLY historical and cultural background for the Bible verse below.
+  
+  RULES:
+  - Cultural + social background only
+  - NO theology
+  - NO invented dates/events
+  - Admit uncertainty if present
+  
+  Verse: ${refLabel}
+  Text: "${verseText}"
+  
+  Respond in ${language === "TE" ? "Telugu" : "English"}.
+  `.trim();
+  
+      const res = await sendMessageToLlama(prompt, [], language);
+      const text = res.text?.trim() || "";
+  
+      const output = text
+        ? `⚠️ *AI-generated historical background (verify)*\n\n${text}`
+        : "";
+  
+      localCache.current.set(key, output);
+      return output;
+    } catch (e) {
+      console.error("LLaMA historical fallback failed", e);
+      localCache.current.set(key, "");
+      return "";
+    }
+  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  
+  
+
 
   const loadSummaryWithLlama = useCallback(async () => {
     const key = buildKey("Summary", language);
@@ -523,13 +627,15 @@ export const VerseTools: React.FC<{
         `.trim();
         
   
-    const response = await sendMessageToLlama(
-      prompt,
-      [],            // no chat history
-      language       // model language
-    );
-  
-    const output = response.text?.trim() || "";
+        let output = "";
+        try {
+          const response = await sendMessageToLlama(prompt, [], language);
+          output = response.text?.trim() || "";
+        } catch (e) {
+          console.error("LLaMA summary failed", e);
+          output = "";
+        }
+        
     localCache.current.set(key, output);
     return output;
   }, [verseRef, verseData, language, englishVersion, buildKey]);
@@ -688,7 +794,8 @@ ${reconstructed}
 
     setErrorMsg("");
     setActiveTab("Notes");
-  }, [verseRef]);
+  }, [verseRef, language]);
+
 
   useEffect(() => {
     const existing = getNoteFor(verseRef);
@@ -715,24 +822,56 @@ ${reconstructed}
 
   const handleGenerateClick = useCallback(async () => {
     if (activeTab === "Notes") return;
+  
     setLoading(true);
     setErrorMsg("");
-
-    let text = "";
-
-if (activeTab === "Summary") {
-  text = await loadSummaryWithLlama();
-} else {
-  text = await loadTab(activeTab);
-}
-
-
-    setAnalysis((prev) => ({
-      ...prev,
-      [activeTab]: text,
-    }));
-    setLoading(false);
-  }, [activeTab, loadTab,loadSummaryWithLlama]);
+  
+    try {
+      let text = "";
+  
+      if (activeTab === "Summary") {
+        const primary = await loadTab("Summary");
+        text = primary && primary.trim()
+          ? primary
+          : await loadSummaryWithLlama();
+      } else if (activeTab === "Cross-references") {
+        const primary = await loadTab("Cross-references");
+        text = primary && primary.trim()
+          ? primary
+          : await loadCrossRefsWithLlamaFallback();
+      } else if (activeTab === "Historical Context") {
+        const primary = await loadTab("Historical Context");
+        text = primary && primary.trim()
+          ? primary
+          : await loadHistoricalWithLlamaFallback();
+      } else {
+        text = await loadTab(activeTab);
+      }
+  
+      setAnalysis(prev => ({
+        ...prev,
+        [activeTab]: text,
+      }));
+    } catch (e: any) {
+      console.error("Generate failed", e);
+      setErrorMsg(
+        language === "TE"
+          ? "విశ్లేషణ సృష్టించడంలో లోపం వచ్చింది."
+          : "Failed to generate analysis."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    activeTab,
+    loadTab,
+    loadSummaryWithLlama,
+    loadCrossRefsWithLlamaFallback,
+    loadHistoricalWithLlamaFallback,
+    language,
+  ]);
+  
+  
 
   const handleClickReference = useCallback(
     async (reference: string) => {
@@ -750,11 +889,12 @@ if (activeTab === "Summary") {
 
       if (typeof node === "string") {
         const parts: React.ReactNode[] = [];
-        INLINE_REF_REGEX.lastIndex = 0;
-        let lastIndex = 0;
-        let m: RegExpExecArray | null;
+        const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
+let lastIndex = 0;
+let m: RegExpExecArray | null;
 
-        while ((m = INLINE_REF_REGEX.exec(node)) !== null) {
+while ((m = regex.exec(node)) !== null) {
+
           const match = m[1];
           const start = m.index;
 
