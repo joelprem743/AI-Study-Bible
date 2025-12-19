@@ -19,7 +19,8 @@ import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { useNotes } from "../context/NotesContext";
 import { generateVerseImage } from "../utils/verseImage";
-
+import { sendMessageToLlama } from "../services/geminiService";
+ 
 
 /* -------------------------
   Small utils / transliteration
@@ -197,10 +198,11 @@ const LoadingSkeleton: React.FC = () => (
   </div>
 );
 
-type Tab = "Interlinear" | "Cross-references" | "Historical Context" | "Notes";
+type Tab = "Interlinear" | "Summary"| "Cross-references" | "Historical Context" | "Notes";
 
 const TABS: Tab[] = [
   "Notes",
+  "Summary",
   "Cross-references",
   "Historical Context",
   "Interlinear",
@@ -243,6 +245,7 @@ export const VerseTools: React.FC<{
 
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
     Interlinear: null,
+    Summary: null,
     "Cross-references": null,
     "Historical Context": null,
     Notes: null,
@@ -471,12 +474,76 @@ export const VerseTools: React.FC<{
     [language, englishVersion]
   );
 
+
+  const loadSummaryWithLlama = useCallback(async () => {
+    const key = buildKey("Summary", language);
+    const cached = localCache.current.get(key);
+    if (cached != null) return cached;
+  
+    const verseText =
+      language === "TE"
+        ? verseData.text.BSI_TELUGU || verseData.text.KJV
+        : verseData.text[englishVersion] || verseData.text.KJV;
+  
+    if (!verseText) return "";
+  
+    const refLabel =
+      language === "TE"
+        ? `${TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book} ${verseRef.chapter}:${verseRef.verse}`
+        : `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+  
+    const langInstruction =
+      language === "TE"
+        ? "సంక్షిప్తంగా, స్పష్టంగా తెలుగులో వివరణ ఇవ్వండి."
+        : "Give a clear, concise explanation in English.";
+  
+        const prompt = `
+        Provide a deep, structured explanation of the following Bible verse.
+        
+        Requirements:
+        - Explain the verse in DETAIL
+        - Cover cultural background
+        - Explain theological meaning
+        - Explain why this verse is important in Scripture
+        - End with practical or spiritual implications
+        
+        Formatting rules:
+        - Use clear Markdown
+        - Use short paragraphs
+        - Use bullet points where helpful
+        - Do NOT quote long passages from other verses
+        - Do NOT invent doctrine
+        
+        Verse Reference: ${refLabel}
+        Verse Text:
+        "${verseText}"
+        
+        Language instruction:
+        ${langInstruction}
+        `.trim();
+        
+  
+    const response = await sendMessageToLlama(
+      prompt,
+      [],            // no chat history
+      language       // model language
+    );
+  
+    const output = response.text?.trim() || "";
+    localCache.current.set(key, output);
+    return output;
+  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  
+
   /* -------------------------
     loadTab (analysis)
   ---------------------------*/
   const loadTab = useCallback(
     async (tab: Tab) => {
+
       if (tab === "Notes") return "";
+      if (tab === "Summary") return "";
+
 
       const key = buildKey(tab, language);
       const cached = localCache.current.get(key);
@@ -611,11 +678,13 @@ ${reconstructed}
     refCache.current.clear();
 
     setAnalysis({
-      Interlinear: null,
+      Notes: null,
+      Summary: null,
       "Cross-references": null,
       "Historical Context": null,
-      Notes: null,
+      Interlinear: null,
     });
+    
 
     setErrorMsg("");
     setActiveTab("Notes");
@@ -649,14 +718,21 @@ ${reconstructed}
     setLoading(true);
     setErrorMsg("");
 
-    const text = await loadTab(activeTab);
+    let text = "";
+
+if (activeTab === "Summary") {
+  text = await loadSummaryWithLlama();
+} else {
+  text = await loadTab(activeTab);
+}
+
 
     setAnalysis((prev) => ({
       ...prev,
       [activeTab]: text,
     }));
     setLoading(false);
-  }, [activeTab, loadTab]);
+  }, [activeTab, loadTab,loadSummaryWithLlama]);
 
   const handleClickReference = useCallback(
     async (reference: string) => {
@@ -975,14 +1051,17 @@ ${reconstructed}
               } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
             >
               {language === "TE"
-                ? tab === "Interlinear"
-                  ? "పదాల వారీ అనువాదం"
-                  : tab === "Cross-references"
-                  ? "సంబంధిత వచనాలు"
-                  : tab === "Historical Context"
-                  ? "చారిత్రక నేపథ్యం"
-                  : "గమనికలు"
-                : tab}
+  ? tab === "Summary"
+    ? "సారాంశం / వివరణ"
+    : tab === "Interlinear"
+    ? "పదాల వారీ అనువాదం"
+    : tab === "Cross-references"
+    ? "సంబంధిత వచనాలు"
+    : tab === "Historical Context"
+    ? "చారిత్రక నేపథ్యం"
+    : "గమనికలు"
+  : tab}
+
             </button>
           ))}
         </nav>
