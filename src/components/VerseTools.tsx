@@ -9,8 +9,6 @@ import React, {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  getVerseAnalysis,
-  flashGenerate,
   isNewTestament,
 } from "../services/geminiService";
 import { Verse, VerseReference } from "..";
@@ -21,12 +19,51 @@ import { useNotes } from "../context/NotesContext";
 import { generateVerseImage } from "../utils/verseImage";
 import { sendMessageToLlama } from "../services/geminiService";
 import { fetchNTInterlinear } from "../lib/interlinearService";
-import { fetchOTInterlinear } from "../lib/interlinearServiceOT";
-
+import {
+  fetchOTInterlinear,
+  fetchStrongLexicon,
+} from "../lib/interlinearServiceOT";
 
 /* -------------------------
   Small utils / transliteration
 ---------------------------*/
+function cleanHebrewSurface(surface: string): string {
+  if (!surface) return "";
+
+  return surface
+    // remove morphology separators
+    .replace(/[./]/g, "")
+    // remove trailing morphology markers
+    .replace(/[\u0591-\u05C7]+/g, "")
+    .trim();
+}
+
+function normalizeInterlinearRow(r: any, isNT: boolean) {
+  if (isNT) {
+    const parts = extractInterlinearParts(r.definition);
+    return {
+      wordIndex: r.word_index,
+      surface: r.surface,
+      lemma: parts.lemmaGreek,
+      transliteration: parts.transliteration,
+      meaning: parts.meaning,
+      strong: r.strong,
+      lexicon: null, // NT lexicon comes from definition
+    };
+  }
+
+  // OT
+  return {
+    wordIndex: r.word_index,
+    surface: r.surface,
+    lemma: r.strong_lexicon?.lemma || "",
+    transliteration: r.strong_lexicon?.transliteration || "",
+    meaning: r.strong_lexicon?.gloss || "",
+    strong: r.strong,
+    lexicon: r.strong_lexicon || null,
+  };
+}
+
 function renderHebrewTextInteractive(
   rows: any[],
   onHover: (idx: number) => void,
@@ -565,8 +602,16 @@ export const VerseTools: React.FC<{
   type StrongPopupData = {
     strong: string;
     lemma: string;
-    lexicon: FormattedLexicon;
+    lexicon: {
+      transliteration?: string;
+      coreMeaning?: string;
+      sections: {
+        title: string;
+        bullets: string[];
+      }[];
+    };
   };
+  
   
   
   
@@ -589,8 +634,53 @@ export const VerseTools: React.FC<{
   const localCache = useRef(new Map<string, string>());
   const refCache = useRef(new Map<string, string>());
   const [interlinearRows, setInterlinearRows] = useState<any[]>([]);
+  const [strongCache, setStrongCache] = useState<
+  Record<
+    string,
+    {
+      lemma: string;
+      transliteration: string;
+      meaning: string;
+      definition?: string;
+    }
+  >
+>({});
 
 
+async function preloadStrongLexicons(rows: any[]) {
+  // Collect unique Strong numbers
+  const strongs = Array.from(
+    new Set(
+      rows
+        .map(r => r.strong)
+        .filter(Boolean)
+    )
+  );
+
+  // Only fetch Strong numbers we don't already have
+  const missing = strongs.filter(s => !strongCache[s]);
+
+  if (missing.length === 0) return;
+
+  for (const strong of missing) {
+    try {
+      const lex = await fetchStrongLexicon(strong);
+      if (!lex) continue;
+
+      setStrongCache(prev => ({
+        ...prev,
+        [strong]: {
+          lemma: lex.lemma || "",
+          transliteration: lex.transliteration || "",
+          meaning: lex.gloss || "",
+          definition: lex.definition || "",
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to preload Strong:", strong, err);
+    }
+  }
+}
   const displayVerseText =
     language === "TE"
       ? verseData.text.BSI_TELUGU || verseData.text.KJV
@@ -1025,28 +1115,39 @@ const handleWordClick = (idx: number) => {
         const isNT = isNewTestament(verseRef.book);
       
         const rows = isNT
-          ? await fetchNTInterlinear(
-              verseRef.book,
-              verseRef.chapter,
-              verseRef.verse
-            )
-          : await fetchOTInterlinear(
-              verseRef.book,
-              verseRef.chapter,
-              verseRef.verse
-            );
+  ? await fetchNTInterlinear(
+      verseRef.book,
+      verseRef.chapter,
+      verseRef.verse
+    )
+  : await fetchOTInterlinear(
+      verseRef.book,
+      verseRef.chapter,
+      verseRef.verse
+    );
+
       
-        setInterlinearRows(rows || []);
-      
-        if (rows && rows.length > 0) {
-          if (isNT) {
-            setOriginalVerse(buildGreekVerse(rows));
-            setTranslitVerse(buildTransliterationVerse(rows));
-          } else {
-            setOriginalVerse(buildHebrewVerse(rows));
-            setTranslitVerse("");
-          }
-        } else {
+    setInterlinearRows(rows || []);
+
+    if (rows && rows.length > 0) {
+      if (isNT) {
+        setOriginalVerse(buildGreekVerse(rows));
+        setTranslitVerse(buildTransliterationVerse(rows));
+      } else {
+        setOriginalVerse(buildHebrewVerse(rows));
+        setTranslitVerse(
+          rows
+            .map(r => strongCache[r.strong]?.transliteration || r.strong_lexicon?.transliteration)
+            .filter(Boolean)
+            .join(" ")
+        );
+    
+        // ✅ ADD THIS LINE
+        preloadStrongLexicons(rows);
+      }
+    }
+    
+         else {
           setOriginalVerse("");
           setTranslitVerse("");
         }
@@ -1392,7 +1493,62 @@ while ((m = regex.exec(node)) !== null) {
   }
   
   
- 
+  function openStrong(row: any) {
+    const strong = row.strong;
+    if (!strong) return;
+  
+    // ✅ If cached, reuse
+    if (strongCache[strong]) {
+      const cached = strongCache[strong];
+  
+      setStrongPopup({
+        strong,
+        lemma: cached.lemma,
+        lexicon: {
+          transliteration: cached.transliteration,
+          coreMeaning: cached.meaning,
+          sections: cached.definition
+            ? [{ title: "Definition", bullets: [cached.definition] }]
+            : [],
+        },
+      });
+      return;
+    }
+    
+    
+  
+    // ⬇️ First time fetch
+    fetchStrongLexicon(strong).then((lex) => {
+      if (!lex) return;
+  
+      const cached = {
+        lemma: lex.lemma || "",
+        transliteration: lex.transliteration || "",
+        meaning: lex.gloss || "",
+        definition: lex.definition || "",
+      };
+  
+      // 🔑 STORE IT
+      setStrongCache((prev) => ({
+        ...prev,
+        [strong]: cached,
+      }));
+  
+      setStrongPopup({
+        strong,
+        lemma: cached.lemma,
+        lexicon: {
+          transliteration: cached.transliteration,
+          coreMeaning: cached.meaning,
+          sections: cached.definition
+            ? [{ title: "Definition", bullets: [cached.definition] }]
+            : [],
+        },
+      });
+    });
+  }
+  
+  
   
   const displayPreviewRef = useMemo(() => {
     if (!previewRef) return previewRef;
@@ -1749,22 +1905,23 @@ while ((m = regex.exec(node)) !== null) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {interlinearRows.map((r) => {
                       const isNT = isNewTestament(verseRef.book);
-            
-                      const { transliteration, meaning, lemmaGreek } = isNT
-  ? extractInterlinearParts(r.definition)
-  : {
-      transliteration: "",
-      meaning: "",
-      lemmaGreek: r.lemma_canon || r.lemma_norm || "",
-    };
+                      const row = normalizeInterlinearRow(r, isNT);
+                      const cached = row.strong ? strongCache[row.strong] : null;
+
+const effectiveLemma = row.lemma || cached?.lemma || "";
+const effectiveTranslit = row.transliteration || cached?.transliteration || "";
+const effectiveMeaning = row.meaning || cached?.meaning || "";
+
+                      
+
 
             
                       return (
                         <div
-                          key={r.word_index}
+                        key={row.wordIndex}
                           ref={(el) => {
                             if (el) {
-                              wordRefs.current.set(r.word_index, el);
+                              wordRefs.current.set(row.wordIndex, el);
                             }
                           }}
                           
@@ -1774,62 +1931,42 @@ while ((m = regex.exec(node)) !== null) {
                               : ""
                           }`}
                         >
+                          {/* Surface */}
                           <div className="text-xl font-serif font-bold">
-  {r.surface}
+  {isNewTestament(verseRef.book)
+    ? row.surface
+    : cleanHebrewSurface(row.surface)}
 </div>
 
-{/* Morphology */}
-{r.morph_code && (
-  <div className="text-xs text-gray-500">
-    {r.morph_code}
-  </div>
-)}
 
 {/* Lemma */}
-{(r.lemma_canon || r.lemma_norm) && (
-  <div className="text-sm font-serif text-gray-600 dark:text-gray-400">
-    {r.lemma_canon || r.lemma_norm}
-  </div>
+{/* Lemma */}
+<div className="text-sm font-serif text-gray-600 dark:text-gray-400 min-h-[1.25rem]">
+  {effectiveLemma || "—"}
+</div>
+
+{/* Transliteration */}
+<div className="text-sm italic text-gray-500 min-h-[1.25rem]">
+  {effectiveTranslit || "—"}
+</div>
+
+{/* Meaning */}
+<div className="text-sm text-gray-800 dark:text-gray-200 min-h-[1.5rem]">
+  {effectiveMeaning || "—"}
+</div>
+
+
+            
+{row.strong && (
+  <button
+    className="mt-1 text-xs text-blue-600 underline"
+    onClick={() => openStrong(row)}
+  >
+    {row.strong}
+  </button>
 )}
 
 
-                          {transliteration && (
-                            <div className="text-sm italic text-gray-500">
-                              {transliteration}
-                            </div>
-                          )}
-            
-                          <div className="text-sm text-gray-800 dark:text-gray-200">
-                            {meaning || "See detailed lexicon"}
-                          </div>
-            
-                          {lemmaGreek && (
-                            <div className="text-sm font-serif text-gray-600 dark:text-gray-400">
-                              {lemmaGreek}
-                            </div>
-                          )}
-            
-                          {r.strong && (
-                            <button
-                              className="mt-1 text-xs text-blue-600 underline"
-                              onClick={() =>
-                                setStrongPopup({
-                                  strong: r.strong,
-                                  lemma: r.lemma_canon || r.lemma_norm || r.surface,
-                                  lexicon: {
-                                    transliteration: "",
-                                    coreMeaning: r.morph_code
-                                      ? `Morphology: ${r.morph_code}`
-                                      : "Hebrew lexicon not yet linked.",
-                                    sections: [],
-                                  },
-                                })
-                              }
-                              
-                            >
-                              {r.strong}
-                            </button>
-                          )}
                         </div>
                       );
                     })}
