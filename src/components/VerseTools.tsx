@@ -48,11 +48,11 @@ function normalizeInterlinearRow(r: any, isNT: boolean) {
       transliteration: parts.transliteration,
       meaning: parts.meaning,
       strong: r.strong,
-      lexicon: null, // NT lexicon comes from definition
+      definition: r.definition, // ✅ KEEP THIS
     };
   }
 
-  // OT
+  // OT unchanged
   return {
     wordIndex: r.word_index,
     surface: r.surface,
@@ -63,6 +63,7 @@ function normalizeInterlinearRow(r: any, isNT: boolean) {
     lexicon: r.strong_lexicon || null,
   };
 }
+
 
 function renderHebrewTextInteractive(
   rows: any[],
@@ -630,6 +631,9 @@ export const VerseTools: React.FC<{
 
   const verseId = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}`;
   const [noteText, setNoteText] = useState<string>("");
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({} as Record<Tab, HTMLButtonElement | null>);
+
+
 
   const localCache = useRef(new Map<string, string>());
   const refCache = useRef(new Map<string, string>());
@@ -1186,6 +1190,14 @@ const handleWordClick = (idx: number) => {
     Effects
   ---------------------------*/
   useEffect(() => {
+    tabRefs.current[activeTab]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [activeTab]);
+  
+  useEffect(() => {
     if (activeTab !== "Interlinear") return;
   
     (async () => {
@@ -1497,10 +1509,23 @@ while ((m = regex.exec(node)) !== null) {
     const strong = row.strong;
     if (!strong) return;
   
-    // ✅ If cached, reuse
-    if (strongCache[strong]) {
-      const cached = strongCache[strong];
+    const isNT = isNewTestament(verseRef.book);
   
+    // ---------- NT ----------
+    if (isNT) {
+      setStrongPopup({
+        strong,
+        lemma: row.lemma || "",
+        lexicon: formatGreekLexicon(row.definition || ""),
+      });
+      return;
+    }
+    
+  
+    // ---------- OT ----------
+    const cached = strongCache[strong];
+  
+    if (cached) {
       setStrongPopup({
         strong,
         lemma: cached.lemma,
@@ -1514,40 +1539,36 @@ while ((m = regex.exec(node)) !== null) {
       });
       return;
     }
-    
-    
   
-    // ⬇️ First time fetch
+    // Fetch OT Strong
     fetchStrongLexicon(strong).then((lex) => {
       if (!lex) return;
   
-      const cached = {
+      const cachedData = {
         lemma: lex.lemma || "",
         transliteration: lex.transliteration || "",
         meaning: lex.gloss || "",
         definition: lex.definition || "",
       };
   
-      // 🔑 STORE IT
       setStrongCache((prev) => ({
         ...prev,
-        [strong]: cached,
+        [strong]: cachedData,
       }));
   
       setStrongPopup({
         strong,
-        lemma: cached.lemma,
+        lemma: cachedData.lemma,
         lexicon: {
-          transliteration: cached.transliteration,
-          coreMeaning: cached.meaning,
-          sections: cached.definition
-            ? [{ title: "Definition", bullets: [cached.definition] }]
+          transliteration: cachedData.transliteration,
+          coreMeaning: cachedData.meaning,
+          sections: cachedData.definition
+            ? [{ title: "Definition", bullets: [cachedData.definition] }]
             : [],
         },
       });
     });
   }
-  
   
   
   const displayPreviewRef = useMemo(() => {
@@ -1783,13 +1804,26 @@ while ((m = regex.exec(node)) !== null) {
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
         <nav className="-mb-px flex space-x-4 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setErrorMsg("");
-              }}
+        {TABS.map((tab) => (
+  <button
+    key={tab}
+    ref={(el) => {
+      tabRefs.current[tab] = el;
+    }}
+    
+    
+    onClick={() => {
+      setActiveTab(tab);
+      setErrorMsg("");
+
+      // ✅ AUTO-SCROLL TAB INTO VIEW
+      tabRefs.current[tab]?.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }}
+
               className={`${
                 activeTab === tab
                   ? "border-blue-500 text-blue-600"
