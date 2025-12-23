@@ -31,10 +31,14 @@ function cleanHebrewSurface(surface: string): string {
   if (!surface) return "";
 
   return surface
-    // remove morphology separators
+    // remove morphology separators (/ .)
     .replace(/[./]/g, "")
-    // remove trailing morphology markers
-    .replace(/[\u0591-\u05C7]+/g, "")
+    // remove cantillation marks ONLY (keep vowels)
+    .replace(/[\u0591-\u05AF]/g, "")
+    // normalize maqaf (Hebrew hyphen)
+    .replace(/\s*-\s*/g, "־")
+    // collapse accidental whitespace
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -88,7 +92,7 @@ function renderHebrewTextInteractive(
         onMouseEnter={() => onHover(r.word_index)}
         onClick={() => onClick(r.word_index)}
       >
-        {r.surface}{" "}
+        {cleanHebrewSurface(r.surface)}{" "}
       </span>
     ));
 }
@@ -1500,9 +1504,10 @@ while ((m = regex.exec(node)) !== null) {
     return rows
       .slice()
       .sort((a, b) => a.word_index - b.word_index)
-      .map(r => r.surface)
+      .map(r => cleanHebrewSurface(r.surface))
       .join(" ");
   }
+  
   
   
   function openStrong(row: any) {
@@ -1902,26 +1907,87 @@ while ((m = regex.exec(node)) !== null) {
                         Original Text
                       </p>
             
-                      <p
-                        className={`text-2xl font-serif leading-relaxed tracking-wide ${
-                          isNewTestament(verseRef.book)
-                            ? "text-left"
-                            : "text-right direction-rtl"
-                        }`}
-                      >
-                        {isNewTestament(verseRef.book)
-                          ? renderOriginalTextInteractive(
-                              interlinearRows,
-                              handleWordHover,
-                              handleWordClick
-                            )
-                          : renderHebrewTextInteractive(
-                              interlinearRows,
-                              handleWordHover,
-                              handleWordClick
-                            )}
-                      </p>
-            
+                      {isNewTestament(verseRef.book) ? (
+  /* ---------- NT (Greek – LTR) ---------- */
+  <p
+    dir="ltr"
+    className="
+      text-2xl
+      font-serif
+      leading-relaxed
+      tracking-wide
+      text-left
+      flex
+      flex-wrap
+      gap-x-1
+    "
+  >
+    {interlinearRows
+      .slice()
+      .sort((a, b) => a.word_index - b.word_index)
+      .map((r) => (
+        <span
+          key={r.word_index}
+          className={`
+            cursor-pointer
+            rounded
+            px-0.5
+            ${
+              activeWordIndex === r.word_index
+                ? "bg-yellow-200 dark:bg-yellow-600"
+                : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+            }
+          `}
+          onMouseEnter={() => handleWordHover(r.word_index)}
+          onClick={() => handleWordClick(r.word_index)}
+        >
+          {r.surface}
+        </span>
+      ))}
+  </p>
+) : (
+  /* ---------- OT (Hebrew – RTL) ---------- */
+  <p
+    dir="rtl"
+    className="
+      text-2xl
+      font-serif
+      leading-relaxed
+      tracking-wide
+      text-right
+      unicode-bidi-override
+      flex
+      flex-wrap
+      gap-x-1
+    "
+  >
+    {interlinearRows
+      .slice()
+      .sort((a, b) => a.word_index - b.word_index)
+      .map((r) => (
+        <span
+          key={r.word_index}
+          dir="rtl"
+          className={`
+            cursor-pointer
+            rounded
+            px-0.5
+            ${
+              activeWordIndex === r.word_index
+                ? "bg-yellow-200 dark:bg-yellow-600"
+                : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+            }
+          `}
+          onMouseEnter={() => handleWordHover(r.word_index)}
+          onClick={() => handleWordClick(r.word_index)}
+        >
+          {cleanHebrewSurface(r.surface)}
+        </span>
+      ))}
+  </p>
+)}
+
+
                       {translitVerse && (
                         <>
                           <p className="text-xs uppercase tracking-wide text-gray-500 mt-2">
