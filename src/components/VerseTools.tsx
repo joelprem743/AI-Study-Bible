@@ -466,6 +466,19 @@ function replaceParentheticalTranslitsWithTelugu(aiText: string) {
     return `(${conv || p1})`;
   });
 }
+function scrollCardIntoView(el: HTMLElement, offset: number) {
+  const y =
+    el.getBoundingClientRect().top +
+    window.scrollY -
+    offset -
+    8;
+
+  window.scrollTo({
+    top: y,
+    behavior: "smooth",
+  });
+}
+
 
 function isValidBibleRef(ref: string) {
   return /^((?:[1-3]\s*)?[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?$/.test(ref);
@@ -530,13 +543,14 @@ const LoadingSkeleton: React.FC = () => (
 
 type Tab = "Interlinear" | "Summary"| "Cross-references" | "Historical Context" | "Notes";
 
-const TABS: Tab[] = [
-  "Notes",
-  "Summary",
+const PRIMARY_TABS: Tab[] = ["Summary", "Notes"];
+
+const ADVANCED_TABS: Tab[] = [
+  "Interlinear",
   "Cross-references",
   "Historical Context",
-  "Interlinear",
 ];
+
 
 /* -------------------------
   Inline reference regex
@@ -620,7 +634,7 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<Tab>("Notes");
+  const [activeTab, setActiveTab] = useState<Tab>("Summary");
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
   const [originalVerse, setOriginalVerse] = useState<string>("");
   const [translitVerse, setTranslitVerse] = useState<string>("");
@@ -657,6 +671,11 @@ export const VerseTools: React.FC<{
   const [showFullLexicon, setShowFullLexicon] = useState(false);
   const [activeWordIndex, setActiveWordIndex] = useState<number | null>(null);
   const wordRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const originalBlockRef = useRef<HTMLDivElement | null>(null);
+  const [stickyHeight, setStickyHeight] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
 
   
   const [menuOpen, setMenuOpen] = useState(false);
@@ -738,11 +757,9 @@ const handleWordClick = (idx: number) => {
 
   const el = wordRefs.current.get(idx);
   if (el) {
-    el.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
+    scrollCardIntoView(el, stickyHeight);
   }
+  
 };
 
 
@@ -752,11 +769,9 @@ const handleWordClick = (idx: number) => {
   
     const el = wordRefs.current.get(idx);
     if (el) {
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      scrollCardIntoView(el, stickyHeight);
     }
+    
   };
 
   
@@ -1257,6 +1272,61 @@ const handleWordClick = (idx: number) => {
   /* -------------------------
     Effects
   ---------------------------*/
+  useEffect(() => {
+    if (activeTab !== "Interlinear") return;
+    if (!scrollContainerRef.current) return;
+  
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            const idx = Number(
+              (e.target as HTMLElement).dataset.wordIndex
+            );
+            if (!Number.isNaN(idx)) {
+              setActiveWordIndex(idx);
+            }
+          }
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+  
+        // 🔑 Activation line = just below sticky header
+        rootMargin: `-${stickyHeight}px 0px -30% 0px`,
+  
+        // 🔑 Trigger when top edge crosses
+        threshold: 0,
+      }
+    );
+  
+    wordRefs.current.forEach((el) => observer.observe(el));
+  
+    return () => observer.disconnect();
+  }, [activeTab, interlinearRows, stickyHeight]);
+  
+  
+  useEffect(() => {
+    if (!originalBlockRef.current) return;
+  
+    const update = () => {
+      setStickyHeight(originalBlockRef.current!.offsetHeight);
+    };
+  
+    update();
+  
+    const ro = new ResizeObserver(update);
+    ro.observe(originalBlockRef.current);
+  
+    return () => ro.disconnect();
+  }, []);
+  
+  useEffect(() => {
+    if (activeTab === "Summary" || activeTab === "Notes") {
+      setAdvancedOpen(false);
+    }
+  }, [activeTab]);
+  
   useEffect(() => {
     if (!interlinearRows.length) return;
   
@@ -1893,53 +1963,80 @@ if (cached) {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
-        <nav className="-mb-px flex space-x-4 overflow-x-auto">
-        {TABS.map((tab) => (
-  <button
-    key={tab}
-    ref={(el) => {
-      tabRefs.current[tab] = el;
-    }}
-    
-    
-    onClick={() => {
-      setActiveTab(tab);
-      setErrorMsg("");
+<div className="mb-4">
+  {/* PRIMARY ROW */}
+  <div className="border-b border-gray-200 dark:border-gray-700">
+    <nav className="-mb-px flex items-center space-x-6">
+      {PRIMARY_TABS.map((tab) => (
+        <button
+          key={tab}
+          onClick={() => {
+            setActiveTab(tab);
+            setAdvancedOpen(false); // 🔑 collapse advanced
+            setErrorMsg("");
+          }}
+          className={`py-3 border-b-2 text-sm font-medium ${
+            activeTab === tab
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          {language === "TE"
+            ? tab === "Summary"
+              ? "సారాంశం / వివరణ"
+              : "గమనికలు"
+            : tab}
+        </button>
+      ))}
 
-      // ✅ AUTO-SCROLL TAB INTO VIEW
-      tabRefs.current[tab]?.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
-    }}
+      {/* ADVANCED TOGGLE */}
+      <button
+        onClick={() => setAdvancedOpen((v) => !v)}
+        className="py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700"
+      >
+        Advanced {advancedOpen ? "▴" : "▾"}
+      </button>
+    </nav>
+  </div>
 
-              className={`${
-                activeTab === tab
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 dark:text-gray-400"
-              } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
-            >
-              {language === "TE"
-  ? tab === "Summary"
-    ? "సారాంశం / వివరణ"
-    : tab === "Interlinear"
-    ? "పదాల వారీ అనువాదం"
-    : tab === "Cross-references"
-    ? "సంబంధిత వచనాలు"
-    : tab === "Historical Context"
-    ? "చారిత్రక నేపథ్యం"
-    : "గమనికలు"
-  : tab}
+  {/* ADVANCED ROW */}
+  {advancedOpen && (
+    <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <nav className="flex space-x-6 px-1">
+        {ADVANCED_TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(tab);
+              setErrorMsg("");
+            }}
+            className={`py-2 text-sm border-b-2 ${
+              activeTab === tab
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {language === "TE"
+              ? tab === "Interlinear"
+                ? "పదాల వారీ అనువాదం"
+                : tab === "Cross-references"
+                ? "సంబంధిత వచనాలు"
+                : "చారిత్రక నేపథ్యం"
+              : tab}
+          </button>
+        ))}
+      </nav>
+    </div>
+  )}
+</div>
 
-            </button>
-          ))}
-        </nav>
-      </div>
 
       {/* Main content */}
-      <div className="flex-grow overflow-y-auto pr-2">
+      <div
+  ref={scrollContainerRef}
+  className="flex-grow overflow-y-auto pr-2"
+>
+
 
 
         {activeTab === "Notes" ? (
@@ -1988,7 +2085,18 @@ if (cached) {
                 <div className="space-y-4">
                   {/* ORIGINAL TEXT + TRANSLITERATION */}
                   {originalVerse && (
-                    <div className="p-3 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-2">
+                    <div
+                    ref={originalBlockRef}
+                    className="
+                      sticky top-0 z-10
+                      p-3 rounded-md
+                      bg-gray-50 dark:bg-gray-900
+                      border border-gray-200 dark:border-gray-700
+                      space-y-2
+                      backdrop-blur-sm
+                    "
+                  >
+                  
                       <p className="text-xs uppercase tracking-wide text-gray-500">
                         Original Text
                       </p>
@@ -2126,60 +2234,63 @@ const effectiveMeaning =
             
                       return (
                         <div
-                        key={`${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-w${i}-${r.word_index ?? "x"}-${r.strong ?? "ns"}`}
-                        ref={(el) => {
-                            if (el) {
-                              const refKey = r.word_index ?? i;
-                              wordRefs.current.set(refKey, el);
+                        data-word-index={r.word_index ?? i}
+  key={`${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-w${i}-${r.word_index ?? "x"}-${r.strong ?? "ns"}`}
+  ref={(el) => {
+    if (el) {
+      const refKey = r.word_index ?? i;
+      wordRefs.current.set(refKey, el);
+    }
+  }}
+  className={`
+    rounded-lg border px-4 py-3 dark:border-gray-700
+    transition-colors
+    ${
+      activeWordIndex === (r.word_index ?? i)
+        ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-800/40"
+        : "bg-white dark:bg-gray-900"
+    }
+  `}
+>
+  {/* SURFACE — HERO */}
+  <div className="text-2xl font-serif font-semibold leading-tight">
+    {isNewTestament(verseRef.book)
+      ? row.surface
+      : cleanHebrewSurface(row.surface)}
+  </div>
 
+  {/* LEMMA — QUIET */}
+  <div className="text-sm font-serif text-gray-500 dark:text-gray-400">
+    {effectiveLemma || "—"}
+  </div>
 
-                            }
-                          }}
-                          
-                          className={`p-3 border rounded dark:border-gray-700 ${
-                            activeWordIndex === (r.word_index ?? i)
-                              ? "bg-yellow-100 dark:bg-yellow-700 border-yellow-400"
-                              : ""
-                          }`}
-                          
-                        >
-                          {/* Surface */}
-                          <div className="text-xl font-serif font-bold">
-  {isNewTestament(verseRef.book)
-    ? row.surface
-    : cleanHebrewSurface(row.surface)}
+  {/* MEANING — PRIMARY CONTENT */}
+  <div className="mt-2 text-sm text-gray-900 dark:text-gray-100">
+    {effectiveMeaning || "—"}
+  </div>
+
+  {/* SECONDARY META ROW */}
+  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+    {effectiveTranslit && (
+      <span className="italic">{effectiveTranslit}</span>
+    )}
+
+    {row.strong && (
+      <button
+        onClick={() => openStrong(row)}
+        className="
+          px-2 py-0.5 rounded
+          border border-gray-300 dark:border-gray-600
+          hover:bg-gray-100 dark:hover:bg-gray-800
+          text-gray-700 dark:text-gray-300
+        "
+      >
+        {row.strong}
+      </button>
+    )}
+  </div>
 </div>
 
-
-{/* Lemma */}
-{/* Lemma */}
-<div className="text-sm font-serif text-gray-600 dark:text-gray-400 min-h-[1.25rem]">
-  {effectiveLemma || "—"}
-</div>
-
-{/* Transliteration */}
-<div className="text-sm italic text-gray-500 min-h-[1.25rem]">
-  {effectiveTranslit || "—"}
-</div>
-
-{/* Meaning */}
-<div className="text-sm text-gray-800 dark:text-gray-200 min-h-[1.5rem]">
-  {effectiveMeaning || "—"}
-</div>
-
-
-            
-{row.strong && (
-  <button
-    className="mt-1 text-xs text-blue-600 underline"
-    onClick={() => openStrong(row)}
-  >
-    {row.strong}
-  </button>
-)}
-
-
-                        </div>
                       );
                     })}
                   </div>
