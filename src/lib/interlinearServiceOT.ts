@@ -1,10 +1,8 @@
 // src/lib/interlinearServiceOT.ts
 import { supabase } from "./supabaseClient";
 
-/**
- * OT English → DB book code mapping
- * MUST match interlinear_words.book exactly
- */
+/* ================= BOOK MAP (UNCHANGED) ================= */
+
 const OT_BOOK_CODE_MAP: Record<string, string> = {
   Genesis: "Gen",
   Exodus: "Exod",
@@ -47,32 +45,19 @@ const OT_BOOK_CODE_MAP: Record<string, string> = {
   Malachi: "Mal",
 };
 
-/**
- * Resolve incoming book name to DB book code
- */
 function resolveOTBookCode(book: string): string | null {
   if (!book) return null;
-
   const cleaned = book.replace(/\.$/, "").trim();
 
-  // English → DB code
-  if (OT_BOOK_CODE_MAP[cleaned]) {
-    return OT_BOOK_CODE_MAP[cleaned];
-  }
-
-  // Already DB-style (Gen, Lev, etc.)
-  if (/^[1-3]?[A-Z][a-z]{1,3}$/.test(cleaned)) {
-    return cleaned;
-  }
+  if (OT_BOOK_CODE_MAP[cleaned]) return OT_BOOK_CODE_MAP[cleaned];
+  if (/^[1-3]?[A-Z][a-z]{1,3}$/.test(cleaned)) return cleaned;
 
   console.warn("UNRESOLVED OT BOOK:", book);
   return null;
 }
 
-/**
- * Fetch OT interlinear words for a verse
- * RETURNS: interlinear_words[]
- */
+/* ================= INTERLINEAR FETCH (UNCHANGED) ================= */
+
 export async function fetchOTInterlinear(
   book: string,
   chapter: number,
@@ -91,35 +76,37 @@ export async function fetchOTInterlinear(
     .order("word_index");
 
   if (error) {
-    console.error(
-      "OT interlinear fetch failed:",
-      { book, chapter, verse },
-      error
-    );
+    console.error("OT interlinear fetch failed:", error);
     return [];
   }
 
   return data ?? [];
 }
 
+/* ================= FIXED STRONG LOOKUP ================= */
+
 /**
- * Fetch Strong's lexicon entry
- * RETURNS: strong_lexicon row
+ * Fetch OT Strong lexicon entry
+ * 1) Exact match on classic Strong
+ * 2) Fallback to TBESH eStrong variants (H####*)
+ * 3) Prefer shortest eStrong (base meaning)
  */
 export async function fetchStrongLexicon(strong: string) {
   if (!strong) return null;
 
   const { data, error } = await supabase
-    .from("strong_lexicon_he")
+    .from("strong_lexicon_heb")
     .select(`
       strong,
-      lemma,
+      hebrew,
       transliteration,
       gloss,
-      definition
+      meaning
     `)
     .eq("strong", strong)
-    .single(); // <-- use single, not maybeSingle
+    .order("estrong", { ascending: true }) // deterministic
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error("Strong lexicon fetch failed:", strong, error);

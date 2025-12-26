@@ -23,6 +23,11 @@ import {
   fetchOTInterlinear,
   fetchStrongLexicon,
 } from "../lib/interlinearServiceOT";
+import {
+  getVerseAnalysis,
+  flashGenerate,
+} from "../services/geminiService";
+
 
 /* -------------------------
   Small utils / transliteration
@@ -57,14 +62,17 @@ function normalizeInterlinearRow(r: any, isNT: boolean) {
   }
 
   // OT unchanged
+  // OT — defer meaning to strongCache (correct)
   return {
     wordIndex: r.word_index,
     surface: r.surface,
-    lemma: "",
-    transliteration: "",
-    meaning: "",
+    lemma: "",              // OT comes from strongCache
+    transliteration: "",    // OT comes from strongCache
+    meaning: "",            // OT comes from strongCache
     strong: r.strong,
   };
+  
+
   
 }
 
@@ -533,10 +541,26 @@ const TABS: Tab[] = [
 /* -------------------------
   Inline reference regex
 ---------------------------*/
+const BOOK_NAME_PATTERN = (() => {
+  const englishBooks = Object.keys(TELUGU_BOOK_NAMES);
+
+  const teluguBooks = Object.values(TELUGU_BOOK_NAMES);
+
+  const allBooks = [...englishBooks, ...teluguBooks]
+    .map(b => b.replace(/\./g, "\\."))
+    .sort((a, b) => b.length - a.length); // longest first
+
+  return allBooks.join("|");
+})();
+
 const GREEK_WORD_REGEX = /([\u0370-\u03FF\u1F00-\u1FFF]+)/g;
 
-const INLINE_REF_RENDER_REGEX =
-  /((?:[1-3]\s*)?(?:[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?)/u;
+const INLINE_REF_RENDER_REGEX = new RegExp(
+  `\\b((?:${BOOK_NAME_PATTERN})\\s+\\d+:\\d+(?:-\\d+)?)\\b`,
+  "u"
+);
+
+
 
 const STRONG_REF_REGEX =
   /\b(?:Mat|Mrk|Luk|Jhn|Act|Rom|Cor|Gal|Eph|Php|Col|Th|Tim|Tit|Phm|Heb|Jam|Pet|Jde|Rev)\.?\s*\d+:\d+(?:-\d+)?/g;
@@ -679,11 +703,12 @@ async function preloadStrongLexicons(rows: any[]) {
       const lex = await fetchStrongLexicon(strong);
       if (lex) {
         entries[strong] = {
-          lemma: lex.lemma || "",
+          lemma: lex.hebrew || "",              // ← Hebrew IS the lemma
           transliteration: lex.transliteration || "",
           meaning: lex.gloss || "",
-          definition: lex.definition || "",
+          definition: lex.meaning || "",
         };
+        
       }
     })
   );
@@ -1001,6 +1026,38 @@ const handleWordClick = (idx: number) => {
       return "";
     }
   }, [verseRef, verseData, language, englishVersion, buildKey]);
+  const loadCrossReferencesWithGemini = useCallback(async () => {
+    const key = buildKey("Cross-references", language);
+    const cached = localCache.current.get(key);
+    if (cached != null) return cached;
+  
+    const text =
+      (await getVerseAnalysis(
+        verseRef,
+        "Cross-references",
+        language
+      )) || "";
+  
+    localCache.current.set(key, text);
+    return text;
+  }, [verseRef, language, buildKey]);
+  
+  const loadHistoricalContextWithGemini = useCallback(async () => {
+    const key = buildKey("Historical Context", language);
+    const cached = localCache.current.get(key);
+    if (cached != null) return cached;
+  
+    const text =
+      (await getVerseAnalysis(
+        verseRef,
+        "Historical Context",
+        language
+      )) || "";
+  
+    localCache.current.set(key, text);
+    return text;
+  }, [verseRef, language, buildKey]);
+  
   
   
   const loadHistoricalWithLlamaFallback = useCallback(async () => {
@@ -1142,6 +1199,10 @@ const handleWordClick = (idx: number) => {
     setInterlinearRows(rows || []);
 
     if (rows && rows.length > 0) {
+      if (!isNT) {
+        await preloadStrongLexicons(rows);
+      }
+    
       if (isNT) {
         setOriginalVerse(buildGreekVerse(rows));
         setTranslitVerse(buildTransliterationVerse(rows));
@@ -1149,13 +1210,12 @@ const handleWordClick = (idx: number) => {
         setOriginalVerse(buildHebrewVerse(rows));
         setTranslitVerse(
           rows
-            .map(r => strongCache[r.strong]?.transliteration || r.strong_lexicon_he?.transliteration)
+            .slice()
+            .sort((a, b) => a.word_index - b.word_index)
+            .map(r => strongCache[r.strong]?.transliteration || "")
             .filter(Boolean)
             .join(" ")
         );
-    
-        // ✅ ADD THIS LINE
-        preloadStrongLexicons(rows);
       }
     }
     
@@ -1330,17 +1390,15 @@ const handleWordClick = (idx: number) => {
         text = primary && primary.trim()
           ? primary
           : await loadSummaryWithLlama();
+  
       } else if (activeTab === "Cross-references") {
-        const primary = await loadTab("Cross-references");
-        text = primary && primary.trim()
-          ? primary
-          : await loadCrossRefsWithLlamaFallback();
+        text = await loadCrossReferencesWithGemini();
+  
       } else if (activeTab === "Historical Context") {
-        const primary = await loadTab("Historical Context");
-        text = primary && primary.trim()
-          ? primary
-          : await loadHistoricalWithLlamaFallback();
+        text = await loadHistoricalContextWithGemini();
+  
       } else {
+        // Interlinear or any future tab
         text = await loadTab(activeTab);
       }
   
@@ -1348,7 +1406,7 @@ const handleWordClick = (idx: number) => {
         ...prev,
         [activeTab]: text,
       }));
-    } catch (e: any) {
+    } catch (e) {
       console.error("Generate failed", e);
       setErrorMsg(
         language === "TE"
@@ -1362,10 +1420,11 @@ const handleWordClick = (idx: number) => {
     activeTab,
     loadTab,
     loadSummaryWithLlama,
-    loadCrossRefsWithLlamaFallback,
-    loadHistoricalWithLlamaFallback,
+    loadCrossReferencesWithGemini,
+    loadHistoricalContextWithGemini,
     language,
   ]);
+  
   
   
 
@@ -1382,63 +1441,76 @@ const handleWordClick = (idx: number) => {
   const renderNodeWithRefs = useCallback(
     (node: React.ReactNode): React.ReactNode => {
       if (node == null) return null;
-
+  
+      // ✅ STRING — run regex
       if (typeof node === "string") {
         const parts: React.ReactNode[] = [];
         const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
-let lastIndex = 0;
-let m: RegExpExecArray | null;
-
-while ((m = regex.exec(node)) !== null) {
-
+  
+        let lastIndex = 0;
+        let m: RegExpExecArray | null;
+  
+        while ((m = regex.exec(node)) !== null) {
           const match = m[1];
           const start = m.index;
-
+  
           if (start > lastIndex) {
-            parts.push(node.substring(lastIndex, start));
+            parts.push(node.slice(lastIndex, start));
           }
-
+  
           parts.push(
             <span
               key={`ref-${start}-${match}`}
               role="button"
               tabIndex={0}
-              className="
-                text-blue-600 dark:text-blue-400
-                underline cursor-pointer
-                select-none
-              "
+              className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClickReference(match);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleClickReference(match);
               }}
             >
               {match}
             </span>
           );
-          
-
-
+  
           lastIndex = start + match.length;
         }
-
+  
         if (lastIndex < node.length) {
-          parts.push(node.substring(lastIndex));
+          parts.push(node.slice(lastIndex));
         }
-
-        return parts.length === 0 ? node : parts;
+  
+        return parts.length ? parts : node;
       }
-
+  
+      // ✅ ARRAY — recurse
       if (Array.isArray(node)) {
         return node.map((child, i) => (
-          <React.Fragment key={i}>{renderNodeWithRefs(child)}</React.Fragment>
+          <React.Fragment key={i}>
+            {renderNodeWithRefs(child)}
+          </React.Fragment>
         ));
       }
-
+  
+      // ✅ REACT ELEMENT — CLONE & RECURSE INTO CHILDREN
+      if (React.isValidElement(node)) {
+        const props = node.props as { children?: React.ReactNode };
+      
+        return React.cloneElement(
+          node,
+          props,
+          renderNodeWithRefs(props.children)
+        );
+      }
+      
       return node;
     },
     [handleClickReference]
   );
+  
 
   const renderStrongDefinition = useCallback(
     (text: string) => {
@@ -1544,13 +1616,10 @@ while ((m = regex.exec(node)) !== null) {
 if (cached) {
   setStrongPopup({
     strong,
-    lemma:
-      cached.lemma ||
-      cleanHebrewSurface(row.surface),
-
+    lemma: cached.lemma || cleanHebrewSurface(row.surface),
     lexicon: {
-      transliteration: cached.transliteration || "",
-      coreMeaning: cached.meaning || "",
+      transliteration: cached.transliteration,
+      coreMeaning: cached.meaning,
       sections: cached.definition
         ? [{ title: "Definition", bullets: [cached.definition] }]
         : [],
@@ -1559,16 +1628,18 @@ if (cached) {
   return;
 }
 
+
   
     // Fetch OT Strong
     fetchStrongLexicon(strong).then((lex) => {
       if (!lex) return;
   
       const cachedData = {
-        lemma: lex.lemma || "",
+        lemma: lex.hebrew || "",
         transliteration: lex.transliteration || "",
         meaning: lex.gloss || "",
-        definition: lex.definition || "",
+        definition: lex.meaning || "",
+
       };
   
       setStrongCache((prev) => ({
@@ -2135,9 +2206,20 @@ const effectiveMeaning =
                 </button>
               </div>
             ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis[activeTab] ?? ""}
-              </ReactMarkdown>
+              <ReactMarkdown
+  remarkPlugins={[remarkGfm]}
+  components={{
+    p({ children }) {
+      return <p>{renderNodeWithRefs(children)}</p>;
+    },
+    li({ children }) {
+      return <li>{renderNodeWithRefs(children)}</li>;
+    },
+  }}
+>
+  {analysis[activeTab] ?? ""}
+</ReactMarkdown>
+
             )
             
             }
