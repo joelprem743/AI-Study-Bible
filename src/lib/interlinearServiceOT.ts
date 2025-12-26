@@ -110,17 +110,16 @@ export async function fetchStrongLexicon(strong: string) {
   if (!strong) return null;
 
   const { data, error } = await supabase
-    .from("strong_lexicon")
+    .from("strong_lexicon_he")
     .select(`
       strong,
       lemma,
-      gloss,
-      definition,
       transliteration,
-      language
+      gloss,
+      definition
     `)
     .eq("strong", strong)
-    .maybeSingle();
+    .single(); // <-- use single, not maybeSingle
 
   if (error) {
     console.error("Strong lexicon fetch failed:", strong, error);

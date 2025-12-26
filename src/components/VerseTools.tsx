@@ -60,12 +60,12 @@ function normalizeInterlinearRow(r: any, isNT: boolean) {
   return {
     wordIndex: r.word_index,
     surface: r.surface,
-    lemma: r.strong_lexicon?.lemma || "",
-    transliteration: r.strong_lexicon?.transliteration || "",
-    meaning: r.strong_lexicon?.gloss || "",
+    lemma: "",
+    transliteration: "",
+    meaning: "",
     strong: r.strong,
-    lexicon: r.strong_lexicon || null,
   };
+  
 }
 
 
@@ -75,11 +75,14 @@ function renderHebrewTextInteractive(
   onClick: (idx: number) => void
 ) {
   return rows
-    .slice()
-    .sort((a, b) => a.word_index - b.word_index)
-    .map((r) => (
+  .slice()
+  .sort((a, b) => (a.word_index ?? 0) - (b.word_index ?? 0))
+  .map((r, i) => {
+    const idx = r.word_index ?? i;
+
+    return (
       <span
-        key={r.word_index}
+        key={`ot-${i}`}   // ✅ UNIQUE, STABLE FOR OT
         dir="rtl"
         className="
           cursor-pointer
@@ -89,13 +92,15 @@ function renderHebrewTextInteractive(
           rounded
           inline-block
         "
-        onMouseEnter={() => onHover(r.word_index)}
-        onClick={() => onClick(r.word_index)}
+        onMouseEnter={() => onHover(idx)}
+        onClick={() => onClick(idx)}
       >
         {cleanHebrewSurface(r.surface)}{" "}
       </span>
-    ));
+    );
+  });
 }
+
 
 function renderOriginalTextInteractive(
   rows: any[],
@@ -104,25 +109,29 @@ function renderOriginalTextInteractive(
 ) {
   return rows
     .slice()
-    .sort((a, b) => a.word_index - b.word_index)
-    .map((r) => (
-      <span
-        key={r.word_index}
-        className="
-          cursor-pointer
-          hover:bg-yellow-200
-          dark:hover:bg-yellow-600
-          px-0.5
-          rounded
-        "
-        onMouseEnter={() => onHover(r.word_index)}
-        onClick={() => onClick(r.word_index)}
-        
-      >
-        {r.surface}{" "}
-      </span>
-    ));
+    .sort((a, b) => (a.word_index ?? 0) - (b.word_index ?? 0))
+    .map((r, i) => {
+      const idx = r.word_index ?? i;
+
+      return (
+        <span
+          key={idx}
+          className="
+            cursor-pointer
+            hover:bg-yellow-200
+            dark:hover:bg-yellow-600
+            px-0.5
+            rounded
+          "
+          onMouseEnter={() => onHover(idx)}
+          onClick={() => onClick(idx)}
+        >
+          {r.surface}{" "}
+        </span>
+      );
+    });
 }
+
 
 
 function buildGreekVerse(rows: any[]): string {
@@ -656,39 +665,34 @@ export const VerseTools: React.FC<{
 
 
 async function preloadStrongLexicons(rows: any[]) {
-  // Collect unique Strong numbers
   const strongs = Array.from(
-    new Set(
-      rows
-        .map(r => r.strong)
-        .filter(Boolean)
-    )
+    new Set(rows.map(r => r.strong).filter(Boolean))
   );
 
-  // Only fetch Strong numbers we don't already have
   const missing = strongs.filter(s => !strongCache[s]);
-
   if (missing.length === 0) return;
 
-  for (const strong of missing) {
-    try {
-      const lex = await fetchStrongLexicon(strong);
-      if (!lex) continue;
+  const entries: Record<string, any> = {};
 
-      setStrongCache(prev => ({
-        ...prev,
-        [strong]: {
+  await Promise.all(
+    missing.map(async (strong) => {
+      const lex = await fetchStrongLexicon(strong);
+      if (lex) {
+        entries[strong] = {
           lemma: lex.lemma || "",
           transliteration: lex.transliteration || "",
           meaning: lex.gloss || "",
           definition: lex.definition || "",
-        },
-      }));
-    } catch (err) {
-      console.error("Failed to preload Strong:", strong, err);
-    }
+        };
+      }
+    })
+  );
+
+  if (Object.keys(entries).length > 0) {
+    setStrongCache(prev => ({ ...prev, ...entries }));
   }
 }
+
   const displayVerseText =
     language === "TE"
       ? verseData.text.BSI_TELUGU || verseData.text.KJV
@@ -1145,7 +1149,7 @@ const handleWordClick = (idx: number) => {
         setOriginalVerse(buildHebrewVerse(rows));
         setTranslitVerse(
           rows
-            .map(r => strongCache[r.strong]?.transliteration || r.strong_lexicon?.transliteration)
+            .map(r => strongCache[r.strong]?.transliteration || r.strong_lexicon_he?.transliteration)
             .filter(Boolean)
             .join(" ")
         );
@@ -1193,6 +1197,13 @@ const handleWordClick = (idx: number) => {
   /* -------------------------
     Effects
   ---------------------------*/
+  useEffect(() => {
+    if (!interlinearRows.length) return;
+  
+    // Trigger re-render so cached Strong data shows in cards
+    setInterlinearRows((rows) => [...rows]);
+  }, [strongCache]);
+  
   useEffect(() => {
     tabRefs.current[activeTab]?.scrollIntoView({
       behavior: "smooth",
@@ -1507,7 +1518,7 @@ while ((m = regex.exec(node)) !== null) {
       .map(r => cleanHebrewSurface(r.surface))
       .join(" ");
   }
-  
+
   
   
   function openStrong(row: any) {
@@ -1529,21 +1540,25 @@ while ((m = regex.exec(node)) !== null) {
   
     // ---------- OT ----------
     const cached = strongCache[strong];
-  
-    if (cached) {
-      setStrongPopup({
-        strong,
-        lemma: cached.lemma,
-        lexicon: {
-          transliteration: cached.transliteration,
-          coreMeaning: cached.meaning,
-          sections: cached.definition
-            ? [{ title: "Definition", bullets: [cached.definition] }]
-            : [],
-        },
-      });
-      return;
-    }
+
+if (cached) {
+  setStrongPopup({
+    strong,
+    lemma:
+      cached.lemma ||
+      cleanHebrewSurface(row.surface),
+
+    lexicon: {
+      transliteration: cached.transliteration || "",
+      coreMeaning: cached.meaning || "",
+      sections: cached.definition
+        ? [{ title: "Definition", bullets: [cached.definition] }]
+        : [],
+    },
+  });
+  return;
+}
+
   
     // Fetch OT Strong
     fetchStrongLexicon(strong).then((lex) => {
@@ -1925,25 +1940,30 @@ while ((m = regex.exec(node)) !== null) {
     {interlinearRows
       .slice()
       .sort((a, b) => a.word_index - b.word_index)
-      .map((r) => (
-        <span
-          key={r.word_index}
-          className={`
-            cursor-pointer
-            rounded
-            px-0.5
-            ${
-              activeWordIndex === r.word_index
-                ? "bg-yellow-200 dark:bg-yellow-600"
-                : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
-            }
-          `}
-          onMouseEnter={() => handleWordHover(r.word_index)}
-          onClick={() => handleWordClick(r.word_index)}
-        >
-          {r.surface}
-        </span>
-      ))}
+      .map((r, i) => {
+        const idx = r.word_index ?? i;
+      
+        return (
+          <span
+            key={idx}
+            className={`
+              cursor-pointer
+              rounded
+              px-0.5
+              ${
+                activeWordIndex === idx
+                  ? "bg-yellow-200 dark:bg-yellow-600"
+                  : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+              }
+            `}
+            onMouseEnter={() => handleWordHover(idx)}
+            onClick={() => handleWordClick(idx)}
+          >
+            {r.surface}
+          </span>
+        );
+      })
+      }
   </p>
 ) : (
   /* ---------- OT (Hebrew – RTL) ---------- */
@@ -1964,26 +1984,31 @@ while ((m = regex.exec(node)) !== null) {
     {interlinearRows
       .slice()
       .sort((a, b) => a.word_index - b.word_index)
-      .map((r) => (
-        <span
-          key={r.word_index}
-          dir="rtl"
-          className={`
-            cursor-pointer
-            rounded
-            px-0.5
-            ${
-              activeWordIndex === r.word_index
-                ? "bg-yellow-200 dark:bg-yellow-600"
-                : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
-            }
-          `}
-          onMouseEnter={() => handleWordHover(r.word_index)}
-          onClick={() => handleWordClick(r.word_index)}
-        >
-          {cleanHebrewSurface(r.surface)}
-        </span>
-      ))}
+      .map((r, i) => {
+        const idx = r.word_index ?? i;
+      
+        return (
+          <span
+            key={idx}
+            dir="rtl"
+            className={`
+              cursor-pointer
+              rounded
+              px-0.5
+              ${
+                activeWordIndex === idx
+                  ? "bg-yellow-200 dark:bg-yellow-600"
+                  : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+              }
+            `}
+            onMouseEnter={() => handleWordHover(idx)}
+            onClick={() => handleWordClick(idx)}
+          >
+            {cleanHebrewSurface(r.surface)}
+          </span>
+        );
+      })
+      }
   </p>
 )}
 
@@ -2003,14 +2028,26 @@ while ((m = regex.exec(node)) !== null) {
             
                   {/* WORD-BY-WORD */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {interlinearRows.map((r) => {
+                  {interlinearRows.map((r, i) => {
                       const isNT = isNewTestament(verseRef.book);
                       const row = normalizeInterlinearRow(r, isNT);
                       const cached = row.strong ? strongCache[row.strong] : null;
 
-const effectiveLemma = row.lemma || cached?.lemma || "";
-const effectiveTranslit = row.transliteration || cached?.transliteration || "";
-const effectiveMeaning = row.meaning || cached?.meaning || "";
+const effectiveLemma =
+  row.lemma ||
+  cached?.lemma ||
+  cleanHebrewSurface(row.surface);
+
+const effectiveTranslit =
+  row.transliteration ||
+  cached?.transliteration ||
+  "";
+
+const effectiveMeaning =
+  row.meaning ||
+  cached?.meaning ||
+  "";
+
 
                       
 
@@ -2018,18 +2055,22 @@ const effectiveMeaning = row.meaning || cached?.meaning || "";
             
                       return (
                         <div
-                        key={row.wordIndex}
-                          ref={(el) => {
+                        key={`${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-w${i}-${r.word_index ?? "x"}-${r.strong ?? "ns"}`}
+                        ref={(el) => {
                             if (el) {
-                              wordRefs.current.set(row.wordIndex, el);
+                              const refKey = r.word_index ?? i;
+                              wordRefs.current.set(refKey, el);
+
+
                             }
                           }}
                           
                           className={`p-3 border rounded dark:border-gray-700 ${
-                            activeWordIndex === r.word_index
+                            activeWordIndex === (r.word_index ?? i)
                               ? "bg-yellow-100 dark:bg-yellow-700 border-yellow-400"
                               : ""
                           }`}
+                          
                         >
                           {/* Surface */}
                           <div className="text-xl font-serif font-bold">
@@ -2186,8 +2227,8 @@ Transliteration
 )}
 
 {/* Detailed Sections */}
-{strongPopup.lexicon.sections.map((sec, i) => (
-  <div key={i} className="mt-4">
+{strongPopup.lexicon.sections.map((sec) => (
+  <div key={sec.title} className="mt-4">
     <p className="text-xs uppercase tracking-wide text-gray-500">
       {sec.title}
     </p>
