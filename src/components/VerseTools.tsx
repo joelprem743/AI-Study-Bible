@@ -2320,16 +2320,49 @@ const effectiveMeaning =
               <ReactMarkdown
   remarkPlugins={[remarkGfm]}
   components={{
+    h1({ children }) {
+      return (
+        <h1 className="text-xl font-bold mt-4 mb-2">
+          {renderNodeWithRefs(children)}
+        </h1>
+      );
+    },
+    h2({ children }) {
+      return (
+        <h2 className="text-lg font-bold mt-4 mb-2">
+          {renderNodeWithRefs(children)}
+        </h2>
+      );
+    },
+    h3({ children }) {
+      return (
+        <h3 className="text-base font-semibold mt-3 mb-1">
+          {renderNodeWithRefs(children)}
+        </h3>
+      );
+    },
     p({ children }) {
-      return <p>{renderNodeWithRefs(children)}</p>;
+      return (
+        <p className="mb-2 leading-relaxed">
+          {renderNodeWithRefs(children)}
+        </p>
+      );
+    },
+    ul({ children }) {
+      return <ul className="list-disc ml-5 mb-2">{children}</ul>;
     },
     li({ children }) {
-      return <li>{renderNodeWithRefs(children)}</li>;
+      return (
+        <li className="mb-1">
+          {renderNodeWithRefs(children)}
+        </li>
+      );
     },
   }}
 >
   {analysis[activeTab] ?? ""}
 </ReactMarkdown>
+
 
             )
             
