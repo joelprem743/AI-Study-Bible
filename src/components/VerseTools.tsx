@@ -32,6 +32,13 @@ import {
 /* -------------------------
   Small utils / transliteration
 ---------------------------*/
+function getWordIndex(r: any): number {
+  if (typeof r.word_index !== "number") {
+    throw new Error("Missing word_index in interlinear row");
+  }
+  return r.word_index;
+}
+
 function cleanHebrewSurface(surface: string): string {
   if (!surface) return "";
 
@@ -86,7 +93,7 @@ function renderHebrewTextInteractive(
   .slice()
   .sort((a, b) => (a.word_index ?? 0) - (b.word_index ?? 0))
   .map((r, i) => {
-    const idx = r.word_index ?? i;
+    const idx = getWordIndex(r);
 
     return (
       <span
@@ -119,7 +126,8 @@ function renderOriginalTextInteractive(
     .slice()
     .sort((a, b) => (a.word_index ?? 0) - (b.word_index ?? 0))
     .map((r, i) => {
-      const idx = r.word_index ?? i;
+      const idx = getWordIndex(r);
+
 
       return (
         <span
@@ -466,18 +474,20 @@ function replaceParentheticalTranslitsWithTelugu(aiText: string) {
     return `(${conv || p1})`;
   });
 }
-function scrollCardIntoView(el: HTMLElement, offset: number) {
-  const y =
-    el.getBoundingClientRect().top +
-    window.scrollY -
-    offset -
-    8;
 
-  window.scrollTo({
-    top: y,
+function scrollCardIntoView(
+  container: HTMLElement,
+  el: HTMLElement
+) {
+  const containerTop = container.getBoundingClientRect().top;
+  const elTop = el.getBoundingClientRect().top;
+
+  container.scrollTo({
+    top: container.scrollTop + (elTop - containerTop) - 12,
     behavior: "smooth",
   });
 }
+
 
 
 function isValidBibleRef(ref: string) {
@@ -673,8 +683,8 @@ export const VerseTools: React.FC<{
   const wordRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const originalBlockRef = useRef<HTMLDivElement | null>(null);
-  const [stickyHeight, setStickyHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isProgrammaticScrollRef = useRef(false);
 
 
   
@@ -725,7 +735,11 @@ async function preloadStrongLexicons(rows: any[]) {
           lemma: lex.hebrew || "",              // ← Hebrew IS the lemma
           transliteration: lex.transliteration || "",
           meaning: lex.gloss || "",
-          definition: lex.meaning || "",
+          definition: (lex.meaning || "")
+  .replace(/<br\s*\/?>/gi, "\n")
+  .replace(/<\/?[^>]+>/g, "") // remove any other HTML
+  .trim(),
+
         };
         
       }
@@ -756,23 +770,33 @@ const handleWordClick = (idx: number) => {
   setActiveWordIndex(idx);
 
   const el = wordRefs.current.get(idx);
-  if (el) {
-    scrollCardIntoView(el, stickyHeight);
+  const container = scrollContainerRef.current;
+
+  if (el && container) {
+    isProgrammaticScrollRef.current = true;
+
+    scrollCardIntoView(container, el);
+
+    // 🔓 Re-enable observer after scroll settles
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 300);
   }
-  
 };
 
 
 
-  const handleWordSelect = (idx: number) => {
-    setActiveWordIndex(idx);
-  
-    const el = wordRefs.current.get(idx);
-    if (el) {
-      scrollCardIntoView(el, stickyHeight);
-    }
-    
-  };
+const handleWordSelect = (idx: number) => {
+  setActiveWordIndex(idx);
+
+  const el = wordRefs.current.get(idx);
+  const container = scrollContainerRef.current;
+
+  if (el && container) {
+    scrollCardIntoView(container, el);
+  }
+};
+
 
   
   const handleCopyVerse = () => {
@@ -1280,20 +1304,26 @@ const handleWordClick = (idx: number) => {
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            const idx = Number(
-              (e.target as HTMLElement).dataset.wordIndex
-            );
+            // ⛔ Ignore observer during click-based scroll
+            if (isProgrammaticScrollRef.current) return;
+          
+            const idxAttr = (e.target as HTMLElement).dataset.wordIndex;
+            if (!idxAttr) return;
+          
+            const idx = Number(idxAttr);
             if (!Number.isNaN(idx)) {
               setActiveWordIndex(idx);
             }
           }
+          
         }
       },
       {
         root: scrollContainerRef.current,
   
         // 🔑 Activation line = just below sticky header
-        rootMargin: `-${stickyHeight}px 0px -30% 0px`,
+        rootMargin: "0px 0px -30% 0px",
+
   
         // 🔑 Trigger when top edge crosses
         threshold: 0,
@@ -1303,23 +1333,10 @@ const handleWordClick = (idx: number) => {
     wordRefs.current.forEach((el) => observer.observe(el));
   
     return () => observer.disconnect();
-  }, [activeTab, interlinearRows, stickyHeight]);
+  }, [activeTab, interlinearRows]);
   
   
-  useEffect(() => {
-    if (!originalBlockRef.current) return;
-  
-    const update = () => {
-      setStickyHeight(originalBlockRef.current!.offsetHeight);
-    };
-  
-    update();
-  
-    const ro = new ResizeObserver(update);
-    ro.observe(originalBlockRef.current);
-  
-    return () => ro.disconnect();
-  }, []);
+
   
   useEffect(() => {
     if (activeTab === "Summary" || activeTab === "Notes") {
@@ -1691,8 +1708,15 @@ if (cached) {
       transliteration: cached.transliteration,
       coreMeaning: cached.meaning,
       sections: cached.definition
-        ? [{ title: "Definition", bullets: [cached.definition] }]
-        : [],
+  ? [{
+      title: "Definition",
+      bullets: cached.definition
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean),
+    }]
+  : [],
+
     },
   });
   return;
@@ -1708,7 +1732,11 @@ if (cached) {
         lemma: lex.hebrew || "",
         transliteration: lex.transliteration || "",
         meaning: lex.gloss || "",
-        definition: lex.meaning || "",
+        definition: (lex.meaning || "")
+  .replace(/<br\s*\/?>/gi, "\n")
+  .replace(/<\/?[^>]+>/g, "") // remove any other HTML
+  .trim(),
+
 
       };
   
@@ -2088,12 +2116,10 @@ if (cached) {
                     <div
                     ref={originalBlockRef}
                     className="
-                      sticky top-0 z-10
                       p-3 rounded-md
                       bg-gray-50 dark:bg-gray-900
                       border border-gray-200 dark:border-gray-700
                       space-y-2
-                      backdrop-blur-sm
                     "
                   >
                   
@@ -2120,7 +2146,7 @@ if (cached) {
       .slice()
       .sort((a, b) => a.word_index - b.word_index)
       .map((r, i) => {
-        const idx = r.word_index ?? i;
+        const idx = getWordIndex(r);
       
         return (
           <span
@@ -2164,7 +2190,8 @@ if (cached) {
       .slice()
       .sort((a, b) => a.word_index - b.word_index)
       .map((r, i) => {
-        const idx = r.word_index ?? i;
+        const idx = getWordIndex(r);
+
       
         return (
           <span
@@ -2211,6 +2238,8 @@ if (cached) {
                       const isNT = isNewTestament(verseRef.book);
                       const row = normalizeInterlinearRow(r, isNT);
                       const cached = row.strong ? strongCache[row.strong] : null;
+                      const idx = getWordIndex(r);
+
 
 const effectiveLemma =
   row.lemma ||
@@ -2234,24 +2263,24 @@ const effectiveMeaning =
             
                       return (
                         <div
-                        data-word-index={r.word_index ?? i}
-  key={`${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-w${i}-${r.word_index ?? "x"}-${r.strong ?? "ns"}`}
+  data-word-index={idx}
+  key={`word-${idx}`}
   ref={(el) => {
     if (el) {
-      const refKey = r.word_index ?? i;
-      wordRefs.current.set(refKey, el);
+      wordRefs.current.set(idx, el);
     }
   }}
   className={`
     rounded-lg border px-4 py-3 dark:border-gray-700
     transition-colors
     ${
-      activeWordIndex === (r.word_index ?? i)
+      activeWordIndex === idx
         ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-800/40"
         : "bg-white dark:bg-gray-900"
     }
   `}
 >
+
   {/* SURFACE — HERO */}
   <div className="text-2xl font-serif font-semibold leading-tight">
     {isNewTestament(verseRef.book)
