@@ -58,6 +58,23 @@ function getDisplayBookName(book: string, isTelugu: boolean) {
   return TELUGU_BOOK_NAMES[book] ?? book;
 }
 
+function getSearchDisplayText(
+  verse: FullVerse,
+  englishVersion: string,
+  query: string
+): string {
+  // Telugu search
+  if (englishVersion === "BSI_TELUGU") {
+    return highlight(verse.text.BSI_TELUGU ?? "", query);
+  }
+
+  // English search
+  return highlight(
+    verse.text[englishVersion as keyof typeof verse.text] ?? "",
+    query
+  );
+}
+
 
 function groupByChapter(verses: FullVerse[]) {
   const map: Record<number, FullVerse[]> = {};
@@ -132,11 +149,32 @@ const labels = isTeluguMode
     Object.keys(oldTestament).length > 0 ||
     Object.keys(newTestament).length > 0;
 
+    const resultCount = React.useMemo(() => {
+      let count = 0;
+    
+      for (const books of [oldTestament, newTestament]) {
+        for (const verses of Object.values(books)) {
+          count += verses.length;
+        }
+      }
+    
+      return count;
+    }, [oldTestament, newTestament]);
+    
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* HEADER */}
       <header className="p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between sticky top-0 z-10">
-        <h2 className="text-lg font-bold">Search Results</h2>
+      <h2 className="text-lg font-bold">
+  Search Results
+  {!isLoading && hasResults && (
+    <span className="ml-2 text-sm font-normal text-gray-500">
+      ({resultCount})
+    </span>
+  )}
+</h2>
+
 
         <div className="flex gap-2">
           <button
@@ -175,6 +213,12 @@ const labels = isTeluguMode
             No results found for your query.
           </div>
         )}
+        {!isLoading && hasResults && (
+  <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+    {resultCount} result{resultCount !== 1 ? "s" : ""} found
+  </div>
+)}
+
 
         {!isLoading &&
           !error &&
@@ -220,40 +264,22 @@ const labels = isTeluguMode
     className="p-3 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
     onClick={() => onNavigate(v.book, v.chapter, v.verse)}
   >
-    <div
-      className={`grid grid-cols-1 ${
-        isParallel ? "md:grid-cols-2 md:gap-6" : ""
-      }`}
-    >
-      {/* TELUGU */}
-      {(isTeluguSingle || isParallel) && (
-        <div className="flex">
-          <span className="w-8 font-bold text-gray-500">
-            {v.verse}
-          </span>
-          <div
-            dangerouslySetInnerHTML={{
-              __html: highlight(
-                v.text.BSI_TELUGU ?? "",
-                searchQuery
-              ),
-            }}
-          />
-        </div>
-      )}
+<div className="flex">
+  <span className="w-8 font-bold text-gray-500">
+    {v.verse}
+  </span>
 
-      {/* ENGLISH */}
-      {(isEnglishSingle || isParallel) && (
-        <div
-          dangerouslySetInnerHTML={{
-            __html: highlight(
-              v.text[englishVersion as keyof typeof v.text] ?? "",
-              searchQuery
-            ),
-          }}
-        />
-      )}
-    </div>
+  <div
+    dangerouslySetInnerHTML={{
+      __html: getSearchDisplayText(
+        v,
+        englishVersion,
+        searchQuery
+      ),
+    }}
+  />
+</div>
+
   </div>
 ))}
 

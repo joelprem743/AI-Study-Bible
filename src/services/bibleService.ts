@@ -228,6 +228,15 @@ function canonicalKey(s: string): string {
   return s.toLowerCase().replace(/[.,;:!؟؟\u200B®™*(){}[\]"']/g, '').trim();
 }
 
+function normalizeTeluguText(s: string): string {
+  return s
+    .replace(/\u200B/g, "")     // zero-width
+    .replace(/[.,!?]/g, "")    // punctuation
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 // Try English abbreviation match
 function tryEnglishAbbreviation(book: string): string | undefined {
   if (!book) return undefined;
@@ -532,6 +541,8 @@ export interface SearchOptions {
   requireAll?: boolean;      // Match ALL keywords (AND search)
 }
 
+
+
 export async function searchTeluguKeyword(
   rawQuery: string,
   options: SearchOptions = {}
@@ -539,13 +550,66 @@ export async function searchTeluguKeyword(
 
   if (!rawQuery || !rawQuery.trim()) return [];
 
-  const query = rawQuery.trim().toLowerCase();
-  const keywords = query.split(/\s+/).filter(Boolean);
-  if (keywords.length === 0) return [];
+  const normalizedQuery = rawQuery.trim().toLowerCase();
+  const isSentence = normalizedQuery.split(/\s+/).length > 1;
+
+// --------------------------------------------------
+// SENTENCE MODE (multi-word Telugu phrase search)
+// --------------------------------------------------
+if (isSentence) {
+  const highlight = options.highlight ?? true;
+const limit = options.limit ?? 3000;
+
+
+  const results: Array<{ score: number; verse: FullVerse }> = [];
+
+  typedTeluguBibleData.Book.forEach((book, bookIndex) => {
+    const bookName = canonicalizeBook(
+      BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name
+    );
+
+    book.Chapter.forEach((chapter, chapterIndex) => {
+      chapter.Verse.forEach((v, verseIndex) => {
+        const raw = v.Verse?.trim();
+        if (!raw) return;
+
+        const text = normalizeTeluguText(raw);
+const queryText = normalizeTeluguText(normalizedQuery);
+if (!text.includes(queryText)) return;
+
+
+        const highlighted = highlight
+          ? raw.replace(
+              new RegExp(
+                `(${normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+                "giu"
+              ),
+              "<mark>$1</mark>"
+            )
+          : raw;
+
+        results.push({
+          score: 100,
+          verse: {
+            book: bookName,
+            chapter: chapterIndex + 1,
+            verse: verseIndex + 1,
+            text: { BSI_TELUGU: highlighted },
+          },
+        });
+      });
+    });
+  });
+
+  return results.slice(0, limit).map(r => r.verse);
+}
+
+  const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
+if (keywords.length === 0) return [];
 
   const whole = options.wholeWord ?? false;
   const highlight = options.highlight ?? true;
-  const requireAll = options.requireAll ?? true;
+  const requireAll = options.requireAll ?? false;
   const limit = options.limit ?? 3000; // avoid UI freeze
 
   const results: Array<{ score: number; verse: FullVerse }> = [];
@@ -608,9 +672,6 @@ export async function searchTeluguKeyword(
             chapter: chapterIndex + 1,
             verse: verseIndex + 1,
             text: {
-              KJV: "",
-              ESV: "",
-              NIV: "",
               BSI_TELUGU: highlighted,
             },
           },
