@@ -404,7 +404,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
         >
           {/* HEADER */}
           <header className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 rounded-t-xl">
-            <h3 className="text-lg font-bold">AI Bible Bot</h3>
+            <h3 className="text-lg font-bold">Bible Companion Assistant</h3>
 
             <div className="relative flex items-center gap-3">
               {/* 

@@ -1,6 +1,6 @@
-# AI Bible Study Companion
+# Bible Companion
 
-Welcome to the AI Bible Study Companion, a full-featured web application designed for professional and personal Bible study. This tool combines expert-level reference navigation, parallel scripture displays (Telugu/English), and an AI-powered Bible bot to deliver precise, context-rich theological answers.
+Welcome to the Bible Companion, a full-featured web application designed for professional and personal Bible study. This tool combines expert-level reference navigation, parallel scripture displays (Telugu/English), and an AI-powered Bible bot to deliver precise, context-rich theological answers.
 
 ## Features
 
