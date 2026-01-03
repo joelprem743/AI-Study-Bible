@@ -475,6 +475,22 @@ function replaceParentheticalTranslitsWithTelugu(aiText: string) {
   });
 }
 
+function getTeluguTabLabel(tab: Tab): string {
+  switch (tab) {
+    case "Summary":
+      return "సారాంశం";
+    case "Interlinear":
+      return "పదాల అనువాదం";
+    case "Cross-references":
+      return "సంబంధిత వచనాలు";
+    case "Historical Context":
+      return "చారిత్రక నేపథ్యం";
+    default:
+      return tab;
+  }
+}
+
+
 function scrollCardIntoView(
   container: HTMLElement,
   el: HTMLElement
@@ -618,6 +634,29 @@ const STRONG_REF_REGEX =
     "Rev": "Revelation",
   };
   
+  const MENU_LABELS = {
+    EN: {
+      copyVerse: "Copy Verse",
+      shareVerse: "Share Verse",
+      shareImage: "Share as Image",
+      addNotes: "Add to Notes",
+      language: "Language",
+    },
+    TE: {
+      copyVerse: "వచనం కాపీ చేయి",
+      shareVerse: "వచనం షేర్ చేయి",
+      shareImage: "చిత్రంగా షేర్ చేయి",
+      addNotes: "విషయ గమనికలకు జోడించు",
+      language: "భాష",
+    },
+  } as const;
+
+  const ADVANCED_LABEL = {
+    EN: "Advanced",
+    TE: "అధునాతన ఎంపికలు",
+  } as const;
+  
+  
 /* -------------------------
   Component
 ---------------------------*/
@@ -648,6 +687,8 @@ export const VerseTools: React.FC<{
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
   const [originalVerse, setOriginalVerse] = useState<string>("");
   const [translitVerse, setTranslitVerse] = useState<string>("");
+  const L = MENU_LABELS[language];
+
 
 
   const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
@@ -939,11 +980,8 @@ const handleWordSelect = (idx: number) => {
   
     try {
       await navigator.clipboard.writeText(message);
-      alert(
-        language === "TE"
-          ? "వచనం క్లిప్‌బోర్డ్‌కి కాపీ అయింది!"
-          : "Verse copied to clipboard!"
-      );
+// silent success – consistent with Copy Verse
+
     } catch (err) {
       console.error("Clipboard write failed:", err);
     }
@@ -991,12 +1029,8 @@ const handleWordSelect = (idx: number) => {
   
       // Copy verse + URL
       await navigator.clipboard.writeText(shareText);
-  
-      alert(
-        language === "TE"
-          ? "చిత్రం షేర్ అయింది. లింక్ ఆటోమేటిక్‌గా కాపీ అయింది — క్యాప్షన్‌లో పేస్ట్ చేయండి."
-          : "Image shared. Link copied — paste it in the caption."
-      );
+// silent fallback – no blocking UI
+
       
     } catch (err) {
       console.error("Image share failed", err);
@@ -1427,11 +1461,11 @@ const handleWordSelect = (idx: number) => {
   
 
   
-  useEffect(() => {
-    if (activeTab === "Summary" || activeTab === "Notes") {
-      setAdvancedOpen(false);
-    }
-  }, [activeTab]);
+  // useEffect(() => {
+  //   if (activeTab === "Summary" || activeTab === "Notes") {
+  //     setAdvancedOpen(false);
+  //   }
+  // }, [activeTab]);
   
   useEffect(() => {
     if (!interlinearRows.length) return;
@@ -1923,7 +1957,7 @@ if (cached) {
     {menuOpen && (
       <div
         className="
-          absolute right-0 translate-x-[-8px] mt-2 w-44
+          absolute right-0 translate-x-[-8px] mt-2 min-w-[11rem]
           bg-white dark:bg-gray-800 
           border border-gray-300 dark:border-gray-600
           rounded-lg shadow-xl z-[9999]"
@@ -1934,7 +1968,8 @@ if (cached) {
                      text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <i className="fas fa-copy w-4" />
-          Copy Verse
+          {L.copyVerse}
+
         </button>
 
         {activeTab !== "Notes" && (
@@ -1947,7 +1982,10 @@ if (cached) {
                text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
   >
     <i className="fas fa-copy w-4" />
-    {language === "TE" ? "ట్యాబ్ కాపీ చేయి" : `Copy ${activeTab}`}
+    {language === "TE"
+  ? `${getTeluguTabLabel(activeTab)} కాపీ చేయి`
+  : `Copy ${activeTab}`}
+
   </button>
 )}
 
@@ -1958,7 +1996,8 @@ if (cached) {
                      text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <i className="fas fa-share w-4" />
-          Share Verse
+{L.shareVerse}
+
         </button>
 
         <button
@@ -1969,8 +2008,9 @@ if (cached) {
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
              text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
 >
-  <i className="fas fa-image w-4" />
-  Share as Image
+<i className="fas fa-image w-4" />
+{L.shareImage}
+
 </button>
 
 
@@ -1994,8 +2034,9 @@ if (cached) {
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
              text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
 >
-  <i className="fas fa-bookmark w-4" />
-  Add to Topical Notes
+<i className="fas fa-bookmark w-4" />
+{L.addNotes}
+
 </button>
 
         
@@ -2006,7 +2047,8 @@ if (cached) {
                      text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <i className="fas fa-globe w-4" />
-          Language: {language}
+{L.language}: {language}
+
         </button>
       </div>
     )}
@@ -2123,11 +2165,12 @@ if (cached) {
 
       {/* ADVANCED TOGGLE */}
       <button
-        onClick={() => setAdvancedOpen((v) => !v)}
-        className="py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700"
-      >
-        Advanced {advancedOpen ? "▴" : "▾"}
-      </button>
+  onClick={() => setAdvancedOpen((v) => !v)}
+  className="py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700"
+>
+  {ADVANCED_LABEL[language]} {advancedOpen ? "▴" : "▾"}
+</button>
+
     </nav>
   </div>
 
