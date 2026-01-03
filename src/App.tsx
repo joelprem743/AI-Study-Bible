@@ -499,26 +499,41 @@ useEffect(() => {
           {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
-          <header className="bg-white dark:bg-slate-900 p-3 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
-            {/* Left: Logo & title */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-6 h-6">
-                  <rect x="5" y="3" width="14" height="18" rx="2" />
-                  <path d="M12 8v8" /><path d="M10 10h4" />
-                </svg>
-              </div>
+          <header className="bg-white dark:bg-slate-900 px-3 py-2 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            {/* Left: Logo + Title (single source of truth) */}
+<div className="flex items-center gap-2">
+  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-6 h-6">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M12 8v8" />
+      <path d="M10 10h4" />
+    </svg>
+  </div>
 
-              <div className="hidden md:flex flex-col leading-tight">
-                <span className="text-2xl font-semibold text-gray-900 dark:text-gray-100">AI Bible Study Companion</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">by Joel Prem</span>
-              </div>
-            </div>
+  <div className="flex items-center gap-1 whitespace-nowrap">
+  <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+    Bible Companion
+  </span>
+
+  <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+    by Joel Prem
+  </span>
+</div>
+
+
+</div>
+
 
             {/* MOBILE title (still shown in mobile header) */}
-            <div className="flex md:hidden flex-col leading-tight ml-2">
-              <span className="text-base font-semibold text-gray-900 dark:text-gray-100">AI Bible Study Companion</span>
-            </div>
+            {/* <div className="flex md:hidden items-center gap-2 ml-2">
+  <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
+    VerseMind
+  </span>
+  <span className="text-xs text-gray-600 dark:text-gray-400">
+    by Joel Prem
+  </span>
+</div> */}
+
 
             {/* Right: compact search + profile */}
             <div className="flex items-center gap-3">
