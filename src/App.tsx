@@ -28,7 +28,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import ProfileMenu from "./components/ProfileMenu";
 import { useAuth } from "./context/AuthContext";
 
-const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV"];
+const AVAILABLE_VERSIONS = ["BSI_TELUGU", "ESV", "NIV", "KJV", "NKJV","GNB",];
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();

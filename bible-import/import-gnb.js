@@ -1,5 +1,6 @@
-// bible-import/import-nkjv.js
-// CommonJS NKJV importer — identical structure to your NIV importer
+// bible-import/import-gnb.js
+// CommonJS Good News Bible (TEV / GNB) importer
+// Assumes JSON structure: { Book: { Chapter: { Verse: "text" } } }
 
 const fs = require("fs");
 const dotenv = require("dotenv");
@@ -9,18 +10,20 @@ const { createClient } = require("@supabase/supabase-js");
 
 // IMPORTANT: use the SERVICE ROLE key for inserts
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error("ERROR: Missing Supabase env variables (SUPABASE_URL or SUPABASE_SERVICE_KEY)");
+  console.error(
+    "ERROR: Missing Supabase env variables (SUPABASE_URL or SUPABASE_SERVICE_KEY)"
+  );
   process.exit(1);
 }
 
-const VERSION = "NKJV";
-const FILE_PATH = "./NKJV.json";
+const VERSION = "GNB"; // or "TEV" — pick ONE and stay consistent
+const FILE_PATH = "./GNB.json"; // path to your Good News Bible JSON
 
-async function importNKJV() {
-  console.log("Loading NKJV.json...");
+async function importGNB() {
+  console.log("Loading GNB.json...");
   const raw = fs.readFileSync(FILE_PATH, "utf8");
   const json = JSON.parse(raw);
 
@@ -65,10 +68,12 @@ async function importNKJV() {
       return;
     }
 
-    console.log(`Inserted ${Math.min(i + CHUNK, verses.length)} / ${verses.length}`);
+    console.log(
+      `Inserted ${Math.min(i + CHUNK, verses.length)} / ${verses.length}`
+    );
   }
 
-  console.log("NKJV Import Complete!");
+  console.log("Good News Bible Import Complete!");
 }
 
-importNKJV().catch(console.error);
+importGNB().catch(console.error);
