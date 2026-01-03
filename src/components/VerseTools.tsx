@@ -780,9 +780,98 @@ const handleWordClick = (idx: number) => {
     // 🔓 Re-enable observer after scroll settles
     setTimeout(() => {
       isProgrammaticScrollRef.current = false;
-    }, 300);
+    }, 600);
+    
   }
 };
+
+const getCopyableContent = useCallback((): string => {
+  const header =
+    language === "TE"
+      ? `${TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book} ${verseRef.chapter}:${verseRef.verse}`
+      : `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+
+  // ---- NOTES ----
+  if (activeTab === "Notes") {
+    return `${header}\n\n${noteText || ""}`.trim();
+  }
+
+  // ---- INTERLINEAR (special) ----
+  if (activeTab === "Interlinear") {
+    if (!interlinearRows.length) return header;
+
+    const lines = interlinearRows
+      .slice()
+      .sort((a, b) => a.word_index - b.word_index)
+      .map((r) => {
+        const cached = r.strong ? strongCache[r.strong] : null;
+
+        const surface = isNewTestament(verseRef.book)
+          ? r.surface
+          : cleanHebrewSurface(r.surface);
+
+        const lemma =
+          r.lemma ||
+          cached?.lemma ||
+          cleanHebrewSurface(r.surface) ||
+          "";
+
+        const meaning =
+          r.meaning ||
+          cached?.meaning ||
+          "";
+
+        return [
+          surface,
+          lemma && `(${lemma})`,
+          meaning && `— ${meaning}`,
+          r.strong && `[${r.strong}]`,
+        ]
+          .filter(Boolean)
+          .join(" ");
+      });
+
+    return `${header}\n\nInterlinear:\n\n${lines.join("\n")}`.trim();
+  }
+
+  
+  // ---- AI TABS (Summary, Cross-refs, Historical) ----
+  const content = analysis[activeTab];
+
+  if (!content) {
+    return `${header}\n\n(No content generated yet)`;
+  }
+
+  // Strip markdown bullets safely
+  const plain = content
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\*\s+/gm, "• ")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .trim();
+
+  return `${header}\n\n${plain}`;
+}, [
+  activeTab,
+  analysis,
+  interlinearRows,
+  strongCache,
+  noteText,
+  verseRef,
+  language,
+]);
+
+const handleCopyTabContent = useCallback(async () => {
+  try {
+    const text = getCopyableContent();
+    if (!text) return;
+
+    await navigator.clipboard.writeText(text);
+    // ✅ silent success (same behavior as Copy Verse)
+  } catch (err) {
+    console.error("Copy tab content failed", err);
+  }
+}, [getCopyableContent]);
+
 
 
 
@@ -1848,6 +1937,21 @@ if (cached) {
           Copy Verse
         </button>
 
+        {activeTab !== "Notes" && (
+  <button
+    onClick={() => {
+      handleCopyTabContent();
+      setMenuOpen(false);
+    }}
+    className="w-full px-4 py-2 flex items-center gap-3 text-left
+               text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+  >
+    <i className="fas fa-copy w-4" />
+    {language === "TE" ? "ట్యాబ్ కాపీ చేయి" : `Copy ${activeTab}`}
+  </button>
+)}
+
+
         <button
           onClick={() => { handleShareVerse(); setMenuOpen(false); }}
           className="w-full px-4 py-2 flex items-center gap-3 text-left 
@@ -1894,7 +1998,7 @@ if (cached) {
   Add to Topical Notes
 </button>
 
-
+        
 
         <button
           onClick={() => { setLanguage(language === 'EN' ? 'TE' : 'EN'); setMenuOpen(false); }}
@@ -2057,6 +2161,9 @@ if (cached) {
     </div>
   )}
 </div>
+
+
+
 
 
       {/* Main content */}
