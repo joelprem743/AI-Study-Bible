@@ -726,3 +726,35 @@ export async function searchEnglishKeyword(
 export function getBookIndex(book: string): number {
   return BOOK_INDEX_MAP.get(book) ?? 999;
 }
+
+
+export async function fetchOriginalChapter(
+  book: string,
+  chapter: number,
+  version: "HEBREW_OT" | "GREEK_NT"
+) {
+  console.group("🗄️ fetchOriginalChapter");
+  console.log("Book:", book);
+  console.log("Chapter:", chapter);
+  console.log("Version:", version);
+  console.log("Table: interlinear_words");
+
+  const { data, error } = await supabase
+    .from("interlinear_words")
+    .select("*")
+    .eq("book", book)
+    .eq("chapter", chapter)
+    .order("verse", { ascending: true })
+    .order("word_index", { ascending: true });
+
+  if (error) {
+    console.error("❌ Supabase error:", error);
+    return [];
+  }
+
+  console.log("Returned rows:", data?.length ?? 0);
+  console.log("Sample rows:", data?.slice(0, 5));
+  console.groupEnd();
+
+  return data ?? [];
+}

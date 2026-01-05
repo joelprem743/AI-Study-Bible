@@ -1,3 +1,4 @@
+// src/components/NavigationPane.tsx
 import React, { useState } from "react";
 import { BIBLE_META } from "../data/bibleMeta";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
@@ -21,8 +22,7 @@ interface Props {
   onSetSingleVersion: (v: string) => void;
   onSetLeftVersion: (v: string) => void;
   onSetRightVersion: (v: string) => void;
-
-  versions: string[];
+  versions: readonly string[];
 }
 
 export default function NavigationPane(props: Props) {
@@ -64,6 +64,42 @@ export default function NavigationPane(props: Props) {
     "Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah",
     "Haggai","Zechariah","Malachi",
   ];
+
+  const VERSION_LABELS: Record<string, string> = {
+    BSI_TELUGU: "తెలుగు బైబిల్ (BSI)",
+    ESV: "English Standard Version",
+    NIV: "New International Version",
+    KJV: "King James Version",
+    NKJV: "New King James Version",
+    GNB: "Good News Bible",
+    ARAMAIC_PLAIN_EN: "Aramaic Bible (Plain English only New Testament!)",
+    NLT:"New Living Translation",
+    NASB:"NASB 1995",
+    // HEBREW_OT: "Hebrew Bible (Original)",
+    // GREEK_NT: "Greek New Testament (Original)",
+  };  
+
+  const getVersionLabel = (v: string) => VERSION_LABELS[v] ?? v;
+
+  // -------- Original language guards --------
+const isOriginalVersion = (v?: string) =>
+  v === "HEBREW_OT" || v === "GREEK_NT";
+
+const isBookInOT = (book: string) =>
+  BIBLE_META.findIndex(b => b.name === book) < 39;
+
+const isValidOriginalForBook = (book: string, version?: string) => {
+  if (!isOriginalVersion(version)) return true;
+
+  const isOT = isBookInOT(book);
+  return (
+    (version === "HEBREW_OT" && isOT) ||
+    (version === "GREEK_NT" && !isOT)
+  );
+};
+
+
+  
   
   const NEW_TESTAMENT = [
     "Matthew","Mark","Luke","John","Acts","Romans",
@@ -130,6 +166,14 @@ studyMode === "single"
   
 
   const handleBookSelect = (book: string) => {
+    const activeVersion =
+      studyMode === "single" ? singleVersion : leftVersion;
+  
+    if (!isValidOriginalForBook(book, activeVersion)) {
+      alert("This book is not available in the selected original language.");
+      return;
+    }
+  
     setTempBook(book);
     setSelectionStep("CHAPTER");
   };
@@ -385,30 +429,71 @@ studyMode === "single"
               {/* Version pickers */}
               {studyMode === "single" ? (
                 <select
-                  value={singleVersion}
-                  onChange={(e) => onSetSingleVersion(e.target.value)}
-                  className="w-full p-2 rounded bg-gray-100 dark:bg-gray-800"
-                >
-                  {versions.map((v) => <option key={v} value={v}>{v}</option>)}
+                value={singleVersion}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!isValidOriginalForBook(selectedBook, v)) {
+                    alert("This original language is not available for this book.");
+                    return;
+                  }
+                  onSetSingleVersion(v);
+setIsPickerOpen(false); // ⬅️ critical for mobile
+
+                }}
+                className="w-full min-w-[260px] p-2 rounded bg-gray-100 dark:bg-gray-800 text-sm"
+              >
+              
+              
+              {versions.map((v) => (
+  <option key={v} value={v}>
+    {getVersionLabel(v)}
+  </option>
+))}
+
                 </select>
               ) : (
                 <>
                   <div className="mb-3">
                     <select
                       value={leftVersion}
-                      onChange={(e) => onSetLeftVersion(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!isValidOriginalForBook(selectedBook, v)) {
+                          alert("This original language is not available for this book.");
+                          return;
+                        }
+                        onSetLeftVersion(v);
+                      }}
+                      
                       className="w-full p-2 rounded bg-gray-100 dark:bg-gray-800"
                     >
-                      {versions.map((v) => <option key={v} value={v}>{v}</option>)}
+                      {versions.map((v) => (
+  <option key={v} value={v}>
+    {getVersionLabel(v)}
+  </option>
+))}
+
                     </select>
                   </div>
                   <div>
                     <select
                       value={rightVersion}
-                      onChange={(e) => onSetRightVersion(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!isValidOriginalForBook(selectedBook, v)) {
+                          alert("This original language is not available for this book.");
+                          return;
+                        }
+                        onSetRightVersion(v);
+                      }}                      
                       className="w-full p-2 rounded bg-gray-100 dark:bg-gray-800"
                     >
-                      {versions.map((v) => <option key={v} value={v}>{v}</option>)}
+                      {versions.map((v) => (
+  <option key={v} value={v}>
+    {getVersionLabel(v)}
+  </option>
+))}
+
                     </select>
                   </div>
                 </>

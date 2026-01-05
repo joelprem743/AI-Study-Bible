@@ -57,6 +57,8 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
 
   highlights,
 }) => {
+
+
   const getHighlightClass = (c: string | undefined) => {
     switch (c) {
       case "yellow":
@@ -89,11 +91,54 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     }, 120);
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
+  // useEffect(() => {
+  //   const version =
+  //     studyMode === "single" ? englishVersion : leftVersion;
+
+  //   if (!isOriginalVersion(version)) {
+  //     setOriginalVerses({});
+  //     return;
+  //   }
+
+  //   const loadOriginal = async () => {
+  //     try {
+  //       const table =
+  //         version === "HEBREW_OT"
+  //           ? "interlinear_words"
+  //           : "nt_interlinear_with_strong";
+
+  //       const res = await fetch(
+  //         `/api/original?book=${encodeURIComponent(bookName)}&chapter=${chapterNum}&table=${table}`
+  //       );
+  //       const json = await res.json();
+
+  //       const map: Record<number, string> = {};
+
+  //       json.data.forEach((row: any) => {
+  //         map[row.verse] = (map[row.verse] ?? "") + row.surface + " ";
+  //       });
+
+  //       setOriginalVerses(map);
+  //     } catch (e) {
+  //       console.error("Failed to load original text", e);
+  //       setOriginalVerses({});
+  //     }
+  //   };
+
+  //   loadOriginal();
+  // }, [bookName, chapterNum, englishVersion, leftVersion, studyMode]);
+
+
   // Scroll detection → hide/show NavPane
   // ---------- Version / language helpers ----------
   const isTeluguVersion = (version?: string) =>
   version === "BSI_TELUGU" ||
   version?.toLowerCase().includes("telugu");
+
+  const isHebrewOT = (version?: string) => version === "HEBREW_OT";
+  const isGreekNT = (version?: string) => version === "GREEK_NT";
+  const isOriginalVersion = (version?: string) =>
+    isHebrewOT(version) || isGreekNT(version);
 
   const getBookNameByVersion = (version?: string) => {
   if (isTeluguVersion(version)) {
@@ -148,13 +193,32 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
 
   // resolve version safely
   const resolveText = (v: Verse, version: string | undefined): string => {
-    if (!version) return "";
-    const raw = v.text[version as keyof typeof v.text] ?? "";
-    return raw.replace(/\s*\n+\s*/g, " ").trim();
-  };
+  if (!v || !v.text) return "";
+
+  // Original languages are injected as v.text.ORIGINAL by App.tsx
+  if (version === "HEBREW_OT" || version === "GREEK_NT") {
+    return (v.text as any).ORIGINAL ?? "";
+  }
+
+  return (
+    v.text[version as keyof typeof v.text] ??
+    ""
+  ).replace(/\s*\n+\s*/g, " ").trim();
+};
+
   
 
+
+
   const isSingle = studyMode === "single";
+
+  if (!isSingle && isOriginalVersion(leftVersion)) {
+    return (
+      <div className="p-6 text-center text-red-600 dark:text-red-400">
+        Original language versions are available in Single mode only.
+      </div>
+    );
+  }
 
   return (
     <div
@@ -206,9 +270,20 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                 <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mr-2">
                   {v.verse}
                 </span>
-                <span className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
-                  {resolveText(v, englishVersion)}
-                </span>
+                <span
+  dir={englishVersion === "HEBREW_OT" ? "rtl" : "ltr"}
+  className={`text-[1.15rem] leading-relaxed text-gray-900 dark:text-gray-100 ${
+    englishVersion === "HEBREW_OT"
+      ? "font-hebrew text-right"
+      : englishVersion === "GREEK_NT"
+      ? "font-greek"
+      : ""
+  }`}
+>
+  {resolveText(v, englishVersion)}
+</span>
+
+
               </div>
             );
           })}

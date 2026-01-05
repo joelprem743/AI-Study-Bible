@@ -12,8 +12,12 @@ export interface VerseText {
 
 export interface Verse {
   verse: number;
-  text: VerseText;
+  text: {
+    [version: string]: string;
+    ORIGINAL?: string;
+  };
 }
+
 
 export interface Chapter {
   chapter: number;

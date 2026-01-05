@@ -1,56 +1,59 @@
-// bible-import/import-gnb.js
-// CommonJS Good News Bible (TEV / GNB) importer
-// Assumes JSON structure: { Book: { Chapter: { Verse: "text" } } }
-
+// import-aramaic-plain-en.js
 const fs = require("fs");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const { createClient } = require("@supabase/supabase-js");
+// If your Node version <18, install node-fetch:
+// const fetch = require("node-fetch");
 
-// IMPORTANT: use the SERVICE ROLE key for inserts
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error(
-    "ERROR: Missing Supabase env variables (SUPABASE_URL or SUPABASE_SERVICE_KEY)"
-  );
+  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   process.exit(1);
 }
 
-const VERSION = "GNB"; // or "TEV" — pick ONE and stay consistent
-const FILE_PATH = "./GNB.json"; // path to your Good News Bible JSON
+const VERSION = "NASB";
+const FILE_PATH = "./NASB 1995.json";
 
-async function importGNB() {
-  console.log("Loading GNB.json...");
+async function importAramaicPlainEnglish() {
+  console.log("Reading JSON...");
   const raw = fs.readFileSync(FILE_PATH, "utf8");
-  const json = JSON.parse(raw);
+  const data = JSON.parse(raw);
 
   const verses = [];
 
-  for (const book of Object.keys(json)) {
-    for (const chapter of Object.keys(json[book])) {
-      for (const verse of Object.keys(json[book][chapter])) {
+  for (const book of Object.keys(data)) {
+    const chapters = data[book];
+    if (typeof chapters !== "object") continue;
+
+    for (const chapKey of Object.keys(chapters)) {
+      const chapter = Number(chapKey);
+      const verseObj = chapters[chapKey];
+      if (typeof verseObj !== "object") continue;
+
+      for (const verseKey of Object.keys(verseObj)) {
+        const verse = Number(verseKey);
+        const text = verseObj[verseKey];
+        if (!text || typeof text !== "string") continue;
+
         verses.push({
           book,
-          chapter: Number(chapter),
-          verse: Number(verse),
-          text: json[book][chapter][verse],
+          chapter,
+          verse,
+          text: text.trim(),
           version: VERSION,
         });
       }
     }
   }
 
-  console.log(`Prepared ${verses.length} verses to import...`);
-  console.log("Importing into Supabase...");
+  console.log(`Prepared ${verses.length} verses for ${VERSION}.`);
 
   const CHUNK = 500;
-
   for (let i = 0; i < verses.length; i += CHUNK) {
     const chunk = verses.slice(i, i + CHUNK);
-
     const res = await fetch(`${SUPABASE_URL}/rest/v1/bible_verses`, {
       method: "POST",
       headers: {
@@ -63,17 +66,14 @@ async function importGNB() {
     });
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Error inserting chunk:", errorText);
-      return;
+      console.error("Supabase insert error:", await res.text());
+      process.exit(1);
     }
 
-    console.log(
-      `Inserted ${Math.min(i + CHUNK, verses.length)} / ${verses.length}`
-    );
+    console.log(`Inserted ${Math.min(i+CHUNK, verses.length)} / ${verses.length}`);
   }
 
-  console.log("Good News Bible Import Complete!");
+  console.log("Import complete!");
 }
 
-importGNB().catch(console.error);
+importAramaicPlainEnglish().catch(console.error);
