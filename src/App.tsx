@@ -8,7 +8,7 @@ import { Chatbot } from "./components/Chatbot";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { SearchResultDisplay } from "./components/SearchResultDisplay";
 import ProfileNotes from "./components/ProfileNotes";
-import { fetchOriginalChapter } from "./services/bibleService";
+
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
 
@@ -40,15 +40,15 @@ export const AVAILABLE_VERSIONS = [
   "NASB",
 ] as const;
 
-// export const ORIGINAL_VERSIONS = {
-//   HEBREW_OT: "Hebrew Bible (Original)",
-//   GREEK_NT: "Greek New Testament (Original)",
-// } as const;
+export const ORIGINAL_VERSIONS = {
+  HEBREW_OT: "Hebrew Bible (Original)",
+  GREEK_NT: "Greek New Testament (Original)",
+} as const;
 
-// export type OriginalVersion = keyof typeof ORIGINAL_VERSIONS;
-// export type AnyVersion =
-//   | (typeof AVAILABLE_VERSIONS)[number]
-//   | OriginalVersion;
+export type OriginalVersion = keyof typeof ORIGINAL_VERSIONS;
+export type AnyVersion =
+  | (typeof AVAILABLE_VERSIONS)[number]
+  | OriginalVersion;
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -229,49 +229,49 @@ useEffect(() => {
 
 
     try {
-      // ---------------- ORIGINAL LANGUAGES ----------------
-      if (
-        studyMode === "single" &&
-        (activeSingleVersion === "HEBREW_OT" ||
-         activeSingleVersion === "GREEK_NT")
-      ) {
-        const bookIndex = BIBLE_META.findIndex(b => b.name === selectedBook);
-        const isOT = bookIndex < 39;
+      // // ---------------- ORIGINAL LANGUAGES ----------------
+      // if (
+      //   studyMode === "single" &&
+      //   (activeSingleVersion === "HEBREW_OT" ||
+      //    activeSingleVersion === "GREEK_NT")
+      // ) {
+      //   const bookIndex = BIBLE_META.findIndex(b => b.name === selectedBook);
+      //   const isOT = bookIndex < 39;
     
-        // hard guard
-        if (
-          (activeSingleVersion === "HEBREW_OT" && !isOT) ||
-          (activeSingleVersion === "GREEK_NT" && isOT)
-        ) {
-          setVerses([]);
-          setVerseError("This book is not available in the selected original language.");
-          return;
-        }
+      //   // hard guard
+      //   if (
+      //     (activeSingleVersion === "HEBREW_OT" && !isOT) ||
+      //     (activeSingleVersion === "GREEK_NT" && isOT)
+      //   ) {
+      //     setVerses([]);
+      //     setVerseError("This book is not available in the selected original language.");
+      //     return;
+      //   }
     
-        const raw = await fetchOriginalChapter(
-          selectedBook,
-          selectedChapter,
-          activeSingleVersion
-        );
+      //   const raw = await fetchOriginalChapter(
+      //     selectedBook,
+      //     selectedChapter,
+      //     activeSingleVersion
+      //   );
     
-        const verseMap: Record<number, string> = {};
+      //   const verseMap: Record<number, string> = {};
     
-        for (const w of raw) {
-          if (w.verse == null || typeof w.surface !== "string") continue;
-          verseMap[w.verse] ??= "";
-          verseMap[w.verse] += w.surface.trim() + " ";
-        }
+      //   for (const w of raw) {
+      //     if (w.verse == null || typeof w.surface !== "string") continue;
+      //     verseMap[w.verse] ??= "";
+      //     verseMap[w.verse] += w.surface.trim() + " ";
+      //   }
     
-        const normalized = Object.entries(verseMap)
-          .map(([verse, text]) => ({
-            verse: Number(verse),
-            text: { ORIGINAL: text.trim() },
-          }))
-          .sort((a, b) => a.verse - b.verse);
+      //   const normalized = Object.entries(verseMap)
+      //     .map(([verse, text]) => ({
+      //       verse: Number(verse),
+      //       text: { ORIGINAL: text.trim() },
+      //     }))
+      //     .sort((a, b) => a.verse - b.verse);
     
-        setVerses(normalized as any);
-        return;
-      }
+      //   setVerses(normalized as any);
+      //   return;
+      // }
     
       // ---------------- NORMAL VERSIONS (THIS WAS MISSING) ----------------
       const data = await fetchChapter(selectedBook, selectedChapter);
@@ -804,8 +804,7 @@ rounded-full shadow-md overflow-hidden px-2"
                       onSetRightVersion={setRightVersion}
                       versions={[
                         ...AVAILABLE_VERSIONS,
-                        "HEBREW_OT",
-                        "GREEK_NT",
+
                       ]}
                       
                     />

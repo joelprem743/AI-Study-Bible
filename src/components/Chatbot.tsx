@@ -27,6 +27,9 @@ const UI_TEXT = {
   send_te: `పంపండి`,
 };
 
+
+
+
 // BOT MESSAGE COMPONENT
 const BotMessage: React.FC<{
   message: string | React.ReactNode;
@@ -121,6 +124,13 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  // Detect initial chatbot language from current Bible version
+const detectInitialLanguage = (): "EN" | "TE" => {
+  return englishVersion === "BSI_TELUGU" ? "TE" : "EN";
+};
+
 
   // const CHAT_MODE_LABELS = {
   //   [ChatMode.FAST]: language === "TE" ? "ఫాస్ట్" : "Fast",
@@ -130,6 +140,37 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages, followUpQs]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+  
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+  
+      if (
+        chatRef.current &&
+        !chatRef.current.contains(target) &&
+        toggleButtonRef.current &&
+        !toggleButtonRef.current.contains(target)
+      ) {
+        onToggle(); // close chatbot
+      }
+    };
+  
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onToggle]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+  
+    const initialLang = detectInitialLanguage();
+    setLanguage(initialLang);
+    setModelLanguage(initialLang);
+    setFollowUpQs([]);
+  }, [isOpen]); // ❗ ONLY isOpen
+  
+  
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -374,7 +415,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     <>
       {/* FLOAT BUTTON */}
       <button
-        onClick={onToggle}
+  ref={toggleButtonRef}
+  onClick={onToggle}
+
         className="
           fixed bottom-5 right-5 w-16 h-16
           rounded-full flex items-center justify-center
@@ -393,9 +436,11 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
       {/* CHAT WINDOW */}
       {isOpen && (
-        <div
-          className="
-            fixed bottom-24 right-5 w-[90vw] max-w-md h-[70vh]
+  <div
+    ref={chatRef}
+    className="
+      fixed bottom-24 right-5 w-[90vw] max-w-md h-[70vh]
+
             bg-white dark:bg-gray-800 rounded-xl shadow-2xl border
             border-gray-200 dark:border-gray-700 flex flex-col z-50
             transition-shadow duration-200

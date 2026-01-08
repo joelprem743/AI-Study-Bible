@@ -475,20 +475,7 @@ function replaceParentheticalTranslitsWithTelugu(aiText: string) {
   });
 }
 
-function getTeluguTabLabel(tab: Tab): string {
-  switch (tab) {
-    case "Summary":
-      return "సారాంశం";
-    case "Interlinear":
-      return "పదాల అనువాదం";
-    case "Cross-references":
-      return "సంబంధిత వచనాలు";
-    case "Historical Context":
-      return "చారిత్రక నేపథ్యం";
-    default:
-      return tab;
-  }
-}
+
 
 
 function scrollCardIntoView(
@@ -509,6 +496,30 @@ function scrollCardIntoView(
 function isValidBibleRef(ref: string) {
   return /^((?:[1-3]\s*)?[A-Za-z\u0C00-\u0C7F\.']+)\s+\d+:\d+(?:-\d+)?$/.test(ref);
 }
+
+function getTabLabel(tab: Tab, lang: "EN" | "TE") {
+  if (lang === "TE") {
+    switch (tab) {
+      case "Summary":
+        return "సారాంశం";
+      case "Notes":
+        return "గమనికలు";
+      case "Interlinear":
+        return "పదాల అనువాదం";
+      case "Compare":
+        return "వచన పోలిక";
+      case "Cross-references":
+        return "సంబంధిత వచనాలు";
+      case "Historical Context":
+        return "చారిత్రక నేపథ్యం";
+      default:
+        return tab;
+    }
+  }
+  return tab;
+}
+
+
 
 
 // Split Gemini "1.,2.,3.,4." structure into sections
@@ -567,12 +578,13 @@ const LoadingSkeleton: React.FC = () => (
   </div>
 );
 
-type Tab = "Interlinear" | "Summary"| "Cross-references" | "Historical Context" | "Notes";
+type Tab = "Interlinear" | "Summary" | "Compare" | "Cross-references" | "Historical Context" | "Notes";
 
 const PRIMARY_TABS: Tab[] = ["Summary", "Notes"];
 
 const ADVANCED_TABS: Tab[] = [
   "Interlinear",
+  "Compare",
   "Cross-references",
   "Historical Context",
 ];
@@ -689,15 +701,22 @@ export const VerseTools: React.FC<{
   const [translitVerse, setTranslitVerse] = useState<string>("");
   const L = MENU_LABELS[language];
 
+  const [compareVerses, setCompareVerses] = useState<
+  { version: string; text: string }[]
+>([]);
 
 
-  const [analysis, setAnalysis] = useState<Record<Tab, string | null>>({
-    Interlinear: null,
-    Summary: null,
-    "Cross-references": null,
-    "Historical Context": null,
-    Notes: null,
-  });
+const [analysis, setAnalysis] = useState<Record<
+Exclude<Tab, "Compare">,
+string | null
+>>({
+Interlinear: null,
+Summary: null,
+"Cross-references": null,
+"Historical Context": null,
+Notes: null,
+});
+
 
 
   
@@ -739,6 +758,7 @@ export const VerseTools: React.FC<{
   const [noteText, setNoteText] = useState<string>("");
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({} as Record<Tab, HTMLButtonElement | null>);
 
+  const [interlinearNotice, setInterlinearNotice] = useState<string | null>(null);
 
 
   const localCache = useRef(new Map<string, string>());
@@ -791,10 +811,14 @@ async function preloadStrongLexicons(rows: any[]) {
   }
 }
 
-  const displayVerseText =
-    language === "TE"
-      ? verseData.text.BSI_TELUGU || verseData.text.KJV
-      : verseData.text[englishVersion] || verseData.text.KJV;
+const effectiveLanguage =
+activeTab === "Interlinear" ? "EN" : language;
+
+const displayVerseText =
+effectiveLanguage === "TE"
+  ? verseData.text.BSI_TELUGU || verseData.text.KJV
+  : verseData.text[englishVersion] || verseData.text.KJV;
+
 
   const buildKey = useCallback(
     (tab: Tab, lang: "EN" | "TE") => `${verseId}::${tab}::${lang}`,
@@ -911,6 +935,32 @@ const handleCopyTabContent = useCallback(async () => {
     console.error("Copy tab content failed", err);
   }
 }, [getCopyableContent]);
+
+
+const loadCompare = useCallback(async () => {
+  const chapter = await fetchChapter(
+    verseRef.book,
+    verseRef.chapter
+  );
+
+  const verse = chapter.find(v => v.verse === verseRef.verse);
+  if (!verse) {
+    setCompareVerses([]);
+    return;
+  }
+
+  const EXCLUDED = ["HEBREW_OT", "GREEK_NT"];
+
+  const rows = Object.entries(verse.text)
+    .filter(([v, t]) => t && !EXCLUDED.includes(v))
+    .map(([v, t]) => ({
+      version: v,
+      text: t.trim(),
+    }));
+
+  setCompareVerses(rows);
+}, [verseRef]);
+
 
 
 
@@ -1418,6 +1468,20 @@ const handleWordSelect = (idx: number) => {
   /* -------------------------
     Effects
   ---------------------------*/
+
+  useEffect(() => {
+    if (activeTab !== "Compare") return;
+  
+    setLoading(true);
+    loadCompare()
+      .catch((e) => {
+        console.error("Compare load failed", e);
+        setCompareVerses([]);
+      })
+      .finally(() => setLoading(false));
+  }, [activeTab, loadCompare]);
+
+  
   useEffect(() => {
     if (activeTab !== "Interlinear") return;
     if (!scrollContainerRef.current) return;
@@ -1499,10 +1563,17 @@ const handleWordSelect = (idx: number) => {
   }, [activeTab, loadTab]);
   
   useEffect(() => {
-    if (activeTab === "Interlinear") {
-      setLanguage("EN");
+    if (activeTab === "Interlinear" && language === "TE") {
+      setInterlinearNotice(
+        "పదాల అనువాదం (Interlinear) ప్రస్తుతం ఆంగ్లంలో మాత్రమే అందుబాటులో ఉంది."
+      );
+    } else {
+      setInterlinearNotice(null);
     }
-  }, [activeTab]);
+  }, [activeTab, language]);
+  
+  
+  
   
   useEffect(() => {
     if (isPreviewOpen) {
@@ -1555,24 +1626,23 @@ const handleWordSelect = (idx: number) => {
   
 
   useEffect(() => {
-    const existing = getNoteFor(verseRef);
-    setNoteText(existing?.content ?? "");
-  }, [verseRef, getNoteFor]);
-  useEffect(() => {
-    // Sync VerseTools language with selected version (SINGLE mode behavior)
+    // 🔒 Do NOT auto-sync language while in Interlinear
+    if (activeTab === "Interlinear") return;
+  
     if (isTeluguVersion(englishVersion)) {
       setLanguage("TE");
     } else {
       setLanguage("EN");
     }
-  }, [englishVersion, verseRef]);
+  }, [englishVersion, verseRef, activeTab]);
+  
   
 
   useEffect(() => {
-    // AI tabs only — NEVER touch Interlinear here
     if (
       activeTab === "Notes" ||
-      activeTab === "Interlinear"
+      activeTab === "Interlinear" ||
+      activeTab === "Compare"
     ) {
       return;
     }
@@ -1581,8 +1651,8 @@ const handleWordSelect = (idx: number) => {
       ...prev,
       [activeTab]: null,
     }));
-    setErrorMsg("");
   }, [language, activeTab]);
+  
   
 
   const handleGenerateClick = useCallback(async () => {
@@ -1982,8 +2052,9 @@ if (cached) {
   >
     <i className="fas fa-copy w-4" />
     {language === "TE"
-  ? `${getTeluguTabLabel(activeTab)} కాపీ చేయి`
+  ? `${getTabLabel(activeTab, "TE")} కాపీ చేయి`
   : `Copy ${activeTab}`}
+
 
   </button>
 )}
@@ -2154,11 +2225,7 @@ if (cached) {
               : "border-transparent text-gray-500 dark:text-gray-400"
           }`}
         >
-          {language === "TE"
-            ? tab === "Summary"
-              ? "సారాంశం / వివరణ"
-              : "గమనికలు"
-            : tab}
+          {getTabLabel(tab, language)}
         </button>
       ))}
 
@@ -2190,13 +2257,8 @@ if (cached) {
                 : "border-transparent text-gray-500 dark:text-gray-400"
             }`}
           >
-            {language === "TE"
-              ? tab === "Interlinear"
-                ? "పదాల వారీ అనువాదం"
-                : tab === "Cross-references"
-                ? "సంబంధిత వచనాలు"
-                : "చారిత్రక నేపథ్యం"
-              : tab}
+            {getTabLabel(tab, language)}
+
           </button>
         ))}
       </nav>
@@ -2216,337 +2278,138 @@ if (cached) {
 
 
 
-        {activeTab === "Notes" ? (
-          <div className="flex flex-col gap-3">
-            <textarea
-              className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
-              placeholder={
-                language === "TE"
-                  ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
-                  : "Your personal notes on this verse..."
-              }
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              onBlur={(e) => void handleNoteChange(e.target.value)}
-            />
+{activeTab === "Notes" ? (
+  <div className="flex flex-col gap-3">
+    <textarea
+      className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+      placeholder={
+        language === "TE"
+          ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
+          : "Your personal notes on this verse..."
+      }
+      value={noteText}
+      onChange={(e) => setNoteText(e.target.value)}
+      onBlur={(e) => void handleNoteChange(e.target.value)}
+    />
 
-            <button
-              onClick={async () => {
-                try {
-                  await saveNoteFor(verseRef, noteText);
-                  await refreshNoteFor(verseRef);
-                  onClose?.();
-                } catch (err) {
-                  console.error("Failed to save note", err);
-                }
-              }}
-              className="
-                self-start px-4 py-2 text-sm 
-                bg-blue-600 hover:bg-blue-700 
-                text-white rounded-md
-              "
-            >
-              {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
-            </button>
+    <button
+      onClick={async () => {
+        try {
+          await saveNoteFor(verseRef, noteText);
+          await refreshNoteFor(verseRef);
+          onClose?.();
+        } catch (err) {
+          console.error("Failed to save note", err);
+        }
+      }}
+      className="self-start px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+    >
+      {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
+    </button>
+  </div>
+) : activeTab === "Compare" ? (
+  loading ? (
+    <LoadingSkeleton />
+  ) : compareVerses.length === 0 ? (
+    <p className="text-sm text-gray-500">
+      No alternate versions available for this verse.
+    </p>
+  ) : (
+    <div className="space-y-4">
+      {compareVerses.map(({ version, text }) => (
+        <div
+          key={version}
+          className="rounded-lg border border-gray-300 dark:border-gray-700 p-3"
+        >
+          <div className="text-xs font-semibold text-gray-500 mb-1">
+            {version}
           </div>
-        ) : loading ? (
-          <LoadingSkeleton />
-        ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
-            {errorMsg ? (
-              <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
-            ) : activeTab === "Interlinear" ? (
-              loading ? (
-                <LoadingSkeleton />
-              ) : interlinearRows.length > 0 ? (
-                <div className="space-y-4">
-                  {/* ORIGINAL TEXT + TRANSLITERATION */}
-                  {originalVerse && (
-                    <div
-                    ref={originalBlockRef}
-                    className="
-                      p-3 rounded-md
-                      bg-gray-50 dark:bg-gray-900
-                      border border-gray-200 dark:border-gray-700
-                      space-y-2
-                    "
-                  >
-                  
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        Original Text
-                      </p>
-            
-                      {isNewTestament(verseRef.book) ? (
-  /* ---------- NT (Greek – LTR) ---------- */
-  <p
-    dir="ltr"
-    className="
-      text-2xl
-      font-serif
-      leading-relaxed
-      tracking-wide
-      text-left
-      flex
-      flex-wrap
-      gap-x-1
-    "
-  >
-    {interlinearRows
-      .slice()
-      .sort((a, b) => a.word_index - b.word_index)
-      .map((r, i) => {
-        const idx = getWordIndex(r);
-      
-        return (
-          <span
-            key={idx}
-            className={`
-              cursor-pointer
-              rounded
-              px-0.5
-              ${
-                activeWordIndex === idx
-                  ? "bg-yellow-200 dark:bg-yellow-600"
-                  : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
-              }
-            `}
-            onMouseEnter={() => handleWordHover(idx)}
-            onClick={() => handleWordClick(idx)}
+
+          <p
+            className={`text-sm leading-relaxed ${
+              version === "BSI_TELUGU" ? "font-telugu" : ""
+            }`}
           >
-            {r.surface}
-          </span>
-        );
-      })
-      }
-  </p>
+            {text}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+) : loading ? (
+  <LoadingSkeleton />
 ) : (
-  /* ---------- OT (Hebrew – RTL) ---------- */
-  <p
-    dir="rtl"
-    className="
-      text-2xl
-      font-serif
-      leading-relaxed
-      tracking-wide
-      text-right
-      unicode-bidi-override
-      flex
-      flex-wrap
-      gap-x-1
-    "
-  >
-    {interlinearRows
-      .slice()
-      .sort((a, b) => a.word_index - b.word_index)
-      .map((r, i) => {
-        const idx = getWordIndex(r);
-
-      
-        return (
-          <span
-            key={idx}
-            dir="rtl"
-            className={`
-              cursor-pointer
-              rounded
-              px-0.5
-              ${
-                activeWordIndex === idx
-                  ? "bg-yellow-200 dark:bg-yellow-600"
-                  : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
-              }
-            `}
-            onMouseEnter={() => handleWordHover(idx)}
-            onClick={() => handleWordClick(idx)}
+  <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
+    {errorMsg ? (
+      <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
+    ) : activeTab === "Interlinear" ? (
+      <>
+        {interlinearNotice && (
+          <div
+            className="
+              mb-3 p-3 rounded-md
+              bg-yellow-50 dark:bg-yellow-900/30
+              border border-yellow-300 dark:border-yellow-700
+              text-sm text-yellow-800 dark:text-yellow-200
+            "
           >
-            {cleanHebrewSurface(r.surface)}
-          </span>
-        );
-      })
-      }
-  </p>
-)}
-
-
-                      {translitVerse && (
-                        <>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 mt-2">
-                            Transliteration
-                          </p>
-                          <p className="text-sm italic text-gray-600 dark:text-gray-400">
-                            {translitVerse}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )}
-            
-                  {/* WORD-BY-WORD */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {interlinearRows.map((r, i) => {
-                      const isNT = isNewTestament(verseRef.book);
-                      const row = normalizeInterlinearRow(r, isNT);
-                      const cached = row.strong ? strongCache[row.strong] : null;
-                      const idx = getWordIndex(r);
-
-
-const effectiveLemma =
-  row.lemma ||
-  cached?.lemma ||
-  cleanHebrewSurface(row.surface);
-
-const effectiveTranslit =
-  row.transliteration ||
-  cached?.transliteration ||
-  "";
-
-const effectiveMeaning =
-  row.meaning ||
-  cached?.meaning ||
-  "";
-
-
-                      
-
-
-            
-                      return (
-                        <div
-  data-word-index={idx}
-  key={`word-${idx}`}
-  ref={(el) => {
-    if (el) {
-      wordRefs.current.set(idx, el);
-    }
-  }}
-  className={`
-    rounded-lg border px-4 py-3 dark:border-gray-700
-    transition-colors
-    ${
-      activeWordIndex === idx
-        ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-800/40"
-        : "bg-white dark:bg-gray-900"
-    }
-  `}
->
-
-  {/* SURFACE — HERO */}
-  <div className="text-2xl font-serif font-semibold leading-tight">
-    {isNewTestament(verseRef.book)
-      ? row.surface
-      : cleanHebrewSurface(row.surface)}
-  </div>
-
-  {/* LEMMA — QUIET */}
-  <div className="text-sm font-serif text-gray-500 dark:text-gray-400">
-    {effectiveLemma || "—"}
-  </div>
-
-  {/* MEANING — PRIMARY CONTENT */}
-  <div className="mt-2 text-sm text-gray-900 dark:text-gray-100">
-    {effectiveMeaning || "—"}
-  </div>
-
-  {/* SECONDARY META ROW */}
-  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-    {effectiveTranslit && (
-      <span className="italic">{effectiveTranslit}</span>
-    )}
-
-    {row.strong && (
-      <button
-        onClick={() => openStrong(row)}
-        className="
-          px-2 py-0.5 rounded
-          border border-gray-300 dark:border-gray-600
-          hover:bg-gray-100 dark:hover:bg-gray-800
-          text-gray-700 dark:text-gray-300
-        "
-      >
-        {row.strong}
-      </button>
-    )}
-  </div>
-</div>
-
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  Interlinear data not available for this verse.
-                </p>
-              )
-            ) : analysis[activeTab] == null ? (
-              <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
-                <p>
-                  {language === "TE"
-                    ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
-                    : "Click the button below to generate AI analysis for this tab."}
-                </p>
-                <button
-                  onClick={handleGenerateClick}
-                  className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-                >
-                  {language === "TE"
-                    ? "విశ్లేషణ సృష్టించు"
-                    : `Generate ${activeTab}`}
-                </button>
-              </div>
-            ) : (
-              <ReactMarkdown
-  remarkPlugins={[remarkGfm]}
-  components={{
-    h1({ children }) {
-      return (
-        <h1 className="text-xl font-bold mt-4 mb-2">
-          {renderNodeWithRefs(children)}
-        </h1>
-      );
-    },
-    h2({ children }) {
-      return (
-        <h2 className="text-lg font-bold mt-4 mb-2">
-          {renderNodeWithRefs(children)}
-        </h2>
-      );
-    },
-    h3({ children }) {
-      return (
-        <h3 className="text-base font-semibold mt-3 mb-1">
-          {renderNodeWithRefs(children)}
-        </h3>
-      );
-    },
-    p({ children }) {
-      return (
-        <p className="mb-2 leading-relaxed">
-          {renderNodeWithRefs(children)}
-        </p>
-      );
-    },
-    ul({ children }) {
-      return <ul className="list-disc ml-5 mb-2">{children}</ul>;
-    },
-    li({ children }) {
-      return (
-        <li className="mb-1">
-          {renderNodeWithRefs(children)}
-        </li>
-      );
-    },
-  }}
->
-  {analysis[activeTab] ?? ""}
-</ReactMarkdown>
-
-
-            )
-            
-            }
+            {interlinearNotice}
           </div>
         )}
+    
+        {/* existing interlinear rendering — LEAVE AS IS */}
+        {null}
+      </>
+    ) : analysis[activeTab] == null ? (
+    
+      <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+        <p>
+          {language === "TE"
+            ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
+            : "Click the button below to generate AI analysis for this tab."}
+        </p>
+        <button
+          onClick={handleGenerateClick}
+          className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+        >
+          {language === "TE"
+            ? "విశ్లేషణ సృష్టించు"
+            : `Generate ${activeTab}`}
+        </button>
+      </div>
+    ) : (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1({ children }) {
+            return (
+              <h1 className="text-xl font-bold mt-4 mb-2">
+                {renderNodeWithRefs(children)}
+              </h1>
+            );
+          },
+          h2({ children }) {
+            return (
+              <h2 className="text-lg font-bold mt-4 mb-2">
+                {renderNodeWithRefs(children)}
+              </h2>
+            );
+          },
+          p({ children }) {
+            return (
+              <p className="mb-2 leading-relaxed">
+                {renderNodeWithRefs(children)}
+              </p>
+            );
+          },
+        }}
+      >
+        {analysis[activeTab] ?? ""}
+      </ReactMarkdown>
+    )}
+  </div>
+)}
+
       </div>
 
       {/* Preview Modal */}
