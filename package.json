@@ -10,6 +10,9 @@
     "backend": "node server/index.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^8.0.0",
     "@google/genai": "^1.29.1",
     "@supabase/auth-helpers-react": "^0.15.0",
     "@supabase/auth-js": "^2.86.0",

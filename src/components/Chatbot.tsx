@@ -5,6 +5,10 @@ import { sendMessageToLlama } from "../services/geminiService";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import ModalPortal from "./ModalPortal";
+import { findBookMetadata, fetchChapter } from "../services/bibleService";
+import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+
 
 import rehypeRaw from "rehype-raw";
 
@@ -32,49 +36,60 @@ const UI_TEXT = {
 
 // BOT MESSAGE COMPONENT
 const BotMessage: React.FC<{
-  message: string | React.ReactNode;
+  message: string;
   sources?: GroundingChunk[];
-}> = ({ message, sources }) => (
+  renderWithRefs: (node: React.ReactNode) => React.ReactNode;
+}> = ({ message, sources, renderWithRefs }) => (
   <div className="flex items-start gap-2.5">
-    <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
-      
-      {/* MARKDOWN WRAPPER FIX */}
-      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-white">
+    <div className="flex flex-col w-full max-w-[320px] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
+      <div className="prose prose-sm dark:prose-invert max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}
+          components={{
+            p({ children }) {
+              return <p>{renderWithRefs(children)}</p>;
+            },
+            li({ children }) {
+              return <li>{renderWithRefs(children)}</li>;
+            },
+            strong({ children }) {
+              return <strong>{renderWithRefs(children)}</strong>;
+            },
+            em({ children }) {
+              return <em>{renderWithRefs(children)}</em>;
+            },
+          }}
         >
-          {String(message)}
+          {message}
         </ReactMarkdown>
       </div>
 
-      {sources && sources.length > 0 && (
+      {sources?.length > 0 && (
         <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
           <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
             Sources:
           </h4>
-
           <ul className="list-disc list-inside space-y-1">
-            {sources
-              .filter((s) => s.web?.uri)
-              .map((source, i) => (
-                <li key={i} className="text-xs">
-                  <a
-                    href={source.web.uri}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline break-all"
-                  >
-                    {source.web.title || source.web.uri}
-                  </a>
-                </li>
-              ))}
+            {sources.map((s, i) => (
+              <li key={i} className="text-xs">
+                <a
+                  href={s.web?.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {s.web?.title || s.web?.uri}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
       )}
     </div>
   </div>
 );
+
 
 
 // USER MESSAGE COMPONENT
@@ -85,6 +100,14 @@ const UserMessage: React.FC<{ message: string }> = ({ message }) => (
     </div>
   </div>
 );
+
+const INLINE_REF_RENDER_REGEX = new RegExp(
+  `((?:[1-3]?\\s*)?(?:[A-Za-z\\.]+|[\\u0C00-\\u0C7F]+(?:\\s+[\\u0C00-\\u0C7F]+)*)\\s+\\d+:\\d+(?:-\\d+)?)`,
+  "gu"
+);
+
+
+
 
 // MAIN CHATBOT COMPONENT
 interface ChatbotProps {
@@ -114,6 +137,11 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   const [modelLanguage, setModelLanguage] = useState<"EN" | "TE">("EN");
 
   // const [chatMode, setChatMode] = useState<ChatMode>(ChatMode.FAST);
+
+  const [previewRef, setPreviewRef] = useState<string | null>(null);
+const [previewText, setPreviewText] = useState<string>("");
+const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [followUpQs, setFollowUpQs] = useState<string[]>([]);
@@ -246,6 +274,9 @@ const detectInitialLanguage = (): "EN" | "TE" => {
     ];
   };
 
+
+  
+
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
   const generateAIFollowUps = async (botResponse: string, history: Message[]) => {
     const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
@@ -315,6 +346,119 @@ const detectInitialLanguage = (): "EN" | "TE" => {
       return [];
     }
   };
+
+  const loadReferenceText = async (refStringRaw: string) => {
+    try {
+      const refString = refStringRaw
+        .replace(/[–—]/g, "-")
+        .replace(/\(.*?\)/g, "")
+        .trim();
+  
+      const m = refString.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
+      if (!m) return "";
+  
+      const rawBook = m[1].trim();
+      const chapter = Number(m[2]);
+      const startVerse = Number(m[3]);
+      const endVerse = m[4] ? Number(m[4]) : startVerse;
+  
+      let meta = findBookMetadata(rawBook);
+  
+      if (!meta) {
+        const eng = Object.entries(TELUGU_BOOK_NAMES).find(
+          ([, tel]) => tel === rawBook
+        );
+        if (eng) meta = findBookMetadata(eng[0]);
+      }
+  
+      if (!meta) return "";
+  
+      const chapterData = await fetchChapter(meta.name, chapter);
+      if (!chapterData?.length) return "";
+  
+      return chapterData
+        .filter(v => v.verse >= startVerse && v.verse <= endVerse)
+        .map(v =>
+          language === "TE"
+            ? v.text.BSI_TELUGU || v.text.KJV
+            : v.text[englishVersion] || v.text.KJV
+        )
+        .join("\n");
+    } catch {
+      return "";
+    }
+  };
+
+  const handleClickReference = async (reference: string) => {
+    setPreviewRef(reference);
+    const text = await loadReferenceText(reference);
+    setPreviewText(text);
+    setIsPreviewOpen(true);
+  };
+
+  const renderNodeWithRefs = (node: React.ReactNode): React.ReactNode => {
+  if (node == null) return null;
+
+  if (typeof node === "string") {
+    const parts: React.ReactNode[] = [];
+    const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
+
+    let lastIndex = 0;
+    let m: RegExpExecArray | null;
+
+    while ((m = regex.exec(node)) !== null) {
+      const match = m[1];
+      const start = m.index;
+
+      if (start > lastIndex) {
+        parts.push(node.slice(lastIndex, start));
+      }
+
+      parts.push(
+        <span
+          key={`${match}-${start}`}
+          className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClickReference(match);
+          }}
+        >
+          {match}
+        </span>
+      );
+
+      lastIndex = start + match.length;
+    }
+
+    if (lastIndex < node.length) {
+      parts.push(node.slice(lastIndex));
+    }
+
+    return parts.length ? parts : node;
+  }
+
+  if (Array.isArray(node)) {
+    return node.map((c, i) => (
+      <React.Fragment key={i}>
+        {renderNodeWithRefs(c)}
+      </React.Fragment>
+    ));
+  }
+
+  if (React.isValidElement(node)) {
+    const element = node as React.ReactElement<{ children?: React.ReactNode }>;
+  
+    return React.cloneElement(
+      element,
+      element.props,
+      renderNodeWithRefs(element.props.children)
+    );
+  }
+  
+
+  return node;
+};
+
   // SEND MESSAGE
   const handleSend = async (forcedInput?: string) => {
     // clear old follow-ups (they belong to previous bot answer)
@@ -574,7 +718,13 @@ const detectInitialLanguage = (): "EN" | "TE" => {
               msg.sender === "user" ? (
                 <UserMessage key={msg.id} message={msg.text as string} />
               ) : (
-                <BotMessage key={msg.id} message={msg.text} sources={msg.sources} />
+                <BotMessage
+  key={msg.id}
+  message={msg.text as string}
+  sources={msg.sources}
+  renderWithRefs={renderNodeWithRefs}
+/>
+
               )
             )}
 
@@ -642,6 +792,38 @@ const detectInitialLanguage = (): "EN" | "TE" => {
           </div>
         </div>
       )}
+
+{isPreviewOpen && (
+  <ModalPortal>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={() => setIsPreviewOpen(false)}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-md w-full shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold mb-2">
+          {previewRef}
+        </h3>
+
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">
+          {previewText || "Verse not found."}
+        </p>
+
+        <div className="mt-4 text-right">
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => setIsPreviewOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </ModalPortal>
+)}
+
     </>
   );
 };
