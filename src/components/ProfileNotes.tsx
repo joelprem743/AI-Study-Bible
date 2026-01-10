@@ -146,11 +146,13 @@ interface Props {
   incomingVerse?: {
     ref: {
       book: string;
+      displayBook?: string; // ✅ ADD
       chapter: number;
       verse: number;
     };
     text: string;
   };
+  
 }
 
 export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
@@ -424,9 +426,10 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   >
     Select a note to add the Verse:
     <strong className="ml-1">
-      {incomingVerse.ref.book}{" "}
-      {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
-    </strong>
+  {(incomingVerse.ref.displayBook || incomingVerse.ref.book)}{" "}
+  {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
+</strong>
+
   </div>
 )}
 
@@ -611,12 +614,16 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   <button
   onClick={() => {
     if (incomingVerse) {
-      setDraftTitle(
-        `${incomingVerse.ref.book} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}`
-      );
-      setDraftBody(
-        `${incomingVerse.ref.book} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}\n${incomingVerse.text}`
-      );
+      const bookLabel =
+  incomingVerse.ref.displayBook || incomingVerse.ref.book;
+
+setDraftTitle(
+  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}`
+);
+setDraftBody(
+  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}\n${incomingVerse.text}`
+);
+
     } else {
       setDraftTitle("");
       setDraftBody("");

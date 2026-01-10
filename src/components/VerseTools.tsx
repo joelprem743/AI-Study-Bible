@@ -812,13 +812,17 @@ async function preloadStrongLexicons(rows: any[]) {
   }
 }
 
-const effectiveLanguage =
-activeTab === "Interlinear" ? "EN" : language;
+const displayEnglishVerse =
+  verseData.text[englishVersion] || verseData.text.KJV || "";
+
+const displayTeluguVerse =
+  verseData.text.TELUGU_COMMUNITY_V1 || "";
 
 const displayVerseText =
-  effectiveLanguage === "TE"
-    ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
-    : verseData.text[englishVersion] || verseData.text.KJV;
+  language === "TE"
+    ? displayTeluguVerse || displayEnglishVerse
+    : displayEnglishVerse;
+
 
 
   const buildKey = useCallback(
@@ -957,12 +961,20 @@ const loadCompare = useCallback(async () => {
     const verse = chapter.find(
       (x) => x.verse === verseRef.verse
     );
-    if (verse?.text?.[v]) {
-      rows.push({
-        version: v,
-        text: verse.text[v].trim(),
-      });
-    }
+    if (!verse || !verse.text) return;
+
+if (v === "TELUGU_COMMUNITY_V1") {
+  rows.push({
+    version: v,
+    text: verse.text.TELUGU_COMMUNITY_V1 || "",
+  });
+} else {
+  rows.push({
+    version: v,
+    text: verse.text[v] || verse.text.KJV || "",
+  });
+}
+
   });
 
   setCompareVerses(rows);
@@ -1490,6 +1502,13 @@ const handleWordSelect = (idx: number) => {
   /* -------------------------
     Effects
   ---------------------------*/
+
+  useEffect(() => {
+    if (activeTab === "Compare") {
+      setLanguage("EN"); // navigation only, not verse data
+    }
+  }, [activeTab]);
+  
 
   useEffect(() => {
     if (activeTab !== "Compare") return;
@@ -2110,14 +2129,23 @@ if (cached) {
     setMenuOpen(false);
 
     // Open ProfileNotes with incoming verse
-    window.dispatchEvent(
-      new CustomEvent("open-profile-notes", {
-        detail: {
-          ref: verseRef,
-          text: displayVerseText,
-        },
-      })
-    );
+    const displayBookName =
+  language === "TE"
+    ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+    : verseRef.book;
+
+window.dispatchEvent(
+  new CustomEvent("open-profile-notes", {
+    detail: {
+      ref: {
+        ...verseRef,
+        displayBook: displayBookName, // 👈 ADD THIS
+      },
+      text: displayVerseText,
+    },
+  })
+);
+
 
     // ✅ CLOSE VerseTools (important for mobile UX)
     onClose?.();
