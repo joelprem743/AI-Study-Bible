@@ -113,8 +113,9 @@ const isValidOriginalForBook = (book: string, version?: string) => {
   // ---------- Version / language helpers ----------
 
 
-    const isTeluguVersion = (version?: string) =>
-      version === "TELUGU_COMMUNITY_V1" || version?.toLowerCase().includes("telugu");
+  const isTeluguVersion = (version?: string) =>
+    version === "TELUGU_COMMUNITY_V1";
+  
     
     const getBookNameByVersion = (version?: string) => {
       if (isTeluguVersion(version)) {
@@ -419,11 +420,22 @@ studyMode === "single"
                   Single
                 </button>
                 <button
-                  onClick={() => onSetStudyMode("parallel")}
-                  className={`flex-1 py-2 rounded ${studyMode === "parallel" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"}`}
-                >
-                  Parallel
-                </button>
+  onClick={() => {
+    onSetStudyMode("parallel");
+
+    // FORCE sane defaults
+    onSetLeftVersion("KJV");
+    onSetRightVersion("TELUGU_COMMUNITY_V1");
+  }}
+  className={`flex-1 py-2 rounded ${
+    studyMode === "parallel"
+      ? "bg-blue-600 text-white"
+      : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+  }`}
+>
+  Parallel
+</button>
+
               </div>
 
               {/* Version pickers */}

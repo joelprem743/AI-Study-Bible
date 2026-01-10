@@ -362,33 +362,31 @@ export function normalizeTeluguReference(query: string): string {
 // ------------------------------
 // fetchChapter
 // ------------------------------
-export const fetchChapter = async (
+export async function fetchChapter(
   book: string,
-  chapter: number
-): Promise<Verse[]> => {
-
-  const engBook = canonicalizeBook(book);
-
+  chapter: number,
+  version: string
+): Promise<Verse[]> {
   const { data, error } = await supabase
     .from("bible_verses")
-    .select("verse, text, version")
-    .eq("book", engBook)
+    .select("verse, text")
+    .eq("book", book)
     .eq("chapter", chapter)
-    .order("verse", { ascending: true });
+    .eq("version", version)
+    .order("verse");
 
-  if (error) throw error;
-
-  const grouped: Record<number, Verse> = {};
-
-  for (const row of data ?? []) {
-    if (!grouped[row.verse]) {
-      grouped[row.verse] = { verse: row.verse, text: {} };
-    }
-    grouped[row.verse].text[row.version] = row.text;
+  if (error) {
+    console.error(error);
+    throw error;
   }
 
-  return Object.values(grouped);
-};
+  return data.map(row => ({
+    verse: row.verse,
+    text: {
+      [version]: row.text,
+    },
+  }));
+}
 
 
 export interface GroupedVerses {

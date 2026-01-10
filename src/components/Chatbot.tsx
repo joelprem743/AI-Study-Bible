@@ -415,24 +415,24 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
       if (!meta) return "";
   
-      const chapterData = await fetchChapter(meta.name, chapter);
+      const version =
+        language === "TE"
+          ? "TELUGU_COMMUNITY_V1"
+          : englishVersion;
+  
+      const chapterData = await fetchChapter(meta.name, chapter, version);
       if (!chapterData?.length) return "";
   
       return chapterData
         .filter(v => v.verse >= startVerse && v.verse <= endVerse)
-        .map(v => {
-          if (language === "TE") {
-            return v.text.TELUGU_COMMUNITY_V1 ?? "";
-          }
-          return v.text[englishVersion] ?? "";
-        })
+        .map(v => v.text[version] ?? "")
         .filter(Boolean)
-        
         .join("\n");
     } catch {
       return "";
     }
   };
+  
 
   const normalizeText = (text: string) => {
     return text

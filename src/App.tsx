@@ -220,78 +220,56 @@ const [incomingVerse, setIncomingVerse] = useState<{
   // Load verses
 
 
-useEffect(() => {
-  if (isSearchView) return;
-
-  const load = async () => {
-    setIsLoadingVerses(true);
-    setVerseError(null);
-
-
-
-    try {
-      // // ---------------- ORIGINAL LANGUAGES ----------------
-      // if (
-      //   studyMode === "single" &&
-      //   (activeSingleVersion === "HEBREW_OT" ||
-      //    activeSingleVersion === "GREEK_NT")
-      // ) {
-      //   const bookIndex = BIBLE_META.findIndex(b => b.name === selectedBook);
-      //   const isOT = bookIndex < 39;
-    
-      //   // hard guard
-      //   if (
-      //     (activeSingleVersion === "HEBREW_OT" && !isOT) ||
-      //     (activeSingleVersion === "GREEK_NT" && isOT)
-      //   ) {
-      //     setVerses([]);
-      //     setVerseError("This book is not available in the selected original language.");
-      //     return;
-      //   }
-    
-      //   const raw = await fetchOriginalChapter(
-      //     selectedBook,
-      //     selectedChapter,
-      //     activeSingleVersion
-      //   );
-    
-      //   const verseMap: Record<number, string> = {};
-    
-      //   for (const w of raw) {
-      //     if (w.verse == null || typeof w.surface !== "string") continue;
-      //     verseMap[w.verse] ??= "";
-      //     verseMap[w.verse] += w.surface.trim() + " ";
-      //   }
-    
-      //   const normalized = Object.entries(verseMap)
-      //     .map(([verse, text]) => ({
-      //       verse: Number(verse),
-      //       text: { ORIGINAL: text.trim() },
-      //     }))
-      //     .sort((a, b) => a.verse - b.verse);
-    
-      //   setVerses(normalized as any);
-      //   return;
-      // }
-    
-      // ---------------- NORMAL VERSIONS (THIS WAS MISSING) ----------------
-      const data = await fetchChapter(selectedBook, selectedChapter);
-      setVerses(data);
-    
-    } catch (e) {
-      console.error(e);
-      setVerseError("Failed to load chapter.");
-      setVerses([]);
-    }
-    finally {
-      setIsLoadingVerses(false);
-    }
-  };
-
-  load();
-}, [selectedBook, selectedChapter, isSearchView, studyMode, singleVersion]);
-
-
+  useEffect(() => {
+    if (isSearchView) return;
+  
+    const load = async () => {
+      setIsLoadingVerses(true);
+      setVerseError(null);
+  
+      try {
+        if (studyMode === "single") {
+          const data = await fetchChapter(
+            selectedBook,
+            selectedChapter,
+            singleVersion
+          );
+          setVerses(data);
+        } else {
+          const [left, right] = await Promise.all([
+            fetchChapter(selectedBook, selectedChapter, leftVersion),
+            fetchChapter(selectedBook, selectedChapter, rightVersion),
+          ]);
+  
+          const merged = mergeParallelVerses(
+            left,
+            right,
+            leftVersion,
+            rightVersion
+          );
+  
+          setVerses(merged);
+        }
+      } catch (e) {
+        console.error(e);
+        setVerseError("Failed to load chapter.");
+        setVerses([]);
+      } finally {
+        setIsLoadingVerses(false);
+      }
+    };
+  
+    load();
+  }, [
+    selectedBook,
+    selectedChapter,
+    studyMode,
+    singleVersion,
+    leftVersion,
+    rightVersion,
+    isSearchView,
+  ]);
+  
   
   // Navigation helpers
   const handleBookChange = useCallback((book: string) => {
@@ -364,6 +342,34 @@ useEffect(() => {
       return true;
     });
   }
+
+  function mergeParallelVerses(
+    left: Verse[],
+    right: Verse[],
+    leftVersion: string,
+    rightVersion: string
+  ): Verse[] {
+    const map = new Map<number, Verse>();
+  
+    left.forEach(v => {
+      map.set(v.verse, {
+        ...v,
+        text: {
+          [leftVersion]: v.text[leftVersion],
+        },
+      });
+    });
+  
+    right.forEach(v => {
+      const existing = map.get(v.verse);
+      if (!existing) return;
+  
+      existing.text[rightVersion] = v.text[rightVersion];
+    });
+  
+    return Array.from(map.values()).sort((a, b) => a.verse - b.verse);
+  }
+  
   
 
   

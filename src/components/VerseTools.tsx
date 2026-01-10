@@ -939,28 +939,34 @@ const handleCopyTabContent = useCallback(async () => {
 
 
 const loadCompare = useCallback(async () => {
-  const chapter = await fetchChapter(
-    verseRef.book,
-    verseRef.chapter
+  const versions = [
+    englishVersion,
+    "TELUGU_COMMUNITY_V1",
+  ];
+
+  const results = await Promise.all(
+    versions.map((v) =>
+      fetchChapter(verseRef.book, verseRef.chapter, v)
+    )
   );
 
-  const verse = chapter.find(v => v.verse === verseRef.verse);
-  if (!verse) {
-    setCompareVerses([]);
-    return;
-  }
+  const rows: { version: string; text: string }[] = [];
 
-  const EXCLUDED = ["HEBREW_OT", "GREEK_NT"];
-
-  const rows = Object.entries(verse.text)
-    .filter(([v, t]) => t && !EXCLUDED.includes(v))
-    .map(([v, t]) => ({
-      version: v,
-      text: t.trim(),
-    }));
+  results.forEach((chapter, idx) => {
+    const v = versions[idx];
+    const verse = chapter.find(
+      (x) => x.verse === verseRef.verse
+    );
+    if (verse?.text?.[v]) {
+      rows.push({
+        version: v,
+        text: verse.text[v].trim(),
+      });
+    }
+  });
 
   setCompareVerses(rows);
-}, [verseRef]);
+}, [verseRef, englishVersion]);
 
 
 
@@ -997,7 +1003,14 @@ const handleWordSelect = (idx: number) => {
 
   const handleShareVerse = async () => {
     // ALWAYS fetch correct verse fresh (fixes stale/wrong verse bug)
-    const chapterData = await fetchChapter(verseRef.book, verseRef.chapter);
+    const chapterData = await fetchChapter(
+      verseRef.book,
+      verseRef.chapter,
+      language === "TE"
+        ? "TELUGU_COMMUNITY_V1"
+        : englishVersion
+    );
+    
     const actual = chapterData.find(v => v.verse === verseRef.verse);
   
     const correctText =
@@ -1163,7 +1176,12 @@ const handleWordSelect = (idx: number) => {
 
         if (!meta) return "";
 
-        const chapterData = await fetchChapter(meta.name, chapter);
+        const chapterData = await fetchChapter(
+          meta.name,
+          chapter,
+          language === "TE" ? "TELUGU_COMMUNITY_V1" : englishVersion
+        );
+        
         if (!chapterData || !chapterData.length) return "";
 
         const selected = chapterData.filter(
@@ -1630,16 +1648,14 @@ const handleWordSelect = (idx: number) => {
   
 
   useEffect(() => {
-    // 🔒 Do NOT auto-sync language while in Interlinear
     if (activeTab === "Interlinear") return;
   
-    if (englishVersion === "TELUGU_COMMUNITY_V1") {
+    // Auto-detect language ONLY if user hasn't explicitly chosen
+    if (verseData.text.TELUGU_COMMUNITY_V1 && !verseData.text[englishVersion]) {
       setLanguage("TE");
-    } else {
-      setLanguage("EN");
     }
-    
-  }, [englishVersion, verseRef, activeTab]);
+  }, [verseData, activeTab]);
+  
   
   
 
