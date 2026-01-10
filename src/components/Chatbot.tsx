@@ -245,21 +245,13 @@ const detectInitialLanguage = (): "EN" | "TE" => {
 
   useEffect(() => {
     const handler = (e: any) => {
-      setMessages(prev => {
-        const last = prev[prev.length - 1];
-        if (!last || last.sender !== "bot") {
-          return [...prev, { id: "stream", text: e.detail, sender: "bot" }];
-        }
-        return [
-          ...prev.slice(0, -1),
-          { ...last, text: last.text + e.detail }
-        ];
-      });
+      // ❌ Never stream when structured JSON is expected
+      if (isLoading) return;
     };
   
     window.addEventListener("llama-stream", handler);
     return () => window.removeEventListener("llama-stream", handler);
-  }, []);
+  }, [isLoading]);
   
   // Translation helper for UI text
   const t = (key: string) => {
@@ -317,7 +309,11 @@ const detectInitialLanguage = (): "EN" | "TE" => {
     ];
   };
 
-
+  const extractJsonFromSentinel = (text: string): string => {
+    const match = text.match(/<json>([\s\S]*?)<\/json>/i);
+    if (!match) return "";
+    return match[1].trim();
+  };
   
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
@@ -331,45 +327,64 @@ const detectInitialLanguage = (): "EN" | "TE" => {
         : "Return questions in English.";
   
     const prompt = `
-  Return ONLY valid JSON.
+  You are generating FOLLOW-UP QUESTIONS only.
   
-  Schema:
+  Return EXACTLY this format and NOTHING else:
+  
+  <json>
   {
-    "questions": string[]
+    "questions": [
+      "question 1",
+      "question 2",
+      "question 3"
+    ]
   }
+  </json>
   
   Rules:
   - Exactly 3 questions
+  - Plain text only
   - No markdown
-  - No numbering
-  - No extra text
+  - No headings
+  - No explanations
+  - No Bible verses quoted
+  - No bullet symbols
   
-  Base the questions on this answer:
-  ${JSON.stringify(answerJson)}
+  Base them on these section titles:
+  ${answerJson.sections.map(s => `- ${s.title}`).join("\n")}
   
   ${langInstruction}
   `;
   
-    const result = await sendMessageToLlama(
-      prompt,
-      history,
-      modelLanguage
-    );
+    let resultText = "";
   
     try {
-      const parsed = JSON.parse(result.text) as { questions: string[] };
+      const result = await sendMessageToLlama(prompt, history, modelLanguage);
+      resultText = result.text;
+    } catch {
+      return [];
+    }
+  
+    try {
+      const jsonText = extractJsonFromSentinel(resultText);
+      const parsed = JSON.parse(jsonText);
   
       if (!Array.isArray(parsed.questions)) {
-        throw new Error("Invalid follow-up schema");
+        return [];
       }
   
       return parsed.questions.slice(0, 3);
     } catch (err) {
-      console.error("Follow-up JSON parse failed:", err);
+      // 🔒 HARD FAIL SAFE — NEVER THROW
+      console.warn("Follow-up generation skipped (non-fatal):", err);
       return [];
     }
   };
   
+
+  // ===== JSON SENTINEL HELPERS =====
+
+
 
   const loadReferenceText = async (refStringRaw: string) => {
     try {
@@ -679,7 +694,7 @@ const botMessage: Message = {
         
         setFollowUpQs(aiQs);
       } catch (err) {
-        console.error("Follow-up generation failed:", err);
+        console.warn("Follow-up skipped:", err);
         setFollowUpQs([]);
       }
     } catch (err: any) {
