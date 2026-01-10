@@ -771,8 +771,11 @@ const botMessage: Message = {
           "
         >
           {/* HEADER */}
-          <header className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 rounded-t-xl">
-            <h3 className="text-lg font-bold">Bible Companion Assistant</h3>
+          <header className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 rounded-t-xl">
+          <h3 className="text-sm font-semibold leading-tight">
+  Bible Companion Assistant
+</h3>
+
 
             <div className="relative flex items-center gap-3">
               {/* 
@@ -800,8 +803,9 @@ const botMessage: Message = {
               <select
   value={chatScope}
   onChange={(e) => setChatScope(e.target.value as ChatScope)}
-  className="text-xs border rounded px-2 py-1"
+  className="text-[11px] border rounded px-1.5 py-0.5"
 >
+
   <option value="GLOBAL">Global Chat</option>
   <option value="CHAPTER">This Chapter</option>
   <option value="VERSE">This Verse</option>
@@ -816,7 +820,7 @@ const botMessage: Message = {
                     bg-gray-50 dark:bg-gray-700
                     border border-gray-300 dark:border-gray-600
                     text-gray-900 dark:text-white
-                    text-xs rounded-lg px-3 py-1.5
+                    text-[11px] rounded-md px-2 py-0.5
                     flex items-center gap-2
                     transition-all duration-150
                     hover:bg-gray-100 dark:hover:bg-gray-600
