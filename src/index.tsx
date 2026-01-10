@@ -8,7 +8,7 @@ import { HashRouter } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { NotesProvider } from "./context/NotesContext";
-
+  
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Could not find root element");
 

@@ -39,10 +39,17 @@ export interface VerseReference {
 
 export interface Message {
   id: string;
-  text: string | ReactNode;
   sender: "user" | "bot";
+
+  // User messages
+  text?: string | ReactNode;
+
+  // Bot structured answers (Option A)
+  answer?: ChatbotAnswer;
+
   sources?: GroundingChunk[];
 }
+
 
 // export enum ChatMode {
 //   FAST = "gemini-2.5-flash-lite",
@@ -70,4 +77,18 @@ export interface BookMetadata {
   name: string;
   chapters: number;
   wasFuzzy?: boolean;
+}
+
+/* ============================================================
+  CHATBOT STRUCTURED ANSWER (Option A)
+============================================================ */
+
+export interface ChatbotSection {
+  title: string;
+  explanation: string;
+  references: string[]; // e.g. ["John 3:16", "Romans 8:1–4"]
+}
+
+export interface ChatbotAnswer {
+  sections: ChatbotSection[];
 }

@@ -1,16 +1,22 @@
 // src/components/Chatbot.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { Message, GroundingChunk, Verse, VerseReference } from "..";
+import {
+  Message,
+  GroundingChunk,
+  Verse,
+  VerseReference,
+  ChatbotAnswer,
+} from "..";
+
 import { sendMessageToLlama } from "../services/geminiService";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+
 
 import ModalPortal from "./ModalPortal";
 import { findBookMetadata, fetchChapter } from "../services/bibleService";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 
-import rehypeRaw from "rehype-raw";
+
 
 
 // Helper translations (simple conversational Telugu)
@@ -36,46 +42,91 @@ const UI_TEXT = {
 
 // BOT MESSAGE COMPONENT
 const BotMessage: React.FC<{
-  message: string;
+  answer: ChatbotAnswer;
   sources?: GroundingChunk[];
   renderWithRefs: (node: React.ReactNode) => React.ReactNode;
-}> = ({ message, sources, renderWithRefs }) => (
-  <div className="flex items-start gap-2.5">
-    <div className="flex flex-col w-full max-w-[320px] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
-    <div className="text-sm leading-relaxed space-y-3">
-  {message.split("\n\n").map((block, i) => (
-    <div key={i}>
-      {renderWithRefs(block)}
+  onReferenceClick: (ref: string) => void;
+}> = ({ answer, sources, renderWithRefs, onReferenceClick }) => {
+  const [openSections, setOpenSections] = React.useState<Record<number, boolean>>(
+    () =>
+      answer.sections.reduce((acc, _, idx) => {
+        acc[idx] = idx === 0;
+        return acc;
+      }, {} as Record<number, boolean>)
+  );
+
+  const toggle = (i: number) =>
+    setOpenSections(prev => ({ ...prev, [i]: !prev[i] }));
+
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="flex flex-col w-full max-w-[320px] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
+        {answer.sections.map((sec, i) => (
+          <div
+            key={i}
+            className="mb-3 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+          >
+            <button
+              onClick={() => toggle(i)}
+              className="w-full flex items-center justify-between px-3 py-2 text-left bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500"
+            >
+              <span className="font-semibold text-sm">{sec.title}</span>
+              <span className="text-xs opacity-70">
+                {openSections[i] ? "−" : "+"}
+              </span>
+            </button>
+
+            {openSections[i] && (
+              <div className="p-3 space-y-2 bg-gray-100 dark:bg-gray-700">
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {renderWithRefs(sec.explanation)}
+                </div>
+
+                {sec.references.length > 0 && (
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
+                    References:{" "}
+                    {sec.references.map((ref, j) => (
+                      <span
+                        key={j}
+                        className="underline cursor-pointer mr-2"
+                        onClick={() => onReferenceClick(ref)}
+                      >
+                        {ref}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {sources?.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+            <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+              Sources:
+            </h4>
+            <ul className="list-disc list-inside space-y-1">
+              {sources.map((s, i) => (
+                <li key={i} className="text-xs">
+                  <a
+                    href={s.web?.uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {s.web?.title || s.web?.uri}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
-  ))}
-</div>
+  );
+};
 
-
-
-      {sources?.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
-          <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
-            Sources:
-          </h4>
-          <ul className="list-disc list-inside space-y-1">
-            {sources.map((s, i) => (
-              <li key={i} className="text-xs">
-                <a
-                  href={s.web?.uri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  {s.web?.title || s.web?.uri}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  </div>
-);
 
 
 
@@ -270,74 +321,55 @@ const detectInitialLanguage = (): "EN" | "TE" => {
   
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
-  const generateAIFollowUps = async (botResponse: string, history: Message[]) => {
-    const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
+  const generateAIFollowUps = async (
+    answerJson: ChatbotAnswer,
+    history: Message[]
+  ): Promise<string[]> => {
+    const langInstruction =
+      modelLanguage === "TE"
+        ? "ప్రశ్నలను తెలుగులో ఇవ్వండి."
+        : "Return questions in English.";
   
-    const metaInstruction = `Generate exactly 3 follow-up questions based on this answer:
+    const prompt = `
+  Return ONLY valid JSON.
   
-  ${botResponse}
+  Schema:
+  {
+    "questions": string[]
+  }
+  
+  Rules:
+  - Exactly 3 questions
+  - No markdown
+  - No numbering
+  - No extra text
+  
+  Base the questions on this answer:
+  ${JSON.stringify(answerJson)}
   
   ${langInstruction}
+  `;
   
-  Return each question on a new line starting with "- " or a number.`;
-  
-  const result = await sendMessageToLlama(
-    metaInstruction,
-    [...history],
-    modelLanguage
-  );
-  
+    const result = await sendMessageToLlama(
+      prompt,
+      history,
+      modelLanguage
+    );
   
     try {
-      const text = result.text || "";
-      
-      // Extract questions using multiple patterns
-      let questions: string[] = [];
-      
-      // Pattern 1: Numbered list (1. question, 2. question)
-      const numberedMatches = text.match(/^\d+\.\s*(.+)$/gm);
-      if (numberedMatches) {
-        questions = numberedMatches.map(m => m.replace(/^\d+\.\s*/, "").trim());
+      const parsed = JSON.parse(result.text) as { questions: string[] };
+  
+      if (!Array.isArray(parsed.questions)) {
+        throw new Error("Invalid follow-up schema");
       }
-      
-      // Pattern 2: Bullet points (- question, * question)
-      if (questions.length === 0) {
-        const bulletMatches = text.match(/^[-*]\s*(.+)$/gm);
-        if (bulletMatches) {
-          questions = bulletMatches.map(m => m.replace(/^[-*]\s*/, "").trim());
-        }
-      }
-      
-      // Pattern 3: JSON array (fallback)
-      if (questions.length === 0) {
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          try {
-            const parsed = JSON.parse(jsonMatch[0].replace(/,\s*]/g, "]"));
-            if (Array.isArray(parsed)) {
-              questions = parsed.map(q => String(q).trim());
-            }
-          } catch {}
-        }
-      }
-      
-      // Clean and validate
-      questions = questions
-        .filter(q => q.length > 10 && q.length < 300)
-        .map(q => q.replace(/^["'`]|["'`]$/g, ""))  // Remove surrounding quotes
-        .slice(0, 3);
-      
-      if (questions.length === 0) {
-        console.warn("No follow-up questions extracted from:", text);
-      }
-      
-      return questions;
-      
+  
+      return parsed.questions.slice(0, 3);
     } catch (err) {
-      console.error("Follow-up generation failed:", err);
+      console.error("Follow-up JSON parse failed:", err);
       return [];
     }
   };
+  
 
   const loadReferenceText = async (refStringRaw: string) => {
     try {
@@ -381,6 +413,27 @@ const detectInitialLanguage = (): "EN" | "TE" => {
     }
   };
 
+  const normalizeText = (text: string) => {
+    return text
+      // Remove markdown headers and emphasis
+      .replace(/^#+\s*/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/`+/g, "")
+  
+      // Normalize bullet points: force each onto a new line
+      .replace(/\s*\*\s+/g, "\n• ")
+  
+      // Force known section labels onto new paragraphs
+      .replace(
+        /\b(Summary of John \d+|Summary|Key Points|Important Verses|Bible References|Conclusion)\b/g,
+        "\n\n$1"
+      )
+  
+      // Clean up excessive whitespace
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+  
   const handleClickReference = async (reference: string) => {
     setPreviewRef(reference);
     const text = await loadReferenceText(reference);
@@ -451,6 +504,18 @@ const detectInitialLanguage = (): "EN" | "TE" => {
   return node;
 };
 
+const extractJsonObject = (text: string): string => {
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    throw new Error("No JSON object found in AI response");
+  }
+
+  return text.slice(firstBrace, lastBrace + 1);
+};
+
+
 
 
 const buildContextualInput = (input: string) => {
@@ -472,64 +537,6 @@ const buildContextualInput = (input: string) => {
   return input;
 };
 
-function stripMarkdown(text: string): string {
-  return text
-    // headings
-    .replace(/^#{1,6}\s*/gm, "")
-    // bold only
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/__(.*?)__/g, "$1")
-    // bullets
-    .replace(/^\s*[-*+]\s+/gm, "")
-    // inline code
-    .replace(/`([^`]+)`/g, "$1")
-    // leftover markdown chars
-    .replace(/[>#`]/g, "")
-    .trim();
-}
-
-
-
-function enforceNumberedFormat(text: string): string {
-  const blocks = text
-    .replace(/\r/g, "")
-    .trim()
-    .split(/\n\s*\n/); // split by blank lines
-
-  let result: string[] = [];
-  let section = 1;
-
-  for (const block of blocks) {
-    const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
-    if (lines.length < 2) continue;
-
-    const title = lines[0];
-    const body = lines.slice(1).join(" ");
-
-    result.push(
-`${section}. ${title}
-${body}`
-    );
-
-    section++;
-  }
-
-  return result.join("\n\n");
-}
-
-function ensureReferences(text: string): string {
-  const sections = text.split(/\n\n/);
-
-  return sections
-    .map(section => {
-      if (!/References:\s*[A-Za-z]/.test(section)) {
-        return section + "\nReferences: (no reference provided)";
-      }
-      return section;
-    })
-    .join("\n\n");
-}
-
 
 
 
@@ -546,27 +553,49 @@ if (!finalInput || isLoading) return;
 const isDirectQuestion = /\?$/.test(finalInput);
 
 const formattingRules = `
-FORMAT RULES (STRICT — DO NOT VIOLATE):
+SYSTEM INSTRUCTION (CRITICAL):
 
-- DO NOT use numbers (1., 2., etc.) anywhere.
-- DO NOT use markdown headings (##, ###).
-- Each section MUST start with a plain text title on its own line.
-- Follow the title with ONE short explanation sentence.
-- Follow that with a line starting with "References:" containing 1–3 Bible references.
-- Do NOT add introductions or conclusions.
+You MUST return a SINGLE valid JSON object.
+DO NOT include:
+- markdown
+- headings
+- explanations
+- bullet points
+- plain text
+- emojis
+- comments
+- code fences
 
-FORMAT TEMPLATE (FOLLOW EXACTLY):
+If you cannot comply, return this EXACT JSON and nothing else:
+{
+  "sections": [
+    {
+      "title": "Error",
+      "explanation": "The model failed to generate structured output.",
+      "references": []
+    }
+  ]
+}
 
-Title
-Short explanation sentence.
-References: Book 1:1; Book 2:3
+REQUIRED SCHEMA:
+{
+  "sections": [
+    {
+      "title": string,
+      "explanation": string,
+      "references": string[]
+    }
+  ]
+}
 
-Title
-Short explanation sentence.
-References: Book 3:4
+RULES:
+- references must be Bible references only (e.g. "John 3:16")
+- Use plain text only
+- No markdown
+- No numbering
+
+RETURN JSON ONLY.
 `;
-
-
 
 
 
@@ -598,28 +627,56 @@ References: Book 3:4
         modelLanguage
       );
       
-      const normalizedText = ensureReferences(
-  enforceNumberedFormat(stripMarkdown(response.text))
-);
+      let parsed: ChatbotAnswer;
+
+try {
+  const jsonText = extractJsonObject(response.text);
+  parsed = JSON.parse(jsonText);
+} catch {
+  // 🔁 AUTO-RECOVERY FALLBACK
+  parsed = {
+    sections: [
+      {
+        title: "Explanation",
+        explanation: normalizeText(response.text),
+        references: []
+      }
+    ]
+  };
+}
 
 
+if (!Array.isArray(parsed.sections)) {
+  parsed = {
+    sections: [
+      {
+        title: "Explanation",
+        explanation: normalizeText(response.text),
 
+        references: []
+      }
+    ]
+  };
+}
 
-      
-      
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: normalizedText,
-        sender: "bot",
-        sources: response.sources,
-      };
+const botMessage: Message = {
+  id: (Date.now() + 1).toString(),
+  sender: "bot",
+  answer: parsed,
+  sources: response.sources,
+};
+
       
 
       setMessages((prev) => [...prev, botMessage]);
 
       // generate follow-ups using the same model language
       try {
-        const aiQs = await generateAIFollowUps(response.text, [...messages, userMessage, botMessage]);
+        const aiQs = await generateAIFollowUps(
+          parsed,
+          [...messages.filter(m => m.sender === "user"), userMessage]
+        );
+        
         setFollowUpQs(aiQs);
       } catch (err) {
         console.error("Follow-up generation failed:", err);
@@ -831,18 +888,24 @@ References: Book 3:4
 
             {/* CHAT THREAD */}
             {messages.map((msg) =>
-              msg.sender === "user" ? (
-                <UserMessage key={msg.id} message={msg.text as string} />
-              ) : (
-                <BotMessage
+  msg.sender === "user" ? (
+    <UserMessage key={msg.id} message={msg.text as string} />
+  ) : msg.answer ? (
+    <BotMessage
   key={msg.id}
-  message={msg.text as string}
+  answer={msg.answer}
   sources={msg.sources}
   renderWithRefs={renderNodeWithRefs}
+  onReferenceClick={handleClickReference}
 />
 
-              )
-            )}
+  ) : (
+    <div key={msg.id} className="text-sm text-red-500">
+      {typeof msg.text === "string" ? msg.text : "Invalid response"}
+    </div>
+  )
+)}
+
 
             {/* AI FOLLOW-UP QUESTIONS */}
             {followUpQs.length > 0 && (
@@ -857,12 +920,8 @@ References: Book 3:4
     className="w-full text-left p-3 text-sm rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 transition-shadow duration-150 hover:shadow-[0_0_6px_rgba(0,0,0,0.06)]"
   >
     <div className="prose prose-sm dark:prose-invert max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-      >
-        {q}
-      </ReactMarkdown>
+    <p className="text-sm">{q}</p>
+
     </div>
   </button>
 ))}
