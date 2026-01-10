@@ -60,7 +60,7 @@ const BotMessage: React.FC<{
 
   return (
     <div className="flex items-start gap-2.5">
-      <div className="flex flex-col w-full max-w-[320px] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
+<div className="flex flex-col w-full max-w-[90%] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
         {answer.sections.map((sec, i) => (
           <div
             key={i}
@@ -133,7 +133,7 @@ const BotMessage: React.FC<{
 // USER MESSAGE COMPONENT
 const UserMessage: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex items-start justify-end gap-2.5">
-    <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-4 bg-blue-600 dark:bg-blue-700 text-white rounded-s-xl rounded-ee-xl">
+    <div className="flex flex-col w-full max-w-[90%] leading-1.5 p-4 bg-blue-600 dark:bg-blue-700 text-white rounded-s-xl rounded-ee-xl">
       <p className="text-sm font-normal">{message}</p>
     </div>
   </div>
@@ -760,16 +760,18 @@ const botMessage: Message = {
       {/* CHAT WINDOW */}
       {isOpen && (
   <div
-    ref={chatRef}
-    className="
-      fixed bottom-24 right-5 w-[90vw] max-w-md h-[70vh]
+  ref={chatRef}
+  className="
+    fixed bottom-24 right-5
+    w-[92vw] sm:w-[420px] md:w-[480px]
+    h-[75vh] md:h-[78vh]
+    bg-white dark:bg-gray-800 rounded-xl shadow-2xl border
+    border-gray-200 dark:border-gray-700 flex flex-col z-50
+    transition-shadow duration-200
+    hover:shadow-[0_0_12px_3px_rgba(59,130,246,0.45)]
+  "
+>
 
-            bg-white dark:bg-gray-800 rounded-xl shadow-2xl border
-            border-gray-200 dark:border-gray-700 flex flex-col z-50
-            transition-shadow duration-200
-            hover:shadow-[0_0_12px_3px_rgba(59,130,246,0.45)]
-          "
-        >
           {/* HEADER */}
           <header className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 rounded-t-xl">
           <h3 className="text-sm font-semibold leading-tight">
@@ -963,7 +965,7 @@ const botMessage: Message = {
           )}
 
           {/* INPUT */}
-          <div className="p-4 border-t border-gray-300 dark:border-gray-700">
+          <div className="px-4 py-3 border-t border-gray-300 dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <input
                 type="text"
