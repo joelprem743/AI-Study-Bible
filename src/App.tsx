@@ -80,7 +80,7 @@ const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "TELUGU_COM
 
   const [rightVersion, setRightVersion] = useLocalStorage("rightVersion", "ESV");
 
-  const activeEnglishVersion = studyMode === "single" ? singleVersion : rightVersion;
+
   const activeSingleVersion =
   studyMode === "single" ? singleVersion : null;
 
@@ -285,6 +285,24 @@ const [incomingVerse, setIncomingVerse] = useState<{
     setIsToolsModalOpen(false);
   }, []);
 
+  const getEnglishVersionForLogic = () => {
+    if (studyMode === "single") {
+      return singleVersion === "TELUGU_COMMUNITY_V1"
+        ? "KJV"
+        : singleVersion;
+    }
+  
+    // parallel mode
+    if (leftVersion !== "TELUGU_COMMUNITY_V1") return leftVersion;
+    if (rightVersion !== "TELUGU_COMMUNITY_V1") return rightVersion;
+  
+    // absolute fallback (should never happen)
+    return "KJV";
+  };
+  
+  const englishVersionForLogic = getEnglishVersionForLogic();
+  
+
   const handleNextChapter = useCallback(() => {
     const meta = BIBLE_META.find((b) => b.name === selectedBook);
     if (!meta) return;
@@ -469,7 +487,7 @@ const [incomingVerse, setIncomingVerse] = useState<{
       if (hasTelugu) {
         results = await searchTeluguKeywordSupabase(query);
       } else {
-        results = await searchEnglishKeyword(query, activeEnglishVersion);
+        results = await searchEnglishKeyword(query, englishVersionForLogic);
       }
       
   
@@ -769,7 +787,7 @@ rounded-full shadow-md overflow-hidden px-2"
               searchQuery={lastSearchQuery} 
               studyMode={studyMode}
               onOpenFilters={() => setFiltersOpen(true)}  
-              englishVersion={activeEnglishVersion}
+              englishVersion={englishVersionForLogic}
               onNavigate={navigateTo}
             />
             
@@ -815,7 +833,7 @@ rounded-full shadow-md overflow-hidden px-2"
                       verses={verses}
                       isLoading={isLoadingVerses}
                       error={verseError}
-                      englishVersion={activeEnglishVersion}
+                      englishVersion={singleVersion}
                       studyMode={studyMode}
                       leftVersion={leftVersion}
                       rightVersion={rightVersion}
@@ -835,7 +853,7 @@ rounded-full shadow-md overflow-hidden px-2"
                     <VerseTools
                       verseRef={selectedVerseRef}
                       verseData={selectedVerseData}
-                      englishVersion={activeEnglishVersion}
+                      englishVersion={englishVersionForLogic}
                       currentHighlight={highlights[selectedVerseRef.verse] || null}
                       onHighlightChange={(color) => {
                         if (!user) {
@@ -862,7 +880,7 @@ rounded-full shadow-md overflow-hidden px-2"
                 <VerseTools
                   verseRef={selectedVerseRef}
                   verseData={selectedVerseData}
-                  englishVersion={activeEnglishVersion}
+                  englishVersion={englishVersionForLogic}
                   currentHighlight={highlights[selectedVerseRef.verse] || null}
                   onHighlightChange={(color) => {
                     if (!user) {
@@ -1029,7 +1047,7 @@ setGroupedSearchResults(
             selectedChapter={selectedChapter}
             selectedVerseRef={selectedVerseRef}
             verses={verses}
-            englishVersion={activeEnglishVersion}
+            englishVersion={englishVersionForLogic}
             isOpen={isChatOpen}
             onToggle={() => setIsChatOpen(!isChatOpen)}
           />
