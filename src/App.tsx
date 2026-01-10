@@ -580,7 +580,7 @@ useEffect(() => {
           {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
-          <header className="bg-white dark:bg-slate-900 px-3 py-2 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+          <header className="bg-white dark:bg-slate-900 px-2 py-1.5 md:px-3 md:py-2 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
             {/* Left: Logo + Title (single source of truth) */}
 <div className="flex items-center gap-2">
   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
@@ -592,13 +592,14 @@ useEffect(() => {
   </div>
 
   <div className="flex items-center gap-1 whitespace-nowrap">
-  <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
-    Bible Companion
-  </span>
+  <span className="text-base md:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+  Bible Companion
+</span>
 
-  <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-    by Joel Prem
-  </span>
+<span className="hidden sm:inline text-xs md:text-sm text-gray-500 dark:text-gray-400">
+  by Joel Prem
+</span>
+
 </div>
 
 
@@ -617,29 +618,29 @@ useEffect(() => {
 
 
             {/* Right: compact search + profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-2">
               {/* Expandable Search (Material-style) */}
               <div className="relative">
                 {/* Always show the small icon button when search is closed */}
                 {!searchOpen && (
                   <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSearchOpen(true);
-                    }}
-                    
-                    aria-label="Open search"
-                    className="
-  w-10 h-10 flex items-center justify-center rounded-xl 
-  bg-gray-50 dark:bg-gray-800 
-  border border-gray-200 dark:border-[#2A2F35]
-  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-  transition
-"
-
-                  >
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchOpen(true);
+                  }}
+                  aria-label="Open search"
+                  className="
+                    w-9 h-9 md:w-10 md:h-10
+                    flex items-center justify-center rounded-lg
+                    bg-gray-50 dark:bg-gray-800 
+                    border border-gray-200 dark:border-[#2A2F35]
+                    hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
+                    dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+                    transition
+                  "
+                >
+                
                     <i className="fas fa-search text-gray-700 dark:text-gray-300" />
                   </button>
                 )}
@@ -762,7 +763,7 @@ rounded-full shadow-md overflow-hidden px-2"
           </header>
 
           {/* MAIN */}
-          <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
+          <main className="flex-grow flex flex-col md:flex-row overflow-x-hidden">
             {isSearchView ? (
               <SearchResultDisplay
               groupedResults={groupedSearchResults ?? { oldTestament: {}, newTestament: {} }}
