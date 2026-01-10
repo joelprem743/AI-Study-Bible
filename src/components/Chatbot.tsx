@@ -198,9 +198,9 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
   // Detect initial chatbot language from current Bible version
-const detectInitialLanguage = (): "EN" | "TE" => {
-  return englishVersion === "BSI_TELUGU" ? "TE" : "EN";
-};
+// const detectInitialLanguage = (): "EN" | "TE" => {
+//   return englishVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN";
+// };
 
 
   // const CHAT_MODE_LABELS = {
@@ -232,15 +232,18 @@ const detectInitialLanguage = (): "EN" | "TE" => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onToggle]);
 
+
+  
   useEffect(() => {
     if (!isOpen) return;
   
-    const initialLang = detectInitialLanguage();
-    setLanguage(initialLang);
-    setModelLanguage(initialLang);
-    setFollowUpQs([]);
-  }, [isOpen]); // ❗ ONLY isOpen
+    const isTelugu = englishVersion === "TELUGU_COMMUNITY_V1";
+    const lang: "EN" | "TE" = isTelugu ? "TE" : "EN";
   
+    setLanguage(lang);
+    setModelLanguage(lang);
+    setFollowUpQs([]);
+  }, [englishVersion, isOpen]);
   
 
   useEffect(() => {
@@ -417,11 +420,14 @@ const detectInitialLanguage = (): "EN" | "TE" => {
   
       return chapterData
         .filter(v => v.verse >= startVerse && v.verse <= endVerse)
-        .map(v =>
-          language === "TE"
-            ? v.text.BSI_TELUGU || v.text.KJV
-            : v.text[englishVersion] || v.text.KJV
-        )
+        .map(v => {
+          if (language === "TE") {
+            return v.text.TELUGU_COMMUNITY_V1 ?? "";
+          }
+          return v.text[englishVersion] ?? "";
+        })
+        .filter(Boolean)
+        
         .join("\n");
     } catch {
       return "";
@@ -537,7 +543,11 @@ const buildContextualInput = (input: string) => {
   if (chatScope === "VERSE" && selectedVerseRef) {
     const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
     const verseText =
-      verseData?.text[englishVersion] || verseData?.text.KJV;
+  englishVersion === "TELUGU_COMMUNITY_V1"
+    ? verseData?.text.TELUGU_COMMUNITY_V1
+    : verseData?.text[englishVersion];
+
+
 
     return verseText
       ? `Answer strictly in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse} (${verseText}): ${input}`
@@ -548,6 +558,7 @@ const buildContextualInput = (input: string) => {
     return `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
   }
 
+  
   // GLOBAL CHAT (no Bible anchoring)
   return input;
 };

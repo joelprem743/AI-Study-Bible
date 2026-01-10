@@ -1,4 +1,4 @@
-export const teluguBibleData = { "Book" : [
+{"Book":[
 	{
 		"Chapter":[
 		{
@@ -128173,4 +128173,3 @@ export const teluguBibleData = { "Book" : [
 		}]
 	}]
 }
-;

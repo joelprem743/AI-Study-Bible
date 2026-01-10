@@ -689,7 +689,8 @@ export const VerseTools: React.FC<{
 }) => {
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
   const isTeluguVersion = (version?: string) =>
-    version === "BSI_TELUGU" || version?.toLowerCase().includes("telugu");
+    version === "TELUGU_COMMUNITY_V1";
+  
   
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
@@ -815,9 +816,9 @@ const effectiveLanguage =
 activeTab === "Interlinear" ? "EN" : language;
 
 const displayVerseText =
-effectiveLanguage === "TE"
-  ? verseData.text.BSI_TELUGU || verseData.text.KJV
-  : verseData.text[englishVersion] || verseData.text.KJV;
+  effectiveLanguage === "TE"
+    ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
+    : verseData.text[englishVersion] || verseData.text.KJV;
 
 
   const buildKey = useCallback(
@@ -1000,9 +1001,10 @@ const handleWordSelect = (idx: number) => {
     const actual = chapterData.find(v => v.verse === verseRef.verse);
   
     const correctText =
-      language === "TE"
-        ? actual?.text.BSI_TELUGU || actual?.text.KJV || ""
-        : actual?.text[englishVersion] || actual?.text.KJV || "";
+  language === "TE"
+    ? actual?.text.TELUGU_COMMUNITY_V1 || actual?.text.KJV || ""
+    : actual?.text[englishVersion] || actual?.text.KJV || "";
+
   
     const bookName =
       language === "TE"
@@ -1170,11 +1172,12 @@ const handleWordSelect = (idx: number) => {
         if (!selected.length) return "";
 
         const out = selected
-          .map((v) =>
-            language === "TE"
-              ? v.text.BSI_TELUGU || v.text.KJV || ""
-              : v.text[englishVersion] || v.text.KJV || ""
-          )
+        .map((v) =>
+          language === "TE"
+            ? v.text.TELUGU_COMMUNITY_V1 || v.text.KJV || ""
+            : v.text[englishVersion] || v.text.KJV || ""
+        )
+        
           .join("\n");
 
         refCache.current.set(cacheKey, out);
@@ -1194,9 +1197,10 @@ const handleWordSelect = (idx: number) => {
   
     try {
       const verseText =
-        language === "TE"
-          ? verseData.text.BSI_TELUGU || verseData.text.KJV
-          : verseData.text[englishVersion] || verseData.text.KJV;
+  language === "TE"
+    ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
+    : verseData.text[englishVersion] || verseData.text.KJV;
+
   
       const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
   
@@ -1279,7 +1283,7 @@ const handleWordSelect = (idx: number) => {
     try {
       const verseText =
         language === "TE"
-          ? verseData.text.BSI_TELUGU || verseData.text.KJV
+          ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
           : verseData.text[englishVersion] || verseData.text.KJV;
   
       const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
@@ -1325,7 +1329,7 @@ const handleWordSelect = (idx: number) => {
   
     const verseText =
       language === "TE"
-        ? verseData.text.BSI_TELUGU || verseData.text.KJV
+        ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
         : verseData.text[englishVersion] || verseData.text.KJV;
   
     if (!verseText) return "";
@@ -1629,11 +1633,12 @@ const handleWordSelect = (idx: number) => {
     // 🔒 Do NOT auto-sync language while in Interlinear
     if (activeTab === "Interlinear") return;
   
-    if (isTeluguVersion(englishVersion)) {
+    if (englishVersion === "TELUGU_COMMUNITY_V1") {
       setLanguage("TE");
     } else {
       setLanguage("EN");
     }
+    
   }, [englishVersion, verseRef, activeTab]);
   
   
@@ -2327,7 +2332,7 @@ if (cached) {
 
           <p
             className={`text-sm leading-relaxed ${
-              version === "BSI_TELUGU" ? "font-telugu" : ""
+              version === "TELUGU_COMMUNITY_V1"? "font-telugu" : ""
             }`}
           >
             {text}

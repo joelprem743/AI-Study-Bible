@@ -7,7 +7,6 @@
 
 import { Verse, ParsedReference, FullVerse } from '..';
 import { BIBLE_META_WITH_VERSE_COUNTS } from '../data/bibleMetaWithVerseCounts';
-import { teluguBibleData } from '../data/telugubible';
 import { TELUGU_BOOK_NAMES } from '../data/teluguBookNames';
 import { supabase } from "../lib/supabaseClient";
 
@@ -169,16 +168,8 @@ const ENGLISH_ALIASES: Record<string, string> = {
 // ------------------------------
 // Telugu bible typed structure & index map
 // ------------------------------
-interface TeluguVerse { Verseid: string; Verse: string; }
-interface TeluguChapter { Verse: TeluguVerse[]; }
-interface TeluguBook { Chapter: TeluguChapter[]; }
-interface TeluguBible { Book: TeluguBook[]; }
-
-const typedTeluguBibleData = teluguBibleData as unknown as TeluguBible;
 
 // Build bookName -> index map assuming BIBLE_META_WITH_VERSE_COUNTS order
-const bookNameToIndexMap = new Map<string, number>();
-BIBLE_META_WITH_VERSE_COUNTS.forEach((b, i) => bookNameToIndexMap.set(b.name, i));
 
 // ------------------------------
 // Helpers
@@ -323,17 +314,29 @@ export function canonicalizeBook(raw: string): string {
 // ------------------------------
 // Telugu verse lookup
 // ------------------------------
-function getTeluguVerse(book: string, chapter: number, verse: number): string | undefined {
-  // book here should be canonical English name (e.g., "1 Timothy")
-  const idx = bookNameToIndexMap.get(book);
-  if (idx === undefined) return undefined;
-  try {
-    return typedTeluguBibleData.Book[idx]?.Chapter[chapter - 1]?.Verse[verse - 1]?.Verse;
-  } catch (e) {
-    console.error('Telugu verse access error', e);
-    return undefined;
+async function getTeluguVerse(
+  book: string,
+  chapter: number,
+  verse: number
+): Promise<string | null> {
+
+  const { data, error } = await supabase
+    .from("bible_verses")
+    .select("text")
+    .eq("book", book)
+    .eq("chapter", chapter)
+    .eq("verse", verse)
+    .eq("version", "TELUGU_COMMUNITY_V1")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Telugu fetch error:", error);
+    return null;
   }
+
+  return data?.text ?? null;
 }
+
 
 // ------------------------------
 // normalizeTeluguReference: convert a string that MAY begin with a telugu book name to english.
@@ -359,10 +362,13 @@ export function normalizeTeluguReference(query: string): string {
 // ------------------------------
 // fetchChapter
 // ------------------------------
-export const fetchChapter = async (book: string, chapter: number): Promise<Verse[]> => {
+export const fetchChapter = async (
+  book: string,
+  chapter: number
+): Promise<Verse[]> => {
+
   const engBook = canonicalizeBook(book);
 
-  // Fetch ALL versions for this book & chapter from Supabase
   const { data, error } = await supabase
     .from("bible_verses")
     .select("verse, text, version")
@@ -370,28 +376,18 @@ export const fetchChapter = async (book: string, chapter: number): Promise<Verse
     .eq("chapter", chapter)
     .order("verse", { ascending: true });
 
-  if (error) {
-    console.error("Supabase fetch error:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  // Organize by verse number
-  const grouped: Record<number, any> = {};
+  const grouped: Record<number, Verse> = {};
 
-  for (const row of data) {
-    if (!grouped[row.verse]) grouped[row.verse] = { verse: row.verse, text: {} };
+  for (const row of data ?? []) {
+    if (!grouped[row.verse]) {
+      grouped[row.verse] = { verse: row.verse, text: {} };
+    }
     grouped[row.verse].text[row.version] = row.text;
   }
 
-  // Add Telugu from local
-  const verses: Verse[] = [];
-  for (const v of Object.values(grouped)) {
-    const teluguText = getTeluguVerse(engBook, chapter, v.verse);
-    if (teluguText) v.text["BSI_TELUGU"] = teluguText;
-    verses.push(v);
-  }
-
-  return verses;
+  return Object.values(grouped);
 };
 
 
@@ -482,18 +478,16 @@ export const fetchVersesByReferences = async (
 
     // 3️⃣ Build FullVerse objects
     for (let v = start; v <= end; v++) {
-      const teluguText = getTeluguVerse(engBook, ref.chapter, v);
-
       results.push({
         book: engBook,
         chapter: ref.chapter,
         verse: v,
         text: {
-          ...(engByVerse[v] ?? {}),              // ✅ KJV / ESV / NIV
-          ...(teluguText && { BSI_TELUGU: teluguText }) // ✅ Telugu
+          ...(engByVerse[v] ?? {})
         }
       });
     }
+    
   }
 
   return results;
@@ -543,147 +537,9 @@ export interface SearchOptions {
 
 
 
-export async function searchTeluguKeyword(
-  rawQuery: string,
-  options: SearchOptions = {}
-): Promise<FullVerse[]> {
-
-  if (!rawQuery || !rawQuery.trim()) return [];
-
-  const normalizedQuery = rawQuery.trim().toLowerCase();
-  const isSentence = normalizedQuery.split(/\s+/).length > 1;
-
-// --------------------------------------------------
-// SENTENCE MODE (multi-word Telugu phrase search)
-// --------------------------------------------------
-if (isSentence) {
-  const highlight = options.highlight ?? true;
-const limit = options.limit ?? 3000;
-
-
-  const results: Array<{ score: number; verse: FullVerse }> = [];
-
-  typedTeluguBibleData.Book.forEach((book, bookIndex) => {
-    const bookName = canonicalizeBook(
-      BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name
-    );
-
-    book.Chapter.forEach((chapter, chapterIndex) => {
-      chapter.Verse.forEach((v, verseIndex) => {
-        const raw = v.Verse?.trim();
-        if (!raw) return;
-
-        const text = normalizeTeluguText(raw);
-const queryText = normalizeTeluguText(normalizedQuery);
-if (!text.includes(queryText)) return;
-
-
-        const highlighted = highlight
-          ? raw.replace(
-              new RegExp(
-                `(${normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-                "giu"
-              ),
-              "<mark>$1</mark>"
-            )
-          : raw;
-
-        results.push({
-          score: 100,
-          verse: {
-            book: bookName,
-            chapter: chapterIndex + 1,
-            verse: verseIndex + 1,
-            text: { BSI_TELUGU: highlighted },
-          },
-        });
-      });
-    });
-  });
-
-  return results.slice(0, limit).map(r => r.verse);
-}
-
-  const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
-if (keywords.length === 0) return [];
-
-  const whole = options.wholeWord ?? false;
-  const highlight = options.highlight ?? true;
-  const requireAll = options.requireAll ?? false;
-  const limit = options.limit ?? 3000; // avoid UI freeze
-
-  const results: Array<{ score: number; verse: FullVerse }> = [];
-
-  typedTeluguBibleData.Book.forEach((book, bookIndex) => {
-    const bookName = canonicalizeBook(
-      BIBLE_META_WITH_VERSE_COUNTS[bookIndex].name
-    );
-    
-
-    book.Chapter.forEach((chapter, chapterIndex) => {
-      chapter.Verse.forEach((v, verseIndex) => {
-        const raw = v.Verse?.trim() ?? "";
-        const text = raw.toLowerCase();
-
-        let matchScore = 0;
-        let matched = !requireAll;
-
-        for (const kw of keywords) {
-          if (whole) {
-            // Whole word detection
-            const regex = new RegExp(`(?:^|\\s)${kw}(?:$|\\s)`, "u");
-            if (regex.test(text)) {
-              matchScore += 10;
-              matched = requireAll ? matched && true : true;
-            } else if (requireAll) {
-              matched = false;
-              break;
-            }
-          } else {
-            // Substring detection
-            if (text.includes(kw)) {
-              matchScore += 5;
-              matched = requireAll ? matched && true : true;
-            } else if (requireAll) {
-              matched = false;
-              break;
-            }
-          }
-        }
-
-        if (!matched || matchScore === 0) return;
-
-        // Highlighting
-        let highlighted = raw;
-        if (highlight) {
-          for (const kw of keywords) {
-            const safe = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            highlighted = highlighted.replace(
-              new RegExp(`(${safe})`, "giu"),
-              "<mark>$1</mark>"
-            );
-          }
-        }
-
-        results.push({
-          score: matchScore,
-          verse: {
-            book: bookName,
-            chapter: chapterIndex + 1,
-            verse: verseIndex + 1,
-            text: {
-              BSI_TELUGU: highlighted,
-            },
-          },
-        });
-      });
-    });
-  });
-
-  // Sort: highest score first
-  results.sort((a, b) => b.score - a.score);
-
-  return results.slice(0, limit).map((r) => r.verse);
+export async function searchTeluguKeyword(): Promise<FullVerse[]> {
+  console.warn("Telugu search pending Supabase FTS migration");
+  return [];
 }
 
 
@@ -718,9 +574,9 @@ export async function searchEnglishKeyword(
     chapter: row.chapter,
     verse: row.verse,
     text: {
-      [version]: row.text,
-      BSI_TELUGU: getTeluguVerse(row.book, row.chapter, row.verse) || ""
+      [version]: row.text
     }
+    
   }));
 }
 export function getBookIndex(book: string): number {
@@ -757,4 +613,32 @@ export async function fetchOriginalChapter(
   console.groupEnd();
 
   return data ?? [];
+}
+
+export async function searchTeluguKeywordSupabase(
+  query: string
+): Promise<FullVerse[]> {
+
+  const { data, error } = await supabase
+    .from("bible_verses")
+    .select("book, chapter, verse, text")
+    .ilike("text", `%${query}%`)
+    .eq("version", "TELUGU_COMMUNITY_V1")
+    .order("book", { ascending: true })
+    .order("chapter", { ascending: true })
+    .order("verse", { ascending: true });
+
+  if (error) {
+    console.error("Telugu search error:", error);
+    return [];
+  }
+
+  return (data ?? []).map(row => ({
+    book: row.book,
+    chapter: row.chapter,
+    verse: row.verse,
+    text: {
+      TELUGU_COMMUNITY_V1: row.text,
+    },
+  }));
 }

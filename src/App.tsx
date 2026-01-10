@@ -18,7 +18,7 @@ import {
   findBookMetadata,
   fetchVersesByReferences,
   normalizeTeluguReference,
-  searchTeluguKeyword,
+  searchTeluguKeywordSupabase,
   searchEnglishKeyword,
   groupVersesByTestamentAndBook, GroupedVerses
 } from "./services/bibleService";
@@ -29,10 +29,9 @@ import ProfileMenu from "./components/ProfileMenu";
 import { useAuth } from "./context/AuthContext";
 
 export const AVAILABLE_VERSIONS = [
-  "BSI_TELUGU",
+  "TELUGU_COMMUNITY_V1",
   "ESV",
   "NIV",
-  "KJV",
   "NKJV",
   "GNB",
   "ARAMAIC_PLAIN_EN",
@@ -76,7 +75,9 @@ const App: React.FC = () => {
   const [studyMode, setStudyMode] = useLocalStorage<"single" | "parallel">("studyMode", "single");
   const [singleVersion, setSingleVersion] = useLocalStorage("singleVersion", "KJV");
 // default Telugu
-  const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "BSI_TELUGU");
+  // default left version (can be Telugu or English)
+const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "TELUGU_COMMUNITY_V1");
+
   const [rightVersion, setRightVersion] = useLocalStorage("rightVersion", "ESV");
 
   const activeEnglishVersion = studyMode === "single" ? singleVersion : rightVersion;
@@ -458,24 +459,13 @@ useEffect(() => {
       let results: FullVerse[] = [];
   
       // 🔴 HARD GUARD: English keyword + Telugu-only version
-      if (!hasTelugu && activeEnglishVersion === "BSI_TELUGU") {
-        setSearchError(
-          "You searched in English, but the selected version is Telugu. Switch to an English version (KJV, NIV, ESV)."
-        );
-        setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
-        setIsSearchView(true);
-        return;
-      }
-  
+
       if (hasTelugu) {
-        results = await searchTeluguKeyword(query, {
-          wholeWord: false,
-          requireAll: false,
-          highlight: true,
-        });
+        results = await searchTeluguKeywordSupabase(query);
       } else {
         results = await searchEnglishKeyword(query, activeEnglishVersion);
       }
+      
   
       if (results.length === 0) {
         setSearchError(`No results for "${query}"`);

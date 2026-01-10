@@ -48,7 +48,7 @@ export default function NavigationPane(props: Props) {
   } = props;
 
   const isTeluguSingleMode =
-  studyMode === "single" && singleVersion === "BSI_TELUGU";
+  studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1";
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isBookModal, setIsBookModal] = useState(false);
@@ -66,7 +66,7 @@ export default function NavigationPane(props: Props) {
   ];
 
   const VERSION_LABELS: Record<string, string> = {
-    BSI_TELUGU: "తెలుగు బైబిల్ (BSI)",
+    TELUGU_COMMUNITY_V1: "తెలుగు బైబిల్",
     ESV: "English Standard Version",
     NIV: "New International Version",
     KJV: "King James Version",
@@ -114,7 +114,7 @@ const isValidOriginalForBook = (book: string, version?: string) => {
 
 
     const isTeluguVersion = (version?: string) =>
-      version === "BSI_TELUGU" || version?.toLowerCase().includes("telugu");
+      version === "TELUGU_COMMUNITY_V1" || version?.toLowerCase().includes("telugu");
     
     const getBookNameByVersion = (version?: string) => {
       if (isTeluguVersion(version)) {

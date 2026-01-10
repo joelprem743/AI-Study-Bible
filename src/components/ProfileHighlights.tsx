@@ -7,6 +7,7 @@ import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { BIBLE_META_WITH_VERSE_COUNTS } from "../data/bibleMetaWithVerseCounts";
 
 /* ------------------ Testament helpers ------------------ */
+const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
 
 const BOOK_INDEX = new Map<string, number>();
 BIBLE_META_WITH_VERSE_COUNTS.forEach((b, i) =>
@@ -235,11 +236,12 @@ function HighlightItem({
     if (!v?.text) return;
 
     const t =
-      typeof v.text === "string"
-        ? v.text
-        : bibleVersion === "BSI_TELUGU"
-        ? v.text.BSI_TELUGU
-        : v.text.KJV || v.text.ESV || v.text.NIV || "";
+  typeof v.text === "string"
+    ? v.text
+    : v.text[bibleVersion as keyof typeof v.text] ??
+      v.text.KJV ??
+      "";
+
 
     verseCache[key] = t;
     setText(t);

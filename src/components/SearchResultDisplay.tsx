@@ -5,6 +5,9 @@ import { TELUGU_BOOK_NAMES } from "@/data/teluguBookNames";
 
 /* ---------------- SAFE DEFAULT ---------------- */
 
+const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
+
+
 const EMPTY_GROUPED_RESULTS: GroupedVerses = {
   oldTestament: {},
   newTestament: {},
@@ -60,20 +63,19 @@ function getDisplayBookName(book: string, isTelugu: boolean) {
 
 function getSearchDisplayText(
   verse: FullVerse,
-  englishVersion: string,
+  version: string,
   query: string
 ): string {
-  // Telugu search
-  if (englishVersion === "BSI_TELUGU") {
-    return highlight(verse.text.BSI_TELUGU ?? "", query);
-  }
+  const text =
+    version === TELUGU_VERSION_KEY
+      ? verse.text.TELUGU_COMMUNITY_V1
+      : verse.text[version as keyof typeof verse.text];
 
-  // English search
-  return highlight(
-    verse.text[englishVersion as keyof typeof verse.text] ?? "",
-    query
-  );
+  if (!text) return "";
+
+  return highlight(text, query);
 }
+
 
 
 function groupByChapter(verses: FullVerse[]) {
@@ -127,14 +129,12 @@ export const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
   studyMode, 
   onNavigate,
 }) => {
-  const isSingle = studyMode === "single";
-const isParallel = studyMode === "parallel";
-const isTeluguSingle = isSingle && englishVersion === "BSI_TELUGU";
-const isEnglishSingle = isSingle && englishVersion !== "BSI_TELUGU";
+
 
 
   const { oldTestament, newTestament } = groupedResults;
-  const isTeluguMode = englishVersion === "BSI_TELUGU";
+  const isTeluguMode = englishVersion === TELUGU_VERSION_KEY;
+
   const chapterLabel = isTeluguMode
   ? CHAPTER_LABELS.TE
   : CHAPTER_LABELS.EN;
@@ -269,15 +269,13 @@ const labels = isTeluguMode
     {v.verse}
   </span>
 
-  <div
-    dangerouslySetInnerHTML={{
-      __html: getSearchDisplayText(
-        v,
-        englishVersion,
-        searchQuery
-      ),
-    }}
-  />
+  {(() => {
+  const html = getSearchDisplayText(v, englishVersion, searchQuery);
+  return html ? (
+    <div dangerouslySetInnerHTML={{ __html: html }} />
+  ) : null;
+})()}
+
 </div>
 
   </div>

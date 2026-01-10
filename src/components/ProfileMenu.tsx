@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import ProfileNotes from "./ProfileNotes";
 import ProfileHighlights from "./ProfileHighlights";
 
+
 type AuthMode = "signin" | "signup";
 
 export default function ProfileMenu() {
@@ -232,10 +233,11 @@ export default function ProfileMenu() {
       {/* Highlights Modal */}
       {isHighlightsOpen && (
         <ProfileHighlights
-          userId={user.id}
-          onClose={() => setIsHighlightsOpen(false)}
-          bibleVersion={language === "TE" ? "BSI_TELUGU" : "KJV"}
-        />
+        userId={user.id}
+        onClose={() => setIsHighlightsOpen(false)}
+        bibleVersion={language === "TE" ? "TELUGU_COMMUNITY_V1" : "KJV"}
+      />
+      
       )}
       {isNotesOpen && (
         <ProfileNotes
