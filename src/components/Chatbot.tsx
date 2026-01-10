@@ -42,28 +42,15 @@ const BotMessage: React.FC<{
 }> = ({ message, sources, renderWithRefs }) => (
   <div className="flex items-start gap-2.5">
     <div className="flex flex-col w-full max-w-[320px] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
-      <div className="prose prose-sm dark:prose-invert max-w-none">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw]}
-          components={{
-            p({ children }) {
-              return <p>{renderWithRefs(children)}</p>;
-            },
-            li({ children }) {
-              return <li>{renderWithRefs(children)}</li>;
-            },
-            strong({ children }) {
-              return <strong>{renderWithRefs(children)}</strong>;
-            },
-            em({ children }) {
-              return <em>{renderWithRefs(children)}</em>;
-            },
-          }}
-        >
-          {message}
-        </ReactMarkdown>
-      </div>
+    <div className="text-sm leading-relaxed space-y-3">
+  {message.split("\n\n").map((block, i) => (
+    <div key={i}>
+      {renderWithRefs(block)}
+    </div>
+  ))}
+</div>
+
+
 
       {sources?.length > 0 && (
         <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
@@ -120,6 +107,8 @@ interface ChatbotProps {
   onToggle: () => void;
 }
 
+type ChatScope = "GLOBAL" | "VERSE" | "CHAPTER";
+
 export const Chatbot: React.FC<ChatbotProps> = ({
   selectedBook,
   selectedChapter,
@@ -135,6 +124,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   // modelLanguage controls the language instruction sent to the AI.
   // This enables Option B: keep chat history, but all future AI responses follow modelLanguage.
   const [modelLanguage, setModelLanguage] = useState<"EN" | "TE">("EN");
+
+
+const [chatScope, setChatScope] = useState<ChatScope>("GLOBAL");
 
   // const [chatMode, setChatMode] = useState<ChatMode>(ChatMode.FAST);
 
@@ -459,13 +451,125 @@ const detectInitialLanguage = (): "EN" | "TE" => {
   return node;
 };
 
+
+
+const buildContextualInput = (input: string) => {
+  if (chatScope === "VERSE" && selectedVerseRef) {
+    const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
+    const verseText =
+      verseData?.text[englishVersion] || verseData?.text.KJV;
+
+    return verseText
+      ? `Answer strictly in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse} (${verseText}): ${input}`
+      : `Answer in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}: ${input}`;
+  }
+
+  if (chatScope === "CHAPTER" && selectedBook && selectedChapter) {
+    return `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
+  }
+
+  // GLOBAL CHAT (no Bible anchoring)
+  return input;
+};
+
+function stripMarkdown(text: string): string {
+  return text
+    // headings
+    .replace(/^#{1,6}\s*/gm, "")
+    // bold only
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    // bullets
+    .replace(/^\s*[-*+]\s+/gm, "")
+    // inline code
+    .replace(/`([^`]+)`/g, "$1")
+    // leftover markdown chars
+    .replace(/[>#`]/g, "")
+    .trim();
+}
+
+
+
+function enforceNumberedFormat(text: string): string {
+  const blocks = text
+    .replace(/\r/g, "")
+    .trim()
+    .split(/\n\s*\n/); // split by blank lines
+
+  let result: string[] = [];
+  let section = 1;
+
+  for (const block of blocks) {
+    const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) continue;
+
+    const title = lines[0];
+    const body = lines.slice(1).join(" ");
+
+    result.push(
+`${section}. ${title}
+${body}`
+    );
+
+    section++;
+  }
+
+  return result.join("\n\n");
+}
+
+function ensureReferences(text: string): string {
+  const sections = text.split(/\n\n/);
+
+  return sections
+    .map(section => {
+      if (!/References:\s*[A-Za-z]/.test(section)) {
+        return section + "\nReferences: (no reference provided)";
+      }
+      return section;
+    })
+    .join("\n\n");
+}
+
+
+
+
+
   // SEND MESSAGE
   const handleSend = async (forcedInput?: string) => {
     // clear old follow-ups (they belong to previous bot answer)
     setFollowUpQs([]);
 
     const finalInput = forcedInput ?? input.trim();
-    if (!finalInput || isLoading) return;
+if (!finalInput || isLoading) return;
+
+// STEP 3: detect direct question
+const isDirectQuestion = /\?$/.test(finalInput);
+
+const formattingRules = `
+FORMAT RULES (STRICT — DO NOT VIOLATE):
+
+- DO NOT use numbers (1., 2., etc.) anywhere.
+- DO NOT use markdown headings (##, ###).
+- Each section MUST start with a plain text title on its own line.
+- Follow the title with ONE short explanation sentence.
+- Follow that with a line starting with "References:" containing 1–3 Bible references.
+- Do NOT add introductions or conclusions.
+
+FORMAT TEMPLATE (FOLLOW EXACTLY):
+
+Title
+Short explanation sentence.
+References: Book 1:1; Book 2:3
+
+Title
+Short explanation sentence.
+References: Book 3:4
+`;
+
+
+
+
+
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -477,36 +581,39 @@ const detectInitialLanguage = (): "EN" | "TE" => {
     setInput("");
     setIsLoading(true);
 
-    // Build contextualized input
-    let contextualizedInput = finalInput;
 
-    if (selectedVerseRef) {
-      const verseData = verses.find((v) => v.verse === selectedVerseRef.verse as any);
-      const verseText = verseData?.text[englishVersion as keyof typeof verseData.text] || verseData?.text.KJV;
-
-      contextualizedInput = verseText
-        ? `Given the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}, which reads "${verseText}", answer the following: ${finalInput}`
-        : `Regarding ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}, answer the following: ${finalInput}`;
-    } else {
-      contextualizedInput = `Regarding ${selectedBook} ${selectedChapter}, answer: ${finalInput}`;
-    }
+    const contextualizedInput = buildContextualInput(finalInput);
 
     // Use modelLanguage for AI instruction (this guarantees Option B)
     const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
 
     try {
       const response = await sendMessageToLlama(
-        `${contextualizedInput}\n\n${langInstruction}`,
+        `${contextualizedInput}
+      
+      ${langInstruction}
+      
+      ${formattingRules}`,
         [...messages, userMessage],
         modelLanguage
       );
       
+      const normalizedText = ensureReferences(
+  enforceNumberedFormat(stripMarkdown(response.text))
+);
+
+
+
+
+      
+      
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: response.text,
+        text: normalizedText,
         sender: "bot",
         sources: response.sources,
       };
+      
 
       setMessages((prev) => [...prev, botMessage]);
 
@@ -618,6 +725,15 @@ const detectInitialLanguage = (): "EN" | "TE" => {
 </div>
 
 */}
+              <select
+  value={chatScope}
+  onChange={(e) => setChatScope(e.target.value as ChatScope)}
+  className="text-xs border rounded px-2 py-1"
+>
+  <option value="GLOBAL">Global Chat</option>
+  <option value="CHAPTER">This Chapter</option>
+  <option value="VERSE">This Verse</option>
+</select>
 
 
               {/* Language dropdown */}
