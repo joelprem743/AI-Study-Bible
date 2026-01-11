@@ -675,18 +675,21 @@ const STRONG_REF_REGEX =
 export const VerseTools: React.FC<{
   verseRef: VerseReference;
   verseData: Verse;
-  englishVersion: string;
+  uiLanguage: "EN" | "TE";
+  bibleVersion: string;
   onClose?: () => void;
   currentHighlight?: string;
   onHighlightChange?: (color: string | null) => void;
 }> = ({
   verseRef,
   verseData,
-  englishVersion,
+  uiLanguage,
+  bibleVersion,
   onClose,
   currentHighlight,
   onHighlightChange,
 }) => {
+
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
   const isTeluguVersion = (version?: string) =>
     version === "TELUGU_COMMUNITY_V1";
@@ -696,8 +699,10 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  const [languageOverride, setLanguageOverride] = useState<"EN" | "TE" | null>(null);
+
   const [activeTab, setActiveTab] = useState<Tab>("Summary");
-  const [language, setLanguage] = useState<"EN" | "TE">("EN");
+  const language = languageOverride ?? uiLanguage;
   const [originalVerse, setOriginalVerse] = useState<string>("");
   const [translitVerse, setTranslitVerse] = useState<string>("");
   const L = MENU_LABELS[language];
@@ -746,6 +751,8 @@ Notes: null,
   const originalBlockRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isProgrammaticScrollRef = useRef(false);
+
+
 
   
   const [menuOpen, setMenuOpen] = useState(false);
@@ -813,7 +820,8 @@ async function preloadStrongLexicons(rows: any[]) {
 }
 
 const displayEnglishVerse =
-  verseData.text[englishVersion] || verseData.text.KJV || "";
+  verseData.text[bibleVersion
+  ] || verseData.text.KJV || "";
 
 const displayTeluguVerse =
   verseData.text.TELUGU_COMMUNITY_V1 || "";
@@ -944,7 +952,8 @@ const handleCopyTabContent = useCallback(async () => {
 
 const loadCompare = useCallback(async () => {
   const versions = [
-    englishVersion,
+    bibleVersion
+,
     "TELUGU_COMMUNITY_V1",
   ];
 
@@ -978,7 +987,8 @@ if (v === "TELUGU_COMMUNITY_V1") {
   });
 
   setCompareVerses(rows);
-}, [verseRef, englishVersion]);
+}, [verseRef, bibleVersion
+]);
 
 
 
@@ -1020,7 +1030,8 @@ const handleWordSelect = (idx: number) => {
       verseRef.chapter,
       language === "TE"
         ? "TELUGU_COMMUNITY_V1"
-        : englishVersion
+        : bibleVersion
+
     );
     
     const actual = chapterData.find(v => v.verse === verseRef.verse);
@@ -1028,7 +1039,8 @@ const handleWordSelect = (idx: number) => {
     const correctText =
   language === "TE"
     ? actual?.text.TELUGU_COMMUNITY_V1 || actual?.text.KJV || ""
-    : actual?.text[englishVersion] || actual?.text.KJV || "";
+    : actual?.text[bibleVersion
+    ] || actual?.text.KJV || "";
 
   
     const bookName =
@@ -1191,7 +1203,8 @@ const handleWordSelect = (idx: number) => {
         const chapterData = await fetchChapter(
           meta.name,
           chapter,
-          language === "TE" ? "TELUGU_COMMUNITY_V1" : englishVersion
+          language === "TE" ? "TELUGU_COMMUNITY_V1" : bibleVersion
+
         );
         
         if (!chapterData || !chapterData.length) return "";
@@ -1205,7 +1218,8 @@ const handleWordSelect = (idx: number) => {
         .map((v) =>
           language === "TE"
             ? v.text.TELUGU_COMMUNITY_V1 || v.text.KJV || ""
-            : v.text[englishVersion] || v.text.KJV || ""
+            : v.text[bibleVersion
+            ] || v.text.KJV || ""
         )
         
           .join("\n");
@@ -1217,7 +1231,8 @@ const handleWordSelect = (idx: number) => {
         return "";
       }
     },
-    [language, englishVersion]
+    [language, bibleVersion
+    ]
   );
 
   const loadCrossRefsWithLlamaFallback = useCallback(async () => {
@@ -1229,7 +1244,8 @@ const handleWordSelect = (idx: number) => {
       const verseText =
   language === "TE"
     ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
-    : verseData.text[englishVersion] || verseData.text.KJV;
+    : verseData.text[bibleVersion
+    ] || verseData.text.KJV;
 
   
       const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
@@ -1270,7 +1286,8 @@ const handleWordSelect = (idx: number) => {
       localCache.current.set(key, "");
       return "";
     }
-  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  }, [verseRef, verseData, language, bibleVersion
+    , buildKey]);
   const loadCrossReferencesWithGemini = useCallback(async () => {
     const key = buildKey("Cross-references", language);
     const cached = localCache.current.get(key);
@@ -1314,7 +1331,8 @@ const handleWordSelect = (idx: number) => {
       const verseText =
         language === "TE"
           ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
-          : verseData.text[englishVersion] || verseData.text.KJV;
+          : verseData.text[bibleVersion
+          ] || verseData.text.KJV;
   
       const refLabel = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
   
@@ -1347,7 +1365,8 @@ const handleWordSelect = (idx: number) => {
       localCache.current.set(key, "");
       return "";
     }
-  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  }, [verseRef, verseData, language, bibleVersion
+    , buildKey]);
   
   
 
@@ -1360,7 +1379,8 @@ const handleWordSelect = (idx: number) => {
     const verseText =
       language === "TE"
         ? verseData.text.TELUGU_COMMUNITY_V1 || verseData.text.KJV
-        : verseData.text[englishVersion] || verseData.text.KJV;
+        : verseData.text[bibleVersion
+        ] || verseData.text.KJV;
   
     if (!verseText) return "";
   
@@ -1411,7 +1431,8 @@ const handleWordSelect = (idx: number) => {
         
     localCache.current.set(key, output);
     return output;
-  }, [verseRef, verseData, language, englishVersion, buildKey]);
+  }, [verseRef, verseData, language, bibleVersion
+    , buildKey]);
   
 
   /* -------------------------
@@ -1504,10 +1525,16 @@ const handleWordSelect = (idx: number) => {
   ---------------------------*/
 
   useEffect(() => {
-    if (activeTab === "Compare") {
-      setLanguage("EN"); // navigation only, not verse data
+    setLanguageOverride(null);
+  }, [verseRef]);
+
+  
+  useEffect(() => {
+    if (activeTab !== "Interlinear") {
+      setLanguageOverride(null);
     }
   }, [activeTab]);
+  
   
 
   useEffect(() => {
@@ -1666,14 +1693,7 @@ const handleWordSelect = (idx: number) => {
   }, [verseRef]);
   
 
-  useEffect(() => {
-    if (activeTab === "Interlinear") return;
-  
-    // Auto-detect language ONLY if user hasn't explicitly chosen
-    if (verseData.text.TELUGU_COMMUNITY_V1 && !verseData.text[englishVersion]) {
-      setLanguage("TE");
-    }
-  }, [verseData, activeTab]);
+
   
   
   
@@ -2160,15 +2180,20 @@ window.dispatchEvent(
 
         
 
-        <button
-          onClick={() => { setLanguage(language === 'EN' ? 'TE' : 'EN'); setMenuOpen(false); }}
-          className="w-full px-4 py-2 flex items-center gap-3 text-left 
-                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-        >
-          <i className="fas fa-globe w-4" />
-{L.language}: {language}
+<button
+  onClick={() => {
+    setLanguageOverride((prev) =>
+      prev === "EN" ? "TE" : "EN"
+    );
+    setMenuOpen(false);
+  }}
+  className="w-full px-4 py-2 flex items-center gap-3 text-left 
+             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+>
+  <i className="fas fa-globe w-4" />
+  {L.language}: {language}
+</button>
 
-        </button>
       </div>
     )}
   </div>

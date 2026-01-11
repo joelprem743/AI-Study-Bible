@@ -153,10 +153,12 @@ interface ChatbotProps {
   selectedChapter: number;
   selectedVerseRef: VerseReference | null;
   verses: Verse[];
-  englishVersion: string;
+  studyMode: "single" | "parallel";
+  singleVersion: string;
   isOpen: boolean;
   onToggle: () => void;
 }
+
 
 type ChatScope = "GLOBAL" | "VERSE" | "CHAPTER";
 
@@ -165,10 +167,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   selectedChapter,
   selectedVerseRef,
   verses,
-  englishVersion,
+  studyMode,
+  singleVersion,
   isOpen,
   onToggle,
 }) => {
+
   // UI language (controls UI strings, suggestions)
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
 
@@ -233,17 +237,19 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   }, [isOpen, onToggle]);
 
 
-  
   useEffect(() => {
     if (!isOpen) return;
   
-    const isTelugu = englishVersion === "TELUGU_COMMUNITY_V1";
-    const lang: "EN" | "TE" = isTelugu ? "TE" : "EN";
+    const lang =
+      studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1"
+        ? "TE"
+        : "EN";
   
     setLanguage(lang);
     setModelLanguage(lang);
     setFollowUpQs([]);
-  }, [englishVersion, isOpen]);
+  }, [isOpen, studyMode, singleVersion]);
+  
   
 
   useEffect(() => {
@@ -317,6 +323,15 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     if (!match) return "";
     return match[1].trim();
   };
+  
+  const effectiveEnglishVersion = (() => {
+    // Telugu single mode still needs English fallback for logic
+    if (studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1") {
+      return "KJV";
+    }
+  
+    return singleVersion;
+  })();
   
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
@@ -416,9 +431,10 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
       if (!meta) return "";
   
       const version =
-        language === "TE"
-          ? "TELUGU_COMMUNITY_V1"
-          : englishVersion;
+  language === "TE"
+    ? "TELUGU_COMMUNITY_V1"
+    : effectiveEnglishVersion;
+
   
       const chapterData = await fetchChapter(meta.name, chapter, version);
       if (!chapterData?.length) return "";
@@ -543,9 +559,10 @@ const buildContextualInput = (input: string) => {
   if (chatScope === "VERSE" && selectedVerseRef) {
     const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
     const verseText =
-  englishVersion === "TELUGU_COMMUNITY_V1"
+  language === "TE"
     ? verseData?.text.TELUGU_COMMUNITY_V1
-    : verseData?.text[englishVersion];
+    : verseData?.text[effectiveEnglishVersion];
+
 
 
 
@@ -562,6 +579,7 @@ const buildContextualInput = (input: string) => {
   // GLOBAL CHAT (no Bible anchoring)
   return input;
 };
+
 
 
 

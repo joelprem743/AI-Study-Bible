@@ -104,6 +104,10 @@ const [incomingVerse, setIncomingVerse] = useState<{
   ref: { book: string; chapter: number; verse: number };
   text: string;
 } | null>(null);
+  const verseToolsLanguage =
+  studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1"
+    ? "TE"
+    : "EN";
 
 
   // UI
@@ -520,7 +524,15 @@ const [incomingVerse, setIncomingVerse] = useState<{
     }
   };
   
-  
+  const resolveChatLanguage = (
+    studyMode: "single" | "parallel",
+    singleVersion: string
+  ): "EN" | "TE" => {
+    if (studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1") {
+      return "TE";
+    }
+    return "EN";
+  };
 
   const handleClearSearch = () => {
     setIsSearchView(false);
@@ -851,9 +863,14 @@ rounded-full shadow-md overflow-hidden px-2"
                 <div className="w-full md:w-1/3 hidden md:block bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-[#2A2F35] overflow-y-auto">
                   {selectedVerseRef && selectedVerseData ? (
                     <VerseTools
-                      verseRef={selectedVerseRef}
-                      verseData={selectedVerseData}
-                      englishVersion={englishVersionForLogic}
+                    verseRef={selectedVerseRef}
+                    verseData={selectedVerseData}
+                    uiLanguage={verseToolsLanguage}
+                    bibleVersion={
+                      verseToolsLanguage === "TE"
+                        ? "TELUGU_COMMUNITY_V1"
+                        : englishVersionForLogic
+                    }
                       currentHighlight={highlights[selectedVerseRef.verse] || null}
                       onHighlightChange={(color) => {
                         if (!user) {
@@ -880,7 +897,12 @@ rounded-full shadow-md overflow-hidden px-2"
                 <VerseTools
                   verseRef={selectedVerseRef}
                   verseData={selectedVerseData}
-                  englishVersion={englishVersionForLogic}
+                  uiLanguage={verseToolsLanguage}
+                  bibleVersion={
+                    verseToolsLanguage === "TE"
+                      ? "TELUGU_COMMUNITY_V1"
+                      : englishVersionForLogic
+                  }
                   currentHighlight={highlights[selectedVerseRef.verse] || null}
                   onHighlightChange={(color) => {
                     if (!user) {
@@ -1043,14 +1065,16 @@ setGroupedSearchResults(
           </footer>
 
           <Chatbot
-            selectedBook={selectedBook}
-            selectedChapter={selectedChapter}
-            selectedVerseRef={selectedVerseRef}
-            verses={verses}
-            englishVersion={englishVersionForLogic}
-            isOpen={isChatOpen}
-            onToggle={() => setIsChatOpen(!isChatOpen)}
-          />
+  selectedBook={selectedBook}
+  selectedChapter={selectedChapter}
+  selectedVerseRef={selectedVerseRef}
+  verses={verses}
+  studyMode={studyMode}
+  singleVersion={singleVersion}
+  isOpen={isChatOpen}
+  onToggle={() => setIsChatOpen(!isChatOpen)}
+/>
+
         </div>
       )}
     </LanguageProvider>

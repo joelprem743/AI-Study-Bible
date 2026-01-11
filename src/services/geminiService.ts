@@ -114,15 +114,7 @@ export const sendMessageToLlama = async (
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: `${message}
-      
-      Format the entire answer in clean Markdown. Use:
-      - headings (##)
-      - bullet points
-      - short paragraphs
-      - **bold** for important terms
-      
-      Do NOT mix paragraph and list formatting in the same block.`,
+      message,
       history,
       lang,
     }),

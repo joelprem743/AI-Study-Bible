@@ -6,7 +6,7 @@ export interface VerseText {
   KJV?: string;
   ESV?: string;
   NIV?: string;
-  BSI_TELUGU?: string;
+  TELUGU_COMMUNITY_V1?: string;
 }
 
 
@@ -91,4 +91,8 @@ export interface ChatbotSection {
 
 export interface ChatbotAnswer {
   sections: ChatbotSection[];
+}
+
+export interface FollowUpResponse {
+  questions: string[];
 }

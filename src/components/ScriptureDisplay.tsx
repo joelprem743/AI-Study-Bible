@@ -13,7 +13,6 @@ interface ScriptureDisplayProps {
   isLoading: boolean;
   error: string | null;
 
-  // Version handling
   englishVersion: string;
   studyMode: "single" | "parallel";
   leftVersion?: string;
