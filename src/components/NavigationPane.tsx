@@ -424,8 +424,9 @@ studyMode === "single"
     onSetStudyMode("parallel");
 
     // FORCE sane defaults
-    onSetLeftVersion("KJV");
-    onSetRightVersion("TELUGU_COMMUNITY_V1");
+    onSetLeftVersion("ESV");
+onSetRightVersion("TELUGU_COMMUNITY_V1");
+
   }}
   className={`flex-1 py-2 rounded ${
     studyMode === "parallel"

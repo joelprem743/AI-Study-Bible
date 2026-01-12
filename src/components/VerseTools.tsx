@@ -28,6 +28,8 @@ import {
   flashGenerate,
 } from "../services/geminiService";
 
+import { AVAILABLE_VERSIONS } from "../App";
+
 
 /* -------------------------
   Small utils / transliteration
@@ -580,6 +582,20 @@ const LoadingSkeleton: React.FC = () => (
 
 type Tab = "Interlinear" | "Summary" | "Compare" | "Cross-references" | "Historical Context" | "Notes";
 
+
+type AiTab =
+  | "Summary"
+  | "Cross-references"
+  | "Historical Context";
+
+  function isAiTab(tab: Tab): tab is AiTab {
+    return (
+      tab === "Summary" ||
+      tab === "Cross-references" ||
+      tab === "Historical Context"
+    );
+  }
+  
 const PRIMARY_TABS: Tab[] = ["Summary", "Notes"];
 
 const ADVANCED_TABS: Tab[] = [
@@ -608,9 +624,12 @@ const BOOK_NAME_PATTERN = (() => {
 const GREEK_WORD_REGEX = /([\u0370-\u03FF\u1F00-\u1FFF]+)/g;
 
 const INLINE_REF_RENDER_REGEX = new RegExp(
-  `\\b((?:${BOOK_NAME_PATTERN})\\s+\\d+:\\d+(?:-\\d+)?)\\b`,
-  "u"
+  `((?:${BOOK_NAME_PATTERN})\\s+\\d+:\\d+(?:-\\d+)?)(?=\\s*[.,;:—–)]|\\b)`,
+  "gu"
 );
+
+
+
 
 
 
@@ -699,10 +718,11 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const [languageOverride, setLanguageOverride] = useState<"EN" | "TE" | null>(null);
+  const [language, setLanguage] = useState<"EN" | "TE">(uiLanguage);
+
 
   const [activeTab, setActiveTab] = useState<Tab>("Summary");
-  const language = languageOverride ?? uiLanguage;
+
   const [originalVerse, setOriginalVerse] = useState<string>("");
   const [translitVerse, setTranslitVerse] = useState<string>("");
   const L = MENU_LABELS[language];
@@ -712,15 +732,10 @@ export const VerseTools: React.FC<{
 >([]);
 
 
-const [analysis, setAnalysis] = useState<Record<
-Exclude<Tab, "Compare">,
-string | null
->>({
-Interlinear: null,
-Summary: null,
-"Cross-references": null,
-"Historical Context": null,
-Notes: null,
+const [analysis, setAnalysis] = useState<Record<AiTab, string | null>>({
+  Summary: null,
+  "Cross-references": null,
+  "Historical Context": null,
 });
 
 
@@ -821,7 +836,16 @@ async function preloadStrongLexicons(rows: any[]) {
 
 const displayEnglishVerse =
   verseData.text[bibleVersion
-  ] || verseData.text.KJV || "";
+  ] || verseData.text.KJV || "";   
+
+  const VERSION_LABELS: Record<string, string> = {
+    KJV: "King James Version",
+    NKJV: "New King James Version",
+    NIV: "New International Version",
+    ESV: "English Standard Version",
+    TELUGU_COMMUNITY_V1: "తెలుగు బైబిల్",
+  };
+  
 
 const displayTeluguVerse =
   verseData.text.TELUGU_COMMUNITY_V1 || "";
@@ -913,7 +937,7 @@ const getCopyableContent = useCallback((): string => {
 
   
   // ---- AI TABS (Summary, Cross-refs, Historical) ----
-  const content = analysis[activeTab];
+  const content = isAiTab(activeTab) ? analysis[activeTab] : null;
 
   if (!content) {
     return `${header}\n\n(No content generated yet)`;
@@ -951,44 +975,38 @@ const handleCopyTabContent = useCallback(async () => {
 
 
 const loadCompare = useCallback(async () => {
-  const versions = [
-    bibleVersion
-,
-    "TELUGU_COMMUNITY_V1",
-  ];
+  const versions = AVAILABLE_VERSIONS;
 
-  const results = await Promise.all(
-    versions.map((v) =>
-      fetchChapter(verseRef.book, verseRef.chapter, v)
-    )
+  const results = await Promise.allSettled(
+    versions.map(async (version) => {
+      const chapter = await fetchChapter(
+        verseRef.book,
+        verseRef.chapter,
+        version
+      );
+
+      const verse = chapter.find(v => v.verse === verseRef.verse);
+      if (!verse || !verse.text) return null;
+
+      const text =
+  verse.text[version] ??
+  verse.text.TELUGU_COMMUNITY_V1 ??
+  verse.text.KJV ??
+  "";
+
+
+      if (!text) return null;
+
+      return { version, text };
+    })
   );
 
-  const rows: { version: string; text: string }[] = [];
-
-  results.forEach((chapter, idx) => {
-    const v = versions[idx];
-    const verse = chapter.find(
-      (x) => x.verse === verseRef.verse
-    );
-    if (!verse || !verse.text) return;
-
-if (v === "TELUGU_COMMUNITY_V1") {
-  rows.push({
-    version: v,
-    text: verse.text.TELUGU_COMMUNITY_V1 || "",
-  });
-} else {
-  rows.push({
-    version: v,
-    text: verse.text[v] || verse.text.KJV || "",
-  });
-}
-
-  });
+  const rows = results
+    .filter(r => r.status === "fulfilled" && r.value)
+    .map(r => (r as PromiseFulfilledResult<any>).value);
 
   setCompareVerses(rows);
-}, [verseRef, bibleVersion
-]);
+}, [verseRef]);
 
 
 
@@ -1404,9 +1422,14 @@ const handleWordSelect = (idx: number) => {
         - Explain why this verse is important in Scripture
         - End with practical or spiritual implications
         
-        Formatting rules:
-        - Use clear Markdown
-        - Use short paragraphs
+        Formatting rules (MANDATORY):
+        - Use Markdown headings with ## for section titles
+        - DO NOT write section titles as plain text
+        - Example (Telugu):
+          ## పరిచయం
+          ## సారాంశం
+          ## దైవశాస్త్ర అర్థం
+          ## ప్రాముఖ్యత
         - Use bullet points where helpful
         - Do NOT quote long passages from other verses
         - Do NOT invent doctrine
@@ -1440,74 +1463,82 @@ const handleWordSelect = (idx: number) => {
   ---------------------------*/
   const loadTab = useCallback(
     async (tab: Tab) => {
+      // ---------- INTERLINEAR ----------
       if (tab === "Interlinear") {
         const cacheKey = buildKey("Interlinear", "EN");
-      
         if (localCache.current.has(cacheKey)) {
           return "__INTERLINEAR__";
         }
-      
+  
         const isNT = isNewTestament(verseRef.book);
-      
+  
         const rows = isNT
-  ? await fetchNTInterlinear(
-      verseRef.book,
-      verseRef.chapter,
-      verseRef.verse
-    )
-  : await fetchOTInterlinear(
-      verseRef.book,
-      verseRef.chapter,
-      verseRef.verse
-    );
-
-      
-    setInterlinearRows(rows || []);
-
-    if (rows && rows.length > 0) {
-      if (!isNT) {
-        await preloadStrongLexicons(rows);
-      }
-    
-      if (isNT) {
-        setOriginalVerse(buildGreekVerse(rows));
-        setTranslitVerse(buildTransliterationVerse(rows));
-      } else {
-        setOriginalVerse(buildHebrewVerse(rows));
-        setTranslitVerse(
-          rows
-            .slice()
-            .sort((a, b) => a.word_index - b.word_index)
-            .map(r => strongCache[r.strong]?.transliteration || "")
-            .filter(Boolean)
-            .join(" ")
-        );
-      }
-    }
-    
-         else {
-          setOriginalVerse("");
-          setTranslitVerse("");
+          ? await fetchNTInterlinear(
+              verseRef.book,
+              verseRef.chapter,
+              verseRef.verse
+            )
+          : await fetchOTInterlinear(
+              verseRef.book,
+              verseRef.chapter,
+              verseRef.verse
+            );
+  
+        setInterlinearRows(rows || []);
+  
+        if (rows && rows.length > 0) {
+          if (!isNT) await preloadStrongLexicons(rows);
+  
+          if (isNT) {
+            setOriginalVerse(buildGreekVerse(rows));
+            setTranslitVerse(buildTransliterationVerse(rows));
+          } else {
+            setOriginalVerse(buildHebrewVerse(rows));
+            setTranslitVerse(
+              rows
+                .slice()
+                .sort((a, b) => a.word_index - b.word_index)
+                .map(r => strongCache[r.strong]?.transliteration || "")
+                .filter(Boolean)
+                .join(" ")
+            );
+          }
         }
-      
+  
         localCache.current.set(cacheKey, "__INTERLINEAR__");
         return "__INTERLINEAR__";
       }
-      
   
-      if (tab === "Notes") return "";
-      if (tab === "Summary") return "";
-  
-      const key = buildKey(tab, language);
-      const cached = localCache.current.get(key);
-      if (cached != null) return cached;
-  
-      setErrorMsg("");
-  
-      try {
-        if (language === "EN") return "";
+      // ---------- NOTES ----------
+      if (tab === "Notes") {
         return "";
-      } catch (e: any) {
+      }
+  
+      // ---------- AI TABS ----------
+
+      try {
+        if (!isAiTab(tab)) {
+          return "";
+        }
+        
+        const key = buildKey(tab, language);
+        const cached = localCache.current.get(key);
+        if (cached != null) return cached;
+        
+        setErrorMsg("");
+        
+        switch (tab) {
+          case "Summary":
+            return await loadSummaryWithLlama();
+        
+          case "Cross-references":
+            return await loadCrossReferencesWithGemini();
+        
+          case "Historical Context":
+            return await loadHistoricalContextWithGemini();
+        }
+        
+      } catch (e) {
         console.error("loadTab error", e);
         setErrorMsg(
           language === "TE"
@@ -1517,24 +1548,25 @@ const handleWordSelect = (idx: number) => {
         return "";
       }
     },
-    [verseRef, language, buildKey]
+    [
+      verseRef,
+      language,
+      buildKey,
+      loadSummaryWithLlama,
+      loadCrossReferencesWithGemini,
+      loadHistoricalContextWithGemini,
+    ]
   );
+  
   
   /* -------------------------
     Effects
   ---------------------------*/
 
-  useEffect(() => {
-    setLanguageOverride(null);
-  }, [verseRef]);
-
   
   useEffect(() => {
-    if (activeTab !== "Interlinear") {
-      setLanguageOverride(null);
-    }
-  }, [activeTab]);
-  
+    setLanguage(uiLanguage);
+  }, [uiLanguage, verseRef]);
   
 
   useEffect(() => {
@@ -1620,15 +1652,12 @@ const handleWordSelect = (idx: number) => {
       setLoading(true);
       try {
         await loadTab("Interlinear");
-        setAnalysis(prev => ({
-          ...prev,
-          Interlinear: "__INTERLINEAR__",
-        }));
       } finally {
         setLoading(false);
       }
     })();
   }, [activeTab, loadTab]);
+  
   
   useEffect(() => {
     if (activeTab === "Interlinear" && language === "TE") {
@@ -1678,19 +1707,15 @@ const handleWordSelect = (idx: number) => {
     localCache.current.clear();
     refCache.current.clear();
   
-    setAnalysis(prev => ({
-      ...prev,
-      Notes: null,
+    setAnalysis({
       Summary: null,
       "Cross-references": null,
       "Historical Context": null,
-      Interlinear: null,
-    }));
+    });
   
     setErrorMsg("");
-  
-    // ❌ DO NOT reset activeTab here
   }, [verseRef]);
+  
   
 
 
@@ -1699,19 +1724,14 @@ const handleWordSelect = (idx: number) => {
   
 
   useEffect(() => {
-    if (
-      activeTab === "Notes" ||
-      activeTab === "Interlinear" ||
-      activeTab === "Compare"
-    ) {
-      return;
-    }
+    if (!isAiTab(activeTab)) return;
   
     setAnalysis(prev => ({
       ...prev,
       [activeTab]: null,
     }));
   }, [language, activeTab]);
+  
   
   
 
@@ -1741,10 +1761,14 @@ const handleWordSelect = (idx: number) => {
         text = await loadTab(activeTab);
       }
   
-      setAnalysis(prev => ({
-        ...prev,
-        [activeTab]: text,
-      }));
+      if (isAiTab(activeTab)) {
+        setAnalysis(prev => ({
+          ...prev,
+          [activeTab]: text && text.trim() ? text : "__EMPTY__",
+        }));
+      }
+      
+      
     } catch (e) {
       console.error("Generate failed", e);
       setErrorMsg(
@@ -1805,10 +1829,16 @@ const handleWordSelect = (idx: number) => {
               className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
-                handleClickReference(match);
+                handleClickReference(
+                  match.replace(/[—–:-]\s*$/, "")
+                );
+                
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleClickReference(match);
+                if (e.key === "Enter") handleClickReference(
+                  match.replace(/[.,;:—–)\]]\s*$/, "")
+                );
+                
               }}
             >
               {match}
@@ -1921,6 +1951,7 @@ const handleWordSelect = (idx: number) => {
   
     return nodes;
   }
+
     
   function buildHebrewVerse(rows: any[]): string {
     return rows
@@ -2182,12 +2213,10 @@ window.dispatchEvent(
 
 <button
   onClick={() => {
-    setLanguageOverride((prev) =>
-      prev === "EN" ? "TE" : "EN"
-    );
+    setLanguage(prev => (prev === "EN" ? "TE" : "EN"));
     setMenuOpen(false);
   }}
-  className="w-full px-4 py-2 flex items-center gap-3 text-left 
+  className="w-full px-4 py-2 flex items-center gap-3 text-left
              text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
 >
   <i className="fas fa-globe w-4" />
@@ -2395,9 +2424,21 @@ window.dispatchEvent(
           key={version}
           className="rounded-lg border border-gray-300 dark:border-gray-700 p-3"
         >
-          <div className="text-xs font-semibold text-gray-500 mb-1">
-            {version}
-          </div>
+          <div className="flex items-center gap-2 mb-1">
+  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+    {VERSION_LABELS[version] || version.replace(/_/g, " ")}
+  </span>
+
+  <span className="
+    px-2 py-0.5 text-[10px] rounded-full
+    bg-gray-200 dark:bg-gray-700
+    text-gray-700 dark:text-gray-300
+    uppercase tracking-wide
+  ">
+    {version}
+  </span>
+</div>
+
 
           <p
             className={`text-sm leading-relaxed ${
@@ -2410,49 +2451,254 @@ window.dispatchEvent(
       ))}
     </div>
   )
-) : loading ? (
-  <LoadingSkeleton />
 ) : (
   <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
     {errorMsg ? (
       <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
     ) : activeTab === "Interlinear" ? (
-      <>
-        {interlinearNotice && (
-          <div
+      loading ? (
+        <LoadingSkeleton />
+      ) : interlinearRows.length > 0 ? (
+        <div className="space-y-4">
+          {/* ORIGINAL TEXT + TRANSLITERATION */}
+          {originalVerse && (
+            <div
+            ref={originalBlockRef}
             className="
-              mb-3 p-3 rounded-md
-              bg-yellow-50 dark:bg-yellow-900/30
-              border border-yellow-300 dark:border-yellow-700
-              text-sm text-yellow-800 dark:text-yellow-200
+              p-3 rounded-md
+              bg-gray-50 dark:bg-gray-900
+              border border-gray-200 dark:border-gray-700
+              space-y-2
             "
           >
-            {interlinearNotice}
+          
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Original Text
+              </p>
+    
+              {isNewTestament(verseRef.book) ? (
+/* ---------- NT (Greek – LTR) ---------- */
+<p
+dir="ltr"
+className="
+text-2xl
+font-serif
+leading-relaxed
+tracking-wide
+text-left
+flex
+flex-wrap
+gap-x-1
+"
+>
+{interlinearRows
+.slice()
+.sort((a, b) => a.word_index - b.word_index)
+.map((r, i) => {
+const idx = getWordIndex(r);
+
+return (
+  <span
+    key={idx}
+    className={`
+      cursor-pointer
+      rounded
+      px-0.5
+      ${
+        activeWordIndex === idx
+          ? "bg-yellow-200 dark:bg-yellow-600"
+          : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+      }
+    `}
+    onMouseEnter={() => handleWordHover(idx)}
+    onClick={() => handleWordClick(idx)}
+  >
+    {r.surface}
+  </span>
+);
+})
+}
+</p>
+) : (
+/* ---------- OT (Hebrew – RTL) ---------- */
+<p
+dir="rtl"
+className="
+text-2xl
+font-serif
+leading-relaxed
+tracking-wide
+text-right
+unicode-bidi-override
+flex
+flex-wrap
+gap-x-1
+"
+>
+{interlinearRows
+.slice()
+.sort((a, b) => a.word_index - b.word_index)
+.map((r, i) => {
+const idx = getWordIndex(r);
+
+
+return (
+  <span
+    key={idx}
+    dir="rtl"
+    className={`
+      cursor-pointer
+      rounded
+      px-0.5
+      ${
+        activeWordIndex === idx
+          ? "bg-yellow-200 dark:bg-yellow-600"
+          : "hover:bg-yellow-200 dark:hover:bg-yellow-600"
+      }
+    `}
+    onMouseEnter={() => handleWordHover(idx)}
+    onClick={() => handleWordClick(idx)}
+  >
+    {cleanHebrewSurface(r.surface)}
+  </span>
+);
+})
+}
+</p>
+)}
+
+
+              {translitVerse && (
+                <>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 mt-2">
+                    Transliteration
+                  </p>
+                  <p className="text-sm italic text-gray-600 dark:text-gray-400">
+                    {translitVerse}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+    
+          {/* WORD-BY-WORD */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {interlinearRows.map((r, i) => {
+              const isNT = isNewTestament(verseRef.book);
+              const row = normalizeInterlinearRow(r, isNT);
+              const cached = row.strong ? strongCache[row.strong] : null;
+              const idx = getWordIndex(r);
+
+
+const effectiveLemma =
+row.lemma ||
+cached?.lemma ||
+cleanHebrewSurface(row.surface);
+
+const effectiveTranslit =
+row.transliteration ||
+cached?.transliteration ||
+"";
+
+const effectiveMeaning =
+row.meaning ||
+cached?.meaning ||
+"";
+
+
+              
+
+
+    
+              return (
+                <div
+data-word-index={idx}
+key={`word-${idx}`}
+ref={(el) => {
+if (el) {
+wordRefs.current.set(idx, el);
+}
+}}
+className={`
+rounded-lg border px-4 py-3 dark:border-gray-700
+transition-colors
+${
+activeWordIndex === idx
+? "border-yellow-400 bg-yellow-50 dark:bg-yellow-800/40"
+: "bg-white dark:bg-gray-900"
+}
+`}
+>
+
+{/* SURFACE — HERO */}
+<div className="text-2xl font-serif font-semibold leading-tight">
+{isNewTestament(verseRef.book)
+? row.surface
+: cleanHebrewSurface(row.surface)}
+</div>
+
+{/* LEMMA — QUIET */}
+<div className="text-sm font-serif text-gray-500 dark:text-gray-400">
+{effectiveLemma || "—"}
+</div>
+
+{/* MEANING — PRIMARY CONTENT */}
+<div className="mt-2 text-sm text-gray-900 dark:text-gray-100">
+{effectiveMeaning || "—"}
+</div>
+
+{/* SECONDARY META ROW */}
+<div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+{effectiveTranslit && (
+<span className="italic">{effectiveTranslit}</span>
+)}
+
+{row.strong && (
+<button
+onClick={() => openStrong(row)}
+className="
+  px-2 py-0.5 rounded
+  border border-gray-300 dark:border-gray-600
+  hover:bg-gray-100 dark:hover:bg-gray-800
+  text-gray-700 dark:text-gray-300
+"
+>
+{row.strong}
+</button>
+)}
+</div>
+</div>
+
+              );
+            })}
           </div>
-        )}
-    
-        {/* existing interlinear rendering — LEAVE AS IS */}
-        {null}
-      </>
-    ) : analysis[activeTab] == null ? (
-    
-      <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
-        <p>
-          {language === "TE"
-            ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
-            : "Click the button below to generate AI analysis for this tab."}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">
+          Interlinear data not available for this verse.
         </p>
-        <button
-          onClick={handleGenerateClick}
-          className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-        >
-          {language === "TE"
-            ? "విశ్లేషణ సృష్టించు"
-            : `Generate ${activeTab}`}
-        </button>
-      </div>
-    ) : (
-      <ReactMarkdown
+      )
+    ) : loading ? (
+    <LoadingSkeleton />
+  ) : isAiTab(activeTab) && analysis[activeTab] == null ? (
+
+    <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+      <p>
+        {language === "TE"
+          ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
+          : "Click the button below to generate AI analysis for this tab."}
+      </p>
+      <button
+        onClick={handleGenerateClick}
+        className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+      >
+        {language === "TE"
+          ? "విశ్లేషణ సృష్టించు"
+          : `Generate ${activeTab}`}
+      </button>
+    </div>
+  ) : (
+    <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1({ children }) {
@@ -2469,16 +2715,31 @@ window.dispatchEvent(
               </h2>
             );
           },
+
           p({ children }) {
-            return (
-              <p className="mb-2 leading-relaxed">
-                {renderNodeWithRefs(children)}
-              </p>
-            );
-          },
+            const text =
+              typeof children === "string" ? children.trim() : "";
+          
+            const isLikelyHeading =
+              text.length < 30 &&
+              !text.endsWith(".");
+          
+            if (isLikelyHeading) {
+              return (
+                <p className="font-bold text-base mt-4 mb-1">
+                  {children}
+                </p>
+              );
+            }
+          
+            return <p>{renderNodeWithRefs(children)}</p>;
+          }
+          
+          
         }}
       >
-        {analysis[activeTab] ?? ""}
+{isAiTab(activeTab) ? analysis[activeTab] ?? "" : ""}
+
       </ReactMarkdown>
     )}
   </div>

@@ -76,9 +76,24 @@ const App: React.FC = () => {
   const [singleVersion, setSingleVersion] = useLocalStorage("singleVersion", "KJV");
 // default Telugu
   // default left version (can be Telugu or English)
-const [leftVersion, setLeftVersion] = useLocalStorage("leftVersion", "TELUGU_COMMUNITY_V1");
+  const [leftVersion, setLeftVersion] = useLocalStorage(
+    "leftVersion",
+    "ESV"
+  );
+  
+  const [rightVersion, setRightVersion] = useLocalStorage(
+    "rightVersion",
+    "TELUGU_COMMUNITY_V1"
+  );
+  
 
-  const [rightVersion, setRightVersion] = useLocalStorage("rightVersion", "ESV");
+  useEffect(() => {
+    if (studyMode === "parallel") {
+      setLeftVersion("ESV");
+      setRightVersion("TELUGU_COMMUNITY_V1");
+    }
+  }, [studyMode]);
+  
 
 
   const activeSingleVersion =
@@ -292,17 +307,16 @@ const [incomingVerse, setIncomingVerse] = useState<{
   const getEnglishVersionForLogic = () => {
     if (studyMode === "single") {
       return singleVersion === "TELUGU_COMMUNITY_V1"
-        ? "KJV"
+        ? "ESV"
         : singleVersion;
     }
   
-    // parallel mode
-    if (leftVersion !== "TELUGU_COMMUNITY_V1") return leftVersion;
-    if (rightVersion !== "TELUGU_COMMUNITY_V1") return rightVersion;
-  
-    // absolute fallback (should never happen)
-    return "KJV";
+    // Parallel mode: left is always English by design
+    return leftVersion === "TELUGU_COMMUNITY_V1"
+      ? rightVersion
+      : leftVersion;
   };
+  
   
   const englishVersionForLogic = getEnglishVersionForLogic();
   

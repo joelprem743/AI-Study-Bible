@@ -51,6 +51,7 @@ const BotMessage: React.FC<{
     () =>
       answer.sections.reduce((acc, _, idx) => {
         acc[idx] = idx === 0;
+
         return acc;
       }, {} as Record<number, boolean>)
   );
@@ -189,6 +190,10 @@ const [chatScope, setChatScope] = useState<ChatScope>("GLOBAL");
 const [previewText, setPreviewText] = useState<string>("");
 const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+const [answerDepth, setAnswerDepth] = useState<
+"SHORT" | "MEDIUM" | "DEEP"
+>("MEDIUM");
+
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [followUpQs, setFollowUpQs] = useState<string[]>([]);
@@ -201,6 +206,8 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+
   // Detect initial chatbot language from current Bible version
 // const detectInitialLanguage = (): "EN" | "TE" => {
 //   return englishVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN";
@@ -235,6 +242,26 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onToggle]);
+
+
+  useEffect(() => {
+    if (!isModeDropdownOpen) return;
+  
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+  
+      if (
+        controlsRef.current &&
+        !controlsRef.current.contains(target)
+      ) {
+        setIsModeDropdownOpen(false);
+      }
+    };
+  
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isModeDropdownOpen]);
+  
 
 
   useEffect(() => {
@@ -596,30 +623,15 @@ if (!finalInput || isLoading) return;
 // STEP 3: detect direct question
 const isDirectQuestion = /\?$/.test(finalInput);
 
-const formattingRules = `
+const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
+  if (depth === "SHORT") {
+    return `
 SYSTEM INSTRUCTION (CRITICAL):
 
-You MUST return a SINGLE valid JSON object.
-DO NOT include:
-- markdown
-- headings
-- explanations
-- bullet points
-- plain text
-- emojis
-- comments
-- code fences
+You are a Bible reference assistant.
 
-If you cannot comply, return this EXACT JSON and nothing else:
-{
-  "sections": [
-    {
-      "title": "Error",
-      "explanation": "The model failed to generate structured output.",
-      "references": []
-    }
-  ]
-}
+Return a SINGLE valid JSON object.
+Do NOT include markdown, emojis, or explanations beyond what is asked.
 
 REQUIRED SCHEMA:
 {
@@ -632,15 +644,83 @@ REQUIRED SCHEMA:
   ]
 }
 
-RULES:
-- references must be Bible references only (e.g. "John 3:16")
-- Use plain text only
+STRICT RULES FOR SHORT:
+- EXACTLY 2 sections only
+- Each explanation MUST be 1–2 sentences MAX
+- NO historical background
+- NO extended context
+- NO application teaching
+- State the core idea plainly
+- Be concise and factual
+
+LANGUAGE RULES:
+- Plain text only
 - No markdown
-- No numbering
+- No emojis
 
 RETURN JSON ONLY.
 `;
+  }
 
+  if (depth === "MEDIUM") {
+    return `
+SYSTEM INSTRUCTION (CRITICAL):
+
+You are a Bible teacher giving a clear explanation.
+
+Return a SINGLE valid JSON object.
+Do NOT include markdown or emojis.
+
+REQUIRED SCHEMA:
+{
+  "sections": [
+    {
+      "title": string,
+      "explanation": string,
+      "references": string[]
+    }
+  ]
+}
+
+RULES FOR MEDIUM:
+- 3 sections
+- 4–5 sentences per section
+- Include brief context and meaning
+- Limited application
+
+RETURN JSON ONLY.
+`;
+  }
+
+  // DEEP
+  return `
+SYSTEM INSTRUCTION (CRITICAL):
+
+You are a Bible teacher giving a detailed exposition.
+
+Return a SINGLE valid JSON object.
+Do NOT include markdown or emojis.
+
+REQUIRED SCHEMA:
+{
+  "sections": [
+    {
+      "title": string,
+      "explanation": string,
+      "references": string[]
+    }
+  ]
+}
+
+RULES FOR DEEP:
+- 4–5 sections
+- 6–8 sentences per section
+- Include historical context, theology, and application
+- Use multiple Scripture references
+
+RETURN JSON ONLY.
+`;
+};
 
 
 
@@ -657,6 +737,36 @@ RETURN JSON ONLY.
 
     const contextualizedInput = buildContextualInput(finalInput);
 
+    const getStructuredIntent = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
+      if (depth === "SHORT") {
+        return `
+    Structure the answer using ONLY these sections:
+    1. Core Teaching
+    2. Key Scripture
+    `;
+      }
+    
+      if (depth === "MEDIUM") {
+        return `
+    Structure the answer using these sections:
+    1. Core Teaching
+    2. Biblical Context
+    3. Meaning for Daily Life
+    `;
+      }
+    
+      // DEEP
+      return `
+    Structure the answer using these sections:
+    1. Core Teaching
+    2. Biblical Context
+    3. Meaning for Daily Life
+    4. Key Supporting Scriptures
+    `;
+    };
+    
+
+
     // Use modelLanguage for AI instruction (this guarantees Option B)
     const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
 
@@ -664,12 +774,18 @@ RETURN JSON ONLY.
       const response = await sendMessageToLlama(
         `${contextualizedInput}
       
-      ${langInstruction}
-      
-      ${formattingRules}`,
+        ${getStructuredIntent(answerDepth)}
+
+${langInstruction}
+
+${getFormattingRules(answerDepth)}
+
+      `,
         [...messages, userMessage],
-        modelLanguage
+        modelLanguage,
+        answerDepth
       );
+      
       
       let parsed: ChatbotAnswer;
 
@@ -802,88 +918,110 @@ const botMessage: Message = {
 >
 
           {/* HEADER */}
-          <header className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 rounded-t-xl">
-          <h3 className="text-sm font-semibold leading-tight">
-  Bible Companion Assistant
-</h3>
+          <header className="
+  px-4 py-2
+  bg-white dark:bg-gray-900
+  border-b border-gray-200 dark:border-gray-700
+  rounded-t-xl
+">
+  <div className="flex items-center justify-between">
 
+    {/* TITLE */}
+    <h3 className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white">
+      Bible Companion Assistant
+    </h3>
 
-            <div className="relative flex items-center gap-3">
-              {/* 
-=======================
- MODEL DROPDOWN DISABLED
- (Future Multi-Model Support)
-=======================
-
-<div className="relative">
-  <button ...>
-    {CHAT_MODE_LABELS[chatMode]}
-    <i className="fas fa-caret-down text-[10px] opacity-80"></i>
-  </button>
-
-  {isModeDropdownOpen && (
-    <div className="absolute right-0 mt-2 w-40 rounded-lg shadow-lg z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700">
-      <button ...>Fast</button>
-      <button ...>Standard</button>
-      <button ...>Deep Thought</button>
-    </div>
-  )}
-</div>
-
-*/}
-              <select
-  value={chatScope}
-  onChange={(e) => setChatScope(e.target.value as ChatScope)}
-  className="text-[11px] border rounded px-1.5 py-0.5"
+    {/* CONTROLS BUTTON */}
+    <div ref={controlsRef} className="relative">
+    <button
+  onClick={() => setIsModeDropdownOpen(v => !v)}
+  className="
+    w-9 h-9
+    flex items-center justify-center
+    rounded-full
+    bg-transparent
+    text-gray-600 dark:text-gray-300
+    hover:bg-gray-100 dark:hover:bg-gray-800
+    active:bg-gray-200 dark:active:bg-gray-700
+    focus:outline-none focus:ring-2 focus:ring-blue-500
+    transition
+  "
+  aria-label="Chat settings"
+  title="Chat settings"
 >
-
-  <option value="GLOBAL">Global Chat</option>
-  <option value="CHAPTER">This Chapter</option>
-  <option value="VERSE">This Verse</option>
-</select>
+<i className="fas fa-cog text-sm" />
 
 
-              {/* Language dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsLangDropdownOpen((prev) => !prev)}
-                  className="
-                    bg-gray-50 dark:bg-gray-700
-                    border border-gray-300 dark:border-gray-600
-                    text-gray-900 dark:text-white
-                    text-[11px] rounded-md px-2 py-0.5
-                    flex items-center gap-2
-                    transition-all duration-150
-                    hover:bg-gray-100 dark:hover:bg-gray-600
-                    hover:shadow-[0_0_6px_1px_rgba(0,0,0,0.12)]
-                    focus:outline-none focus:ring-2 focus:ring-blue-200
-                  "
-                >
-                  <span aria-hidden>🌐</span>
-                  <span className="text-[12px] font-medium">{language}</span>
-                  <i className="fas fa-caret-down text-[10px] opacity-80"></i>
-                </button>
 
-                {isLangDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-28 rounded-lg shadow-lg z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700">
-                    <button
-                      onClick={() => handleLanguageSelect("EN")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      EN
-                    </button>
+</button>
 
-                    <button
-                      onClick={() => handleLanguageSelect("TE")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      TE
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </header>
+
+      {/* POPOVER */}
+      {isModeDropdownOpen && (
+        <div className="
+          absolute right-0 mt-2 w-48
+          bg-white dark:bg-gray-800
+          border border-gray-200 dark:border-gray-700
+          rounded-lg shadow-lg z-50
+          p-2 space-y-2
+        ">
+
+          {/* Scope */}
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 mb-1">
+              Scope
+            </label>
+            <select
+              value={chatScope}
+              onChange={(e) => setChatScope(e.target.value as ChatScope)}
+              className="w-full text-xs border rounded px-2 py-1"
+            >
+              <option value="GLOBAL">Global</option>
+              <option value="CHAPTER">Chapter</option>
+              <option value="VERSE">Verse</option>
+            </select>
+          </div>
+
+          {/* Depth */}
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 mb-1">
+              Answer Depth
+            </label>
+            <select
+              value={answerDepth}
+              onChange={(e) =>
+                setAnswerDepth(e.target.value as "SHORT" | "MEDIUM" | "DEEP")
+              }
+              className="w-full text-xs border rounded px-2 py-1"
+            >
+              <option value="SHORT">Short</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="DEEP">Deep</option>
+            </select>
+          </div>
+
+          {/* Language */}
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 mb-1">
+              Language
+            </label>
+            <select
+              value={language}
+              onChange={(e) =>
+                handleLanguageSelect(e.target.value as "EN" | "TE")
+              }
+              className="w-full text-xs border rounded px-2 py-1"
+            >
+              <option value="EN">English</option>
+              <option value="TE">తెలుగు</option>
+            </select>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</header>
+
 
           {/* MESSAGES */}
           <div className="flex-grow p-4 overflow-y-auto space-y-4">

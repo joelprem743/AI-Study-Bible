@@ -44,8 +44,14 @@ export function isNewTestament(book: string) {
 /* ============================================================
   FRONTEND CACHE FOR VERSE TOOLS
 ============================================================ */
+const CACHE_TTL_MS = 10 * 60 * 1000;
 
-const verseCache = new Map<string, string>();
+
+const verseCache = new Map<
+  string,
+  { text: string; ts: number }
+>();
+
 
 /* ============================================================
   MAIN: getVerseAnalysis (VerseTools → /api/verse-tools)
@@ -60,7 +66,10 @@ export const getVerseAnalysis = async (
   const cacheKey = `${baseKey}-${language}`;
 
   const cached = verseCache.get(cacheKey);
-  if (cached !== undefined) return cached;
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.text;
+  }
+  
 
   const type =
     section === "Cross-references"
@@ -97,9 +106,15 @@ export const getVerseAnalysis = async (
   }
 
   const text = (data?.text ?? "").toString().trim();
-  verseCache.set(cacheKey, text);
+  verseCache.set(cacheKey, {
+    text,
+    ts: Date.now(),
+  });
+  
   return text;
 };
+
+
 
 /* ============================================================
   CHATBOT SUPPORT (uses /api/llama-chat on backend)
@@ -108,8 +123,10 @@ export const getVerseAnalysis = async (
 export const sendMessageToLlama = async (
   message: string,
   history: any[],
-  lang: "EN" | "TE" = "EN"
+  lang: "EN" | "TE" = "EN",
+  depth: "SHORT" | "MEDIUM" | "DEEP" = "MEDIUM"
 ) => {
+
   const res = await fetch("/api/llama-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -117,7 +134,8 @@ export const sendMessageToLlama = async (
       message,
       history,
       lang,
-    }),
+      depth,
+    }),    
   });
 
   const raw = await res.text();
@@ -132,13 +150,19 @@ export const sendMessageToLlama = async (
     const errMsg =
       (data && data.error) ||
       `LLaMA API error: ${res.status} ${res.statusText} ${raw || ""}`.trim();
-    throw new Error(errMsg);
+      const err = new Error(errMsg);
+      (err as any).source = "LLAMA_CHAT";
+      throw err;
+      
   }
 
   return {
-    text: data?.text ?? "",
+    text: (data?.text ?? "")
+      .replace(/[–—]/g, "-")
+      .trim(),
     sources: data?.sources ?? [],
   };
+  
 };
 
 /* ============================================================
@@ -167,7 +191,11 @@ export const flashGenerate = async (prompt: string) => {
     throw new Error(msg);
   }
 
-  return (data?.text ?? "").toString();
+  return (data?.text ?? "")
+  .toString()
+  .replace(/[–—]/g, "-")
+  .trim();
+
 };
 
 /* ============================================================
