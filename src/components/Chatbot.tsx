@@ -40,7 +40,7 @@ const UI_TEXT = {
 
 
 
-// BOT MESSAGE COMPONENT
+// BOT MESSAGE COMPONENT (PREMIUM)
 const BotMessage: React.FC<{
   answer: ChatbotAnswer;
   sources?: GroundingChunk[];
@@ -51,50 +51,70 @@ const BotMessage: React.FC<{
     () =>
       answer.sections.reduce((acc, _, idx) => {
         acc[idx] = idx === 0;
-
         return acc;
       }, {} as Record<number, boolean>)
   );
 
   const toggle = (i: number) =>
-    setOpenSections(prev => ({ ...prev, [i]: !prev[i] }));
+    setOpenSections((prev) => ({ ...prev, [i]: !prev[i] }));
 
   return (
     <div className="flex items-start gap-2.5">
-<div className="flex flex-col w-full max-w-[90%] p-4 bg-gray-100 dark:bg-gray-700 rounded-e-xl rounded-es-xl">
+      {/* Bot identity */}
+      <div className="shrink-0 mt-1">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-[11px] font-bold text-white shadow-inner">
+          BC
+        </div>
+      </div>
+
+      {/* Bot bubble */}
+      <div className="flex flex-col w-full max-w-[98%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
         {answer.sections.map((sec, i) => (
           <div
             key={i}
-            className="mb-3 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+            className="mb-3 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50/60 dark:bg-slate-900/40"
           >
             <button
               onClick={() => toggle(i)}
-              className="w-full flex items-center justify-between px-3 py-2 text-left bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500"
+              className="w-full flex items-center justify-between px-4 py-3 text-left bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
-              <span className="font-semibold text-sm">{sec.title}</span>
+              <span className="font-semibold text-[13px] text-slate-900 dark:text-white">
+                {sec.title}
+              </span>
               <span className="text-xs opacity-70">
                 {openSections[i] ? "−" : "+"}
               </span>
             </button>
 
             {openSections[i] && (
-              <div className="p-3 space-y-2 bg-gray-100 dark:bg-gray-700">
-                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="p-4 space-y-3">
+                <div className="text-[13px] leading-relaxed whitespace-pre-wrap">
                   {renderWithRefs(sec.explanation)}
                 </div>
 
                 {sec.references.length > 0 && (
-                  <div className="text-xs text-gray-600 dark:text-gray-300">
-                    References:{" "}
-                    {sec.references.map((ref, j) => (
-                      <span
-                        key={j}
-                        className="underline cursor-pointer mr-2"
-                        onClick={() => onReferenceClick(ref)}
-                      >
-                        {ref}
-                      </span>
-                    ))}
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+                      References
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {sec.references.map((ref, j) => (
+                        <button
+                          key={j}
+                          onClick={() => onReferenceClick(ref)}
+                          className="
+                            text-[11px] px-3 py-1 rounded-full
+                            border border-slate-200 dark:border-slate-600
+                            bg-white dark:bg-slate-800
+                            hover:bg-slate-100 dark:hover:bg-slate-700
+                            transition
+                          "
+                        >
+                          {ref}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -102,19 +122,21 @@ const BotMessage: React.FC<{
           </div>
         ))}
 
+        {/* Sources */}
         {sources?.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
-            <h4 className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
-              Sources:
+          <div className="mt-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+            <h4 className="text-[11px] font-semibold mb-2 text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+              Sources
             </h4>
-            <ul className="list-disc list-inside space-y-1">
+
+            <ul className="space-y-1">
               {sources.map((s, i) => (
-                <li key={i} className="text-xs">
+                <li key={i} className="text-[12px]">
                   <a
                     href={s.web?.uri}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-blue-600 dark:text-blue-400 hover:underline break-words"
                   >
                     {s.web?.title || s.web?.uri}
                   </a>
@@ -129,16 +151,44 @@ const BotMessage: React.FC<{
 };
 
 
+const BotTyping: React.FC = () => {
+  return (
+    <div className="flex items-start gap-2.5">
+      {/* Bot identity */}
+      <div className="shrink-0 mt-1">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-[11px] font-bold text-white shadow-inner">
+          BC
+        </div>
+      </div>
+
+      {/* Typing bubble */}
+      <div className="flex flex-col w-full max-w-[98%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center gap-2">
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:120ms]"></div>
+            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:240ms]"></div>
+          </div>
+          <span className="text-[12px] text-slate-500 dark:text-slate-400">
+            Thinking...
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 // USER MESSAGE COMPONENT
+// USER MESSAGE COMPONENT (PREMIUM)
 const UserMessage: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex items-start justify-end gap-2.5">
-    <div className="flex flex-col w-full max-w-[90%] leading-1.5 p-4 bg-blue-600 dark:bg-blue-700 text-white rounded-s-xl rounded-ee-xl">
-      <p className="text-sm font-normal">{message}</p>
+    <div className="flex flex-col w-full max-w-[98%] p-4 bg-slate-900 text-white rounded-[1.25rem] rounded-tr-none shadow-xl border border-slate-800">
+      <p className="text-[13px] leading-relaxed">{message}</p>
     </div>
   </div>
 );
+
 
 const INLINE_REF_RENDER_REGEX = new RegExp(
   `((?:[1-3]?\\s*)?(?:[A-Za-z\\.]+|[\\u0C00-\\u0C7F]+(?:\\s+[\\u0C00-\\u0C7F]+)*)\\s+\\d+:\\d+(?:-\\d+)?)`,
@@ -201,7 +251,7 @@ const [answerDepth, setAnswerDepth] = useState<
   const [isLoading, setIsLoading] = useState(false);
 
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -227,6 +277,9 @@ const [answerDepth, setAnswerDepth] = useState<
     if (!isOpen) return;
   
     const handleClickOutside = (e: MouseEvent) => {
+      // ✅ If verse preview modal is open, never close chatbot by outside click
+      if (isPreviewOpen) return;
+  
       const target = e.target as Node;
   
       if (
@@ -235,13 +288,14 @@ const [answerDepth, setAnswerDepth] = useState<
         toggleButtonRef.current &&
         !toggleButtonRef.current.contains(target)
       ) {
-        onToggle(); // close chatbot
+        onToggle();
       }
     };
   
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onToggle]);
+  }, [isOpen, onToggle, isPreviewOpen]);
+  
 
 
   useEffect(() => {
@@ -569,15 +623,13 @@ const [answerDepth, setAnswerDepth] = useState<
 };
 
 const extractJsonObject = (text: string): string => {
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    throw new Error("No JSON object found in AI response");
+  const jsonText = extractJsonFromSentinel(text);
+  if (!jsonText) {
+    throw new Error("No <json>...</json> block found in AI response");
   }
-
-  return text.slice(firstBrace, lastBrace + 1);
+  return jsonText;
 };
+
 
 
 
@@ -621,7 +673,7 @@ const buildContextualInput = (input: string) => {
 if (!finalInput || isLoading) return;
 
 // STEP 3: detect direct question
-const isDirectQuestion = /\?$/.test(finalInput);
+
 
 const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
   if (depth === "SHORT") {
@@ -658,7 +710,14 @@ LANGUAGE RULES:
 - No markdown
 - No emojis
 
-RETURN JSON ONLY.
+Return JSON ONLY wrapped like this:
+
+<json>
+{ ... }
+</json>
+
+DO NOT output anything outside <json>...</json>.
+
 `;
   }
 
@@ -688,7 +747,14 @@ RULES FOR MEDIUM:
 - Include brief context and meaning
 - Limited application
 
-RETURN JSON ONLY.
+Return JSON ONLY wrapped like this:
+
+<json>
+{ ... }
+</json>
+
+DO NOT output anything outside <json>...</json>.
+
 `;
   }
 
@@ -718,7 +784,14 @@ RULES FOR DEEP:
 - Include historical context, theology, and application
 - Use multiple Scripture references
 
-RETURN JSON ONLY.
+Return JSON ONLY wrapped like this:
+
+<json>
+{ ... }
+</json>
+
+DO NOT output anything outside <json>...</json>.
+
 `;
 };
 
@@ -876,7 +949,7 @@ const botMessage: Message = {
     setLanguage(newLang);       // controls UI text & suggestions
     setModelLanguage(newLang);  // controls future AI replies & follow-ups
     setFollowUpQs([]);          // clear any old-language follow-ups
-    setIsLangDropdownOpen(false);
+
   };
 
   return (
@@ -892,7 +965,7 @@ const botMessage: Message = {
           text-3xl text-white
           bg-blue-600
           transition-shadow duration-200
-          z-20
+          z-[9997]
           hover:shadow-[0_0_20px_rgba(59,130,246,0.75)]
           active:shadow-[0_0_22px_rgba(59,130,246,0.85)]
           focus:outline-none focus:ring-4 focus:ring-blue-300
@@ -908,123 +981,128 @@ const botMessage: Message = {
   ref={chatRef}
   className="
     fixed bottom-24 right-5
-    w-[92vw] sm:w-[420px] md:w-[480px]
-    h-[75vh] md:h-[78vh]
-    bg-white dark:bg-gray-800 rounded-xl shadow-2xl border
-    border-gray-200 dark:border-gray-700 flex flex-col z-50
+    w-[96vw] sm:w-[520px] md:w-[620px] lg:w-[700px]
+    h-[82vh] md:h-[85vh]
+    bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl border overflow-hidden
+    border-gray-200 dark:border-gray-700 flex flex-col z-[9998]
     transition-shadow duration-200
     hover:shadow-[0_0_12px_3px_rgba(59,130,246,0.45)]
   "
 >
 
-          {/* HEADER */}
-          <header className="
-  px-4 py-2
-  bg-white dark:bg-gray-900
-  border-b border-gray-200 dark:border-gray-700
-  rounded-t-xl
-">
-  <div className="flex items-center justify-between">
-
-    {/* TITLE */}
-    <h3 className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white">
-      Bible Companion Assistant
-    </h3>
-
-    {/* CONTROLS BUTTON */}
-    <div ref={controlsRef} className="relative">
-    <button
-  onClick={() => setIsModeDropdownOpen(v => !v)}
-  className="
-    w-9 h-9
-    flex items-center justify-center
-    rounded-full
-    bg-transparent
-    text-gray-600 dark:text-gray-300
-    hover:bg-gray-100 dark:hover:bg-gray-800
-    active:bg-gray-200 dark:active:bg-gray-700
-    focus:outline-none focus:ring-2 focus:ring-blue-500
-    transition
-  "
-  aria-label="Chat settings"
-  title="Chat settings"
->
-<i className="fas fa-cog text-sm" />
 
 
+{/* HEADER (PREMIUM) */}
+<div className="px-4 py-3 bg-slate-900 dark:bg-slate-950 text-white flex justify-between items-center">
 
-</button>
+  <div className="flex items-center gap-3">
+    <div className="relative">
+      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+        BB
+      </div>
+      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full"></div>
+    </div>
 
-
-      {/* POPOVER */}
-      {isModeDropdownOpen && (
-        <div className="
-          absolute right-0 mt-2 w-48
-          bg-white dark:bg-gray-800
-          border border-gray-200 dark:border-gray-700
-          rounded-lg shadow-lg z-50
-          p-2 space-y-2
-        ">
-
-          {/* Scope */}
-          <div>
-            <label className="block text-[11px] font-medium text-gray-500 mb-1">
-              Scope
-            </label>
-            <select
-              value={chatScope}
-              onChange={(e) => setChatScope(e.target.value as ChatScope)}
-              className="w-full text-xs border rounded px-2 py-1"
-            >
-              <option value="GLOBAL">Global</option>
-              <option value="CHAPTER">Chapter</option>
-              <option value="VERSE">Verse</option>
-            </select>
-          </div>
-
-          {/* Depth */}
-          <div>
-            <label className="block text-[11px] font-medium text-gray-500 mb-1">
-              Answer Depth
-            </label>
-            <select
-              value={answerDepth}
-              onChange={(e) =>
-                setAnswerDepth(e.target.value as "SHORT" | "MEDIUM" | "DEEP")
-              }
-              className="w-full text-xs border rounded px-2 py-1"
-            >
-              <option value="SHORT">Short</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="DEEP">Deep</option>
-            </select>
-          </div>
-
-          {/* Language */}
-          <div>
-            <label className="block text-[11px] font-medium text-gray-500 mb-1">
-              Language
-            </label>
-            <select
-              value={language}
-              onChange={(e) =>
-                handleLanguageSelect(e.target.value as "EN" | "TE")
-              }
-              className="w-full text-xs border rounded px-2 py-1"
-            >
-              <option value="EN">English</option>
-              <option value="TE">తెలుగు</option>
-            </select>
-          </div>
-        </div>
-      )}
+    <div>
+      <div className="font-bold text-sm tracking-wide">Bible Companion</div>
+      <div className="text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
+        <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
+        Ready to assist
+      </div>
     </div>
   </div>
-</header>
+
+  {/* Controls */}
+  <div ref={controlsRef} className="relative flex items-center gap-2">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsModeDropdownOpen((v) => !v);
+      }}      
+      className="p-2 hover:bg-white/10 rounded-full transition-colors"
+      aria-label="Chat settings"
+      title="Chat settings"
+    >
+      <i className="fas fa-cog text-sm" />
+    </button>
+
+    <button
+      onClick={onToggle}
+      className="p-2 hover:bg-white/10 rounded-full transition-colors"
+      aria-label="Close chat"
+      title="Close"
+    >
+      ✕
+    </button>
+
+    {/* POPOVER */}
+    {isModeDropdownOpen && (
+      <div
+        className="
+          absolute right-0 top-12 w-52
+          bg-white dark:bg-slate-900
+          border border-slate-200 dark:border-slate-700
+          rounded-2xl shadow-xl z-50
+          p-3 space-y-3 text-slate-900 dark:text-white
+        "
+      >
+        {/* Scope */}
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+            Scope
+          </label>
+          <select
+            value={chatScope}
+            onChange={(e) => setChatScope(e.target.value as ChatScope)}
+            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+          >
+            <option value="GLOBAL">Global</option>
+            <option value="CHAPTER">Chapter</option>
+            <option value="VERSE">Verse</option>
+          </select>
+        </div>
+
+        {/* Depth */}
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+            Answer Depth
+          </label>
+          <select
+            value={answerDepth}
+            onChange={(e) =>
+              setAnswerDepth(e.target.value as "SHORT" | "MEDIUM" | "DEEP")
+            }
+            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+          >
+            <option value="SHORT">Short</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="DEEP">Deep</option>
+          </select>
+        </div>
+
+        {/* Language */}
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+            Language
+          </label>
+          <select
+            value={language}
+            onChange={(e) => handleLanguageSelect(e.target.value as "EN" | "TE")}
+            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+          >
+            <option value="EN">English</option>
+            <option value="TE">తెలుగు</option>
+          </select>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
 
 
           {/* MESSAGES */}
-          <div className="flex-grow p-4 overflow-y-auto space-y-4">
+          <div className="flex-grow overflow-y-auto px-5 py-4 space-y-5 bg-slate-50/50 dark:bg-slate-900/50">
             {/* START SUGGESTIONS + WELCOME (only when empty) */}
             {messages.length === 0 && (
               <div className="flex flex-col gap-4 mb-4">
@@ -1065,7 +1143,13 @@ const botMessage: Message = {
                     <button
                       key={i}
                       onClick={() => handleSuggestionClick(q)}
-                      className="w-full text-left p-3 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-shadow duration-150 hover:shadow-[0_0_6px_rgba(0,0,0,0.06)]"
+                      className="
+  w-full text-left p-4 text-[13px]
+  rounded-2xl bg-white dark:bg-slate-800
+  border border-slate-200 dark:border-slate-700
+  hover:bg-slate-50 dark:hover:bg-slate-700
+  transition shadow-sm
+"
                     >
                       {q}
                     </button>
@@ -1094,6 +1178,9 @@ const botMessage: Message = {
   )
 )}
 
+{isLoading && <BotTyping />}
+
+
 
             {/* AI FOLLOW-UP QUESTIONS */}
             {followUpQs.length > 0 && (
@@ -1120,19 +1207,10 @@ const botMessage: Message = {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* LOADING INDICATOR (OUTSIDE THREAD) */}
-          {isLoading && (
-            <div className="p-3 flex justify-center opacity-70">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75"></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150"></div>
-              </div>
-            </div>
-          )}
+
 
           {/* INPUT */}
-          <div className="px-4 py-3 border-t border-gray-300 dark:border-gray-700">
+          <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center space-x-2">
               <input
                 type="text"
@@ -1140,7 +1218,15 @@ const botMessage: Message = {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder={language === "TE" ? UI_TEXT.placeholder_te : UI_TEXT.placeholder_en}
-                className="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                className="
+  flex-grow px-4 py-3 text-[13px]
+  rounded-2xl
+  border border-slate-200 dark:border-slate-700
+  bg-white dark:bg-slate-800
+  text-slate-900 dark:text-white
+  placeholder:text-slate-400
+  focus:outline-none focus:ring-2 focus:ring-blue-500
+"
               />
 
               <button
@@ -1160,15 +1246,14 @@ const botMessage: Message = {
   <ModalPortal>
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
-      onClick={() => setIsPreviewOpen(false)}
+      onMouseDown={() => setIsPreviewOpen(false)}
     >
       <div
         className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-md w-full shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}   // ✅ IMPORTANT
+        onClick={(e) => e.stopPropagation()}       // optional, but fine
       >
-        <h3 className="text-lg font-bold mb-2">
-          {previewRef}
-        </h3>
+        <h3 className="text-lg font-bold mb-2">{previewRef}</h3>
 
         <p className="text-sm whitespace-pre-wrap leading-relaxed">
           {previewText || "Verse not found."}
@@ -1177,6 +1262,7 @@ const botMessage: Message = {
         <div className="mt-4 text-right">
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onMouseDown={(e) => e.stopPropagation()}  // ✅ also important
             onClick={() => setIsPreviewOpen(false)}
           >
             Close
@@ -1186,6 +1272,7 @@ const botMessage: Message = {
     </div>
   </ModalPortal>
 )}
+
 
     </>
   );

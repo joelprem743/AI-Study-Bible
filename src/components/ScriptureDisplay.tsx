@@ -249,24 +249,27 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={() => onVerseSelect(v.verse)}
-                className={`p-4 rounded-lg cursor-pointer transition-all ${
+                className={`p-2.5 sm:p-4 rounded-lg cursor-pointer transition-all ${
                   isSel
                     ? "border-2 border-blue-400 dark:border-blue-500"
                     : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
                 } ${getHighlightClass(hl)}`}
               >
-                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mr-2">
+                <span className="text-[11px] sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mr-2">
                   {v.verse}
                 </span>
                 <span
   dir="ltr"
-  className={`text-[1.15rem] leading-relaxed text-gray-900 dark:text-gray-100 ${
-    englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
-  }`}
+  className={`text-[0.95rem] sm:text-[1.05rem] md:text-[1.15rem]
+    leading-snug sm:leading-relaxed
+    text-gray-900 dark:text-gray-100
+    ${
+      englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
+    }`}
 >
-
   {resolveText(v, englishVersion)}
 </span>
+
 
 
               </div>
@@ -292,7 +295,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={() => onVerseSelect(v.verse)}
-                className={`p-3 rounded-lg cursor-pointer transition-all ${
+                className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-all ${
                   isSel
                     ? "border-2 border-blue-400 dark:border-blue-500"
                     : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
@@ -306,9 +309,12 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
     {v.verse}
   </span>
-  <p className="text-[1.05rem] leading-relaxed text-gray-900 dark:text-gray-100">
-    {resolveText(v, leftVersion)}
-  </p>
+  <p className="text-[0.9rem] sm:text-[1rem] md:text-[1.05rem]
+  leading-snug sm:leading-relaxed
+  text-gray-900 dark:text-gray-100">
+  {resolveText(v, leftVersion)}
+</p>
+
 </div>
 
 {/* RIGHT version (Telugu) */}
@@ -317,12 +323,15 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     {v.verse}
   </span>
   <p
-  className={`text-[1.05rem] leading-relaxed ${
-    rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
-  }`}
+  className={`text-[0.9rem] sm:text-[1rem] md:text-[1.05rem]
+    leading-snug sm:leading-relaxed
+    ${
+      rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
+    }`}
 >
   {resolveText(v, rightVersion)}
 </p>
+
 
 </div>
 
