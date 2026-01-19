@@ -444,16 +444,14 @@ scrollTimerRef.current = window.setInterval(() => {
                 </span>
                 <span
   dir="ltr"
-  className={`text-[1.35rem] sm:text-[1.55rem] md:text-[1.8rem]
-    leading-[1.85] sm:leading-[1.95]
+  className={`text-[1.12rem] sm:text-[1.22rem] md:text-[1.35rem]
+    leading-relaxed sm:leading-loose
     text-gray-900 dark:text-gray-100
-    ${
-      englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
-    }`}
+    ${englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}`}
 >
-
   {resolveText(v, englishVersion)}
 </span>
+
 
 
 
@@ -491,15 +489,16 @@ scrollTimerRef.current = window.setInterval(() => {
                   {/* LEFT version */}
                   {/* LEFT version (English) */}
 <div className="flex gap-2">
-  <span className="text-base sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mt-1">
-    {v.verse}
-  </span>
-  <p className="text-[1.2rem] sm:text-[1.35rem] md:text-[1.55rem]
-  leading-[1.85] sm:leading-[1.95]
-  text-gray-900 dark:text-gray-100">
+<span className="text-sm sm:text-base font-semibold text-gray-500 dark:text-gray-400 mt-1">
+  {v.verse}
+</span>
 
+  <p className="text-[1.05rem] sm:text-[1.12rem] md:text-[1.22rem]
+  leading-relaxed sm:leading-loose
+  text-gray-900 dark:text-gray-100">
   {resolveText(v, leftVersion)}
 </p>
+
 
 </div>
 
@@ -509,15 +508,13 @@ scrollTimerRef.current = window.setInterval(() => {
     {v.verse}
   </span>
   <p
-className={`text-[1.2rem] sm:text-[1.35rem] md:text-[1.55rem]
-  leading-[1.85] sm:leading-[1.95]
-    ${
-      rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
-    }`}
+  className={`text-[1.05rem] sm:text-[1.12rem] md:text-[1.22rem]
+    leading-relaxed sm:leading-loose
+    ${rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}`}
 >
-
   {resolveText(v, rightVersion)}
 </p>
+
 
 
 </div>
