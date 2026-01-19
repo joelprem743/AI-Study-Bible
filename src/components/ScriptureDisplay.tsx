@@ -1,10 +1,9 @@
 // src/components/ScriptureDisplay.tsx
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Verse, VerseReference } from "..";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
-
 
 interface ScriptureDisplayProps {
   bookName: string;
@@ -76,7 +75,18 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     }
   };
 
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+  const isAutoScrollingRef = useRef(false);
+  const buttonsRef = useRef<HTMLDivElement | null>(null);
+
+  const [autoScrollDir, setAutoScrollDir] = useState<"up" | "down" | null>(null);
+  
+
+
   // Auto-scroll to selected verse
+
+
   useEffect(() => {
     if (
       !selectedVerseRef ||
@@ -169,6 +179,96 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     [onScrollDirectionChange]
   );
 
+  // const startAutoScroll = (direction: "up" | "down") => {
+  //   stopAutoScroll(); // prevent multiple intervals
+  
+  //   const step = direction === "down" ? 8 : -8; // ✅ slow smooth speed
+  
+  //   scrollTimerRef.current = window.setInterval(() => {
+  //     if (!scrollRef.current) return;
+  
+  //     scrollRef.current.scrollBy({
+  //       top: step,
+  //       behavior: "auto", // ✅ interval-based smoothness (better than smooth spam)
+  //     });
+  //   }, 16); // ~60fps
+  // };
+  
+  const stopAutoScroll = () => {
+    if (scrollTimerRef.current) {
+      window.clearInterval(scrollTimerRef.current);
+      scrollTimerRef.current = null;
+    }
+  
+    isAutoScrollingRef.current = false; // ✅ important
+    setAutoScrollDir(null);
+  };
+  
+  
+
+  const toggleAutoScroll = (direction: "up" | "down") => {
+    // tap again = stop
+    if (autoScrollDir === direction) {
+      stopAutoScroll();
+      return;
+    }
+  
+    // switch direction
+    stopAutoScroll();
+    setAutoScrollDir(direction);
+    
+  
+    const step = direction === "down" ? 1 : -1; // ✅ super slow
+    const intervalMs = 80; // ✅ slower tick (~16fps)
+    
+
+scrollTimerRef.current = window.setInterval(() => {
+  if (!scrollRef.current) return;
+
+  scrollRef.current.scrollBy({
+    top: step,
+    behavior: "auto",
+  });
+}, intervalMs);
+
+  };
+  
+
+  const stopOnManualScroll = () => {
+    if (autoScrollDir !== null) {
+      stopAutoScroll();
+    }
+  };
+  
+  useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      // no auto-scroll running → ignore
+      if (autoScrollDir === null) return;
+  
+      const target = e.target as Node;
+  
+      // If click/tap is INSIDE button container → do nothing
+      if (buttonsRef.current && buttonsRef.current.contains(target)) {
+        return;
+      }
+  
+      // Else clicked outside buttons → stop scrolling
+      stopAutoScroll();
+    };
+  
+    window.addEventListener("pointerdown", handlePointerDown);
+  
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [autoScrollDir]);
+  
+  
+  useEffect(() => {
+    return () => stopAutoScroll();
+  }, []);
+  
+
   // Loading state
   if (isLoading) {
     return (
@@ -209,10 +309,94 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
 
 
   return (
-    <div
-      className="flex-grow overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-[#111418]"
-      onScroll={handleScroll}
-    >
+<div
+  ref={scrollRef}
+  className="relative h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6
+ bg-gray-50 dark:bg-[#111418]"
+  onScroll={(e) => {
+    handleScroll(e);
+
+    // ✅ DO NOT stop on programmatic scrolling
+    // scrollBy() causes scroll event too, so ignore it
+    if (isAutoScrollingRef.current) return;
+  }}
+  onWheel={stopOnManualScroll}      // ✅ mouse manual scroll stops
+  onTouchMove={stopOnManualScroll}  // ✅ touch manual scroll stops
+>
+
+
+
+
+{/* ✅ Auto-scroll buttons (Top-left & Bottom-left) */}
+<div
+  ref={buttonsRef}
+  className="
+    fixed
+    left-1 sm:left-2
+    top-[120px] bottom-[90px]
+    z-[20]
+    flex flex-col justify-between
+    pointer-events-none
+  "
+>
+
+
+
+  {/* Scroll UP (TOP) */}
+  <button
+  type="button"
+  className={`
+    pointer-events-auto
+    w-8 h-8 sm:w-9 sm:h-9
+    rounded-full
+    flex items-center justify-center
+    shadow-sm
+    backdrop-blur-md
+    border
+    transition
+    opacity-60 hover:opacity-100
+    ${
+      autoScrollDir === "up"
+        ? "bg-blue-600/70 text-white border-blue-500/60"
+        : "bg-white/30 dark:bg-black/30 text-gray-800 dark:text-gray-200 border-white/40 dark:border-white/10"
+    }
+  `}
+  title={autoScrollDir === "up" ? "Stop scroll" : "Scroll up"}
+  onClick={() => toggleAutoScroll("up")}
+>
+  <i className="fas fa-chevron-up text-[12px]" />
+</button>
+
+
+  {/* Scroll DOWN (BOTTOM) */}
+  <button
+  type="button"
+  className={`
+    pointer-events-auto
+    w-8 h-8 sm:w-9 sm:h-9
+    rounded-full
+    flex items-center justify-center
+    shadow-sm
+    backdrop-blur-md
+    border
+    transition
+    opacity-60 hover:opacity-100
+    ${
+      autoScrollDir === "down"
+        ? "bg-blue-600/70 text-white border-blue-500/60"
+        : "bg-white/30 dark:bg-black/30 text-gray-800 dark:text-gray-200 border-white/40 dark:border-white/10"
+    }
+  `}
+  title={autoScrollDir === "down" ? "Stop scroll" : "Scroll down"}
+  onClick={() => toggleAutoScroll("down")}
+>
+  <i className="fas fa-chevron-down text-[12px]" />
+</button>
+
+</div>
+
+
+
       {/* Header — only ONE title in single mode
       {isSingle && (
   <div className="text-center mb-4">

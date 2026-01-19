@@ -852,7 +852,7 @@ rounded-full shadow-md overflow-hidden px-2"
                   </div>
 
                   {/* ScriptureDisplay should be the only scrollable area inside the left column */}
-                  <div className="flex-grow overflow-y-auto min-h-0">
+                  <div className="flex-grow min-h-0">
                     <ScriptureDisplay
                       bookName={selectedBook}
                       chapterNum={selectedChapter}

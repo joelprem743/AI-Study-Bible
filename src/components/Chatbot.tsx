@@ -68,7 +68,7 @@ const BotMessage: React.FC<{
       </div>
 
       {/* Bot bubble */}
-      <div className="flex flex-col w-full max-w-[98%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
+      <div className="flex flex-col w-full max-w-[92%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
         {answer.sections.map((sec, i) => (
           <div
             key={i}
@@ -162,7 +162,7 @@ const BotTyping: React.FC = () => {
       </div>
 
       {/* Typing bubble */}
-      <div className="flex flex-col w-full max-w-[98%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
+      <div className="flex flex-col w-full max-w-[92%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-2">
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
@@ -183,7 +183,7 @@ const BotTyping: React.FC = () => {
 // USER MESSAGE COMPONENT (PREMIUM)
 const UserMessage: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex items-start justify-end gap-2.5">
-    <div className="flex flex-col w-full max-w-[98%] p-4 bg-slate-900 text-white rounded-[1.25rem] rounded-tr-none shadow-xl border border-slate-800">
+    <div className="flex flex-col w-full max-w-[92x%] p-4 bg-slate-900 text-white rounded-[1.25rem] rounded-tr-none shadow-xl border border-slate-800">
       <p className="text-[13px] leading-relaxed">{message}</p>
     </div>
   </div>
@@ -965,7 +965,7 @@ const botMessage: Message = {
           text-3xl text-white
           bg-blue-600
           transition-shadow duration-200
-          z-[9997]
+          z-20
           hover:shadow-[0_0_20px_rgba(59,130,246,0.75)]
           active:shadow-[0_0_22px_rgba(59,130,246,0.85)]
           focus:outline-none focus:ring-4 focus:ring-blue-300
@@ -981,8 +981,8 @@ const botMessage: Message = {
   ref={chatRef}
   className="
     fixed bottom-24 right-5
-    w-[96vw] sm:w-[520px] md:w-[620px] lg:w-[700px]
-    h-[82vh] md:h-[85vh]
+    w-[92vw] sm:w-[420px] md:w-[480px]
+    h-[75vh] md:h-[78vh]
     bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl border overflow-hidden
     border-gray-200 dark:border-gray-700 flex flex-col z-[9998]
     transition-shadow duration-200
@@ -1102,8 +1102,7 @@ const botMessage: Message = {
 
 
           {/* MESSAGES */}
-          <div className="flex-grow overflow-y-auto px-5 py-4 space-y-5 bg-slate-50/50 dark:bg-slate-900/50">
-            {/* START SUGGESTIONS + WELCOME (only when empty) */}
+          <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-900/50">
             {messages.length === 0 && (
               <div className="flex flex-col gap-4 mb-4">
                 {/* WELCOME MESSAGE */}
