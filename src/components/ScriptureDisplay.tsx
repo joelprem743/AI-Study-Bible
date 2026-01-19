@@ -219,7 +219,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     
   
     const step = direction === "down" ? 1 : -1; // ✅ super slow
-    const intervalMs = 80; // ✅ slower tick (~16fps)
+    const intervalMs = 60; // ✅ slower tick (~16fps)
     
 
 scrollTimerRef.current = window.setInterval(() => {
@@ -439,18 +439,19 @@ scrollTimerRef.current = window.setInterval(() => {
                     : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
                 } ${getHighlightClass(hl)}`}
               >
-                <span className="text-[11px] sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mr-2">
+                <span className="text-[15px] sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mr-2">
                   {v.verse}
                 </span>
                 <span
   dir="ltr"
-  className={`text-[0.95rem] sm:text-[1.05rem] md:text-[1.15rem]
-    leading-snug sm:leading-relaxed
+  className={`text-[1.35rem] sm:text-[1.55rem] md:text-[1.8rem]
+    leading-[1.85] sm:leading-[1.95]
     text-gray-900 dark:text-gray-100
     ${
       englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
     }`}
 >
+
   {resolveText(v, englishVersion)}
 </span>
 
@@ -490,12 +491,13 @@ scrollTimerRef.current = window.setInterval(() => {
                   {/* LEFT version */}
                   {/* LEFT version (English) */}
 <div className="flex gap-2">
-  <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
+  <span className="text-base sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mt-1">
     {v.verse}
   </span>
-  <p className="text-[0.9rem] sm:text-[1rem] md:text-[1.05rem]
-  leading-snug sm:leading-relaxed
+  <p className="text-[1.2rem] sm:text-[1.35rem] md:text-[1.55rem]
+  leading-[1.85] sm:leading-[1.95]
   text-gray-900 dark:text-gray-100">
+
   {resolveText(v, leftVersion)}
 </p>
 
@@ -503,16 +505,17 @@ scrollTimerRef.current = window.setInterval(() => {
 
 {/* RIGHT version (Telugu) */}
 <div className="flex gap-2">
-  <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
+  <span className="text-base sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mt-1">
     {v.verse}
   </span>
   <p
-  className={`text-[0.9rem] sm:text-[1rem] md:text-[1.05rem]
-    leading-snug sm:leading-relaxed
+className={`text-[1.2rem] sm:text-[1.35rem] md:text-[1.55rem]
+  leading-[1.85] sm:leading-[1.95]
     ${
       rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""
     }`}
 >
+
   {resolveText(v, rightVersion)}
 </p>
 
