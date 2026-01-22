@@ -21,8 +21,8 @@ import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 // Helper translations (simple conversational Telugu)
 const UI_TEXT = {
-  welcome_en: `👋 Hello! I'm BibleBot — your AI-powered Bible study assistant 📖✨`,
-  welcome_te: `👋 హలో! నేనే బైబిల్‌బాట్ — మీ AI ఆధారిత బైబిల్ అధ్యయన సహాయకుడు 📖✨`,
+  welcome_en: `👋 Hello! I'm Study  Companion — your AI-powered Bible study assistant 📖✨`,
+  welcome_te: `👋 హలో! నేనే స్టడీ కంపానియన్ — మీ AI ఆధారిత బైబిల్ అధ్యయన సహాయకుడు 📖✨`,
 
   tryQuestions_en: `Try questions like:`,
   tryQuestions_te: `ఈ తరహా ప్రశ్నలను ప్రయత్నించండి:`,
@@ -31,7 +31,7 @@ const UI_TEXT = {
   followUpHeading_te: `ఇంకా ఈ తరహా ప్రశ్నలు ప్రయత్నించండి:`,
 
   placeholder_en: `Ask a theological question...`,
-  placeholder_te: `దైవశాస్త్ర ప్రశ్న అడగండి...`,
+  placeholder_te: `బైబిల్‌కు సంబంధించిన ప్రశ్న అడగండి...`,
 
   send_en: `Send`,
   send_te: `పంపండి`,
@@ -998,7 +998,7 @@ const botMessage: Message = {
   <div className="flex items-center gap-3">
     <div className="relative">
       <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
-        BB
+        BC
       </div>
       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full"></div>
     </div>
