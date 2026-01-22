@@ -2772,7 +2772,7 @@ className="
             >
               <h3 className="text-lg font-bold mb-2">{displayPreviewRef}</h3>
 
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
                 {previewText || "Verse not found."}
               </p>
 

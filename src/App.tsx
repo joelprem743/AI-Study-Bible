@@ -33,6 +33,7 @@ export const AVAILABLE_VERSIONS = [
   "ESV",
   "NIV",
   "NKJV",
+  "KJV",
   "GNB",
   "ARAMAIC_PLAIN_EN",
   "NLT",
@@ -60,7 +61,9 @@ const App: React.FC = () => {
   
   
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
-  
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null);
+  const [chatInitialLanguage, setChatInitialLanguage] = useState<"EN" | "TE" | null>(null);
+
   // Core state
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoadingVerses, setIsLoadingVerses] = useState(true);
@@ -617,7 +620,34 @@ useEffect(() => {
       ) : (
         <div className="flex flex-col h-screen">
 
-          {showWelcome && <WelcomeScreen onDismiss={handleWelcomeDismiss} />}
+{showWelcome && (
+  <WelcomeScreen
+    onDismiss={handleWelcomeDismiss}
+    onExplainVerse={({ book, chapter, verse, language }) => {
+      handleWelcomeDismiss();
+
+      // ✅ Navigate to verse + select it
+      setIsSearchView(false);
+      setSelectedBook(book);
+      setSelectedChapter(chapter);
+      setSelectedVerseRef({ book, chapter, verse });
+
+      // ✅ Open chatbot
+      setIsChatOpen(true);
+
+      // ✅ Auto-send question
+      const msg =
+        language === "TE"
+          ? `${book} ${chapter}:${verse} ఈ వాక్యాన్ని వివరించండి.`
+          : `Explain ${book} ${chapter}:${verse}.`;
+
+      setChatInitialMessage(msg);
+        // ✅ store language for chatbot
+  setChatInitialLanguage(language);
+    }}
+  />
+)}
+
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
           <header className="bg-white dark:bg-slate-900 px-2 py-1.5 md:px-3 md:py-2 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
@@ -852,7 +882,7 @@ rounded-full shadow-md overflow-hidden px-2"
                   </div>
 
                   {/* ScriptureDisplay should be the only scrollable area inside the left column */}
-                  <div className="flex-grow min-h-0">
+                  <div className="flex-grow min-h-0 overflow-hidden">
                     <ScriptureDisplay
                       bookName={selectedBook}
                       chapterNum={selectedChapter}
@@ -1087,7 +1117,14 @@ setGroupedSearchResults(
   singleVersion={singleVersion}
   isOpen={isChatOpen}
   onToggle={() => setIsChatOpen(!isChatOpen)}
+  initialMessage={chatInitialMessage}
+  initialLanguage={chatInitialLanguage}
+  onInitialMessageConsumed={() => {
+        setChatInitialMessage(null);
+      }}
 />
+
+
 
         </div>
       )}

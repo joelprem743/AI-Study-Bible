@@ -183,7 +183,7 @@ const BotTyping: React.FC = () => {
 // USER MESSAGE COMPONENT (PREMIUM)
 const UserMessage: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex items-start justify-end gap-2.5">
-    <div className="flex flex-col w-full max-w-[92x%] p-4 bg-slate-900 text-white rounded-[1.25rem] rounded-tr-none shadow-xl border border-slate-800">
+    <div className="flex flex-col w-full max-w-[92%] p-4 bg-slate-900 text-white rounded-[1.25rem] rounded-tr-none shadow-xl border border-slate-800">
       <p className="text-[13px] leading-relaxed">{message}</p>
     </div>
   </div>
@@ -208,7 +208,14 @@ interface ChatbotProps {
   singleVersion: string;
   isOpen: boolean;
   onToggle: () => void;
+
+  initialMessage?: string | null;
+
+  // ✅ NEW: force chatbot language when opening from WelcomeScreen
+  initialLanguage?: "EN" | "TE" | null;
+  onInitialMessageConsumed?: () => void;
 }
+
 
 
 type ChatScope = "GLOBAL" | "VERSE" | "CHAPTER";
@@ -222,7 +229,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   singleVersion,
   isOpen,
   onToggle,
+  initialMessage,
+  initialLanguage,
+  onInitialMessageConsumed,
 }) => {
+
+
 
   // UI language (controls UI strings, suggestions)
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
@@ -257,6 +269,18 @@ const [answerDepth, setAnswerDepth] = useState<
   const chatRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
+  const lastAutoSentRef = useRef<string | null>(null);
+  const modelLanguageRef = useRef<"EN" | "TE">("EN");
+const languageRef = useRef<"EN" | "TE">("EN");
+
+useEffect(() => {
+  modelLanguageRef.current = modelLanguage;
+}, [modelLanguage]);
+
+useEffect(() => {
+  languageRef.current = language;
+}, [language]);
+
 
   // Detect initial chatbot language from current Bible version
 // const detectInitialLanguage = (): "EN" | "TE" => {
@@ -297,6 +321,17 @@ const [answerDepth, setAnswerDepth] = useState<
   }, [isOpen, onToggle, isPreviewOpen]);
   
 
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+  
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [isPreviewOpen]);
+  
 
   useEffect(() => {
     if (!isModeDropdownOpen) return;
@@ -317,20 +352,61 @@ const [answerDepth, setAnswerDepth] = useState<
   }, [isModeDropdownOpen]);
   
 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialMessage) return;
+  
+    if (lastAutoSentRef.current === initialMessage) return;
+    lastAutoSentRef.current = initialMessage;
+  
+    // ✅ Set best scope
+    if (selectedVerseRef) {
+      setChatScope("VERSE");
+    }
+  
+    // ✅ Apply language BEFORE sending
+    if (initialLanguage === "TE" || initialLanguage === "EN") {
+      setLanguage(initialLanguage);
+      setModelLanguage(initialLanguage);
+      languageRef.current = initialLanguage;
+      modelLanguageRef.current = initialLanguage;
+
+    }
+  
+    // ✅ Send after state update (next tick)
+    setTimeout(() => {
+      handleSend(initialMessage);
+      onInitialMessageConsumed?.(); // ✅ critical
+    }, 0);
+    
+  }, [isOpen, initialMessage, selectedVerseRef, initialLanguage, onInitialMessageConsumed]);
+  
+  
 
   useEffect(() => {
     if (!isOpen) return;
   
+    // ✅ While initialMessage exists, DON'T override language here.
+    // Auto-send effect owns language syncing.
+    if (initialMessage) return;
+
+    if (initialLanguage === "TE" || initialLanguage === "EN") {
+      setLanguage(initialLanguage);
+      setModelLanguage(initialLanguage);
+      setFollowUpQs([]);
+      return;
+    }
+
     const lang =
       studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1"
         ? "TE"
         : "EN";
-  
+
     setLanguage(lang);
     setModelLanguage(lang);
     setFollowUpQs([]);
-  }, [isOpen, studyMode, singleVersion]);
-  
+  }, [isOpen, studyMode, singleVersion, initialLanguage, initialMessage]);
+
   
 
   useEffect(() => {
@@ -414,16 +490,96 @@ const [answerDepth, setAnswerDepth] = useState<
     return singleVersion;
   })();
   
+  // ===== Robust JSON Helpers (Follow-ups) =====
+
+// 1) Strip illegal control chars that can crash JSON.parse
+const stripIllegalControlChars = (s: string) => {
+  // Remove ASCII control chars except \n and \t (keep readable text)
+  return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+};
+
+// 2) Try to extract JSON from <json>...</json> or fallback to first {...} block
+const extractBestJsonCandidate = (raw: string): string => {
+  // prefer <json> sentinel
+  const sentinel = raw.match(/<json>([\s\S]*?)<\/json>/i);
+  if (sentinel?.[1]) return sentinel[1].trim();
+
+  // fallback: try first object-like block
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return raw.slice(firstBrace, lastBrace + 1).trim();
+  }
+
+  return "";
+};
+
+// 3) Best-effort JSON repair (minimal, safe-ish)
+const tryRepairJson = (jsonText: string) => {
+  let s = jsonText;
+
+  // remove BOM
+  s = s.replace(/^\uFEFF/, "");
+
+  // strip illegal control chars
+  s = stripIllegalControlChars(s);
+
+  // remove trailing commas:  {"a":[1,2,],}  -> {"a":[1,2]}
+  s = s.replace(/,\s*([}\]])/g, "$1");
+
+  return s.trim();
+};
+
+// 4) Safe parse wrapper
+const safeJsonParse = <T,>(raw: string): { ok: true; value: T } | { ok: false; error: any } => {
+  try {
+    return { ok: true, value: JSON.parse(raw) as T };
+  } catch (err) {
+    return { ok: false, error: err };
+  }
+};
+
+// 5) Fallback question extraction when JSON is garbage
+const fallbackExtractQuestions = (raw: string): string[] => {
+  const cleaned = raw
+    .replace(/<json>/gi, "")
+    .replace(/<\/json>/gi, "")
+    .trim();
+
+  // try to capture anything inside quotes after "questions": [...]
+  const quoted = Array.from(cleaned.matchAll(/"([^"]+)"/g))
+    .map(m => m[1])
+    .map(q => q.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  // If model included schema, quoted will include "questions" as a word. Remove it.
+  const filtered = quoted.filter(q => q.toLowerCase() !== "questions");
+
+  // Hard cap to 3
+  return filtered.slice(0, 3);
+};
+
+// 6) Normalize final questions
+const normalizeQuestions = (qs: string[]) => {
+  return qs
+    .map(q => String(q))
+    .map(q => q.replace(/\s+/g, " ").trim())
+    .map(q => q.replace(/^(\d+[\).\s-]+)/, "")) // remove "1) " or "2. "
+    .filter(Boolean)
+    .slice(0, 3);
+};
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
   const generateAIFollowUps = async (
     answerJson: ChatbotAnswer,
     history: Message[]
   ): Promise<string[]> => {
+    const currentModelLang = modelLanguageRef.current;
+  
     const langInstruction =
-      modelLanguage === "TE"
-        ? "ప్రశ్నలను తెలుగులో ఇవ్వండి."
-        : "Return questions in English.";
+      currentModelLang === "TE"
+        ? "ప్రశ్నలు పూర్తిగా తెలుగులో మాత్రమే ఇవ్వండి. ఇంగ్లీష్ వద్దు."
+        : "Return questions in English only.";
   
     const prompt = `
   You are generating FOLLOW-UP QUESTIONS only.
@@ -442,12 +598,15 @@ const [answerDepth, setAnswerDepth] = useState<
   
   Rules:
   - Exactly 3 questions
+  - Each question MUST be a single line (no line breaks)
   - Plain text only
   - No markdown
   - No headings
   - No explanations
   - No Bible verses quoted
   - No bullet symbols
+  - Do NOT include numbering like "1)" or "Q1"
+  - Escape any newline inside strings as \\n
   
   Base them on these section titles:
   ${answerJson.sections.map(s => `- ${s.title}`).join("\n")}
@@ -458,27 +617,37 @@ const [answerDepth, setAnswerDepth] = useState<
     let resultText = "";
   
     try {
-      const result = await sendMessageToLlama(prompt, history, modelLanguage);
-      resultText = result.text;
+      const result = await sendMessageToLlama(prompt, history, currentModelLang);
+      resultText = result.text || "";
     } catch {
       return [];
     }
   
-    try {
-      const jsonText = extractJsonFromSentinel(resultText);
-      const parsed = JSON.parse(jsonText);
-  
-      if (!Array.isArray(parsed.questions)) {
-        return [];
-      }
-  
-      return parsed.questions.slice(0, 3);
-    } catch (err) {
-      // 🔒 HARD FAIL SAFE — NEVER THROW
-      console.warn("Follow-up generation skipped (non-fatal):", err);
-      return [];
+    // ✅ Step 1: extract best JSON candidate
+    const candidateRaw = extractBestJsonCandidate(resultText);
+    if (!candidateRaw) {
+      // no JSON found: fallback
+      return normalizeQuestions(fallbackExtractQuestions(resultText));
     }
+  
+    // ✅ Step 2: attempt parse as-is
+    const direct = safeJsonParse<{ questions?: any }>(candidateRaw);
+    if (direct.ok && Array.isArray(direct.value?.questions)) {
+      return normalizeQuestions(direct.value.questions);
+    }
+  
+    // ✅ Step 3: repair and parse again
+    const repaired = tryRepairJson(candidateRaw);
+    const repairedParse = safeJsonParse<{ questions?: any }>(repaired);
+  
+    if (repairedParse.ok && Array.isArray(repairedParse.value?.questions)) {
+      return normalizeQuestions(repairedParse.value.questions);
+    }
+  
+    // ✅ Step 4: fallback extraction if still broken
+    return normalizeQuestions(fallbackExtractQuestions(resultText));
   };
+  
   
 
   // ===== JSON SENTINEL HELPERS =====
@@ -512,7 +681,7 @@ const [answerDepth, setAnswerDepth] = useState<
       if (!meta) return "";
   
       const version =
-  language === "TE"
+  languageRef.current === "TE"
     ? "TELUGU_COMMUNITY_V1"
     : effectiveEnglishVersion;
 
@@ -635,27 +804,33 @@ const extractJsonObject = (text: string): string => {
 
 
 const buildContextualInput = (input: string) => {
+  const currentModelLang = modelLanguageRef.current;
+  const currentUILang = languageRef.current;
+
   if (chatScope === "VERSE" && selectedVerseRef) {
     const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
+
     const verseText =
-  language === "TE"
-    ? verseData?.text.TELUGU_COMMUNITY_V1
-    : verseData?.text[effectiveEnglishVersion];
-
-
-
+      currentUILang === "TE"
+        ? verseData?.text.TELUGU_COMMUNITY_V1
+        : verseData?.text[effectiveEnglishVersion];
 
     return verseText
-      ? `Answer strictly in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse} (${verseText}): ${input}`
+      ? `${
+          currentModelLang === "TE"
+            ? "ఈ వచన సందర్భంలో మాత్రమే సమాధానం ఇవ్వండి:"
+            : "Answer strictly in the context of"
+        } ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse} (${verseText}): ${input}`
       : `Answer in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}: ${input}`;
   }
 
   if (chatScope === "CHAPTER" && selectedBook && selectedChapter) {
-    return `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
+    return currentModelLang === "TE"
+      ? `${selectedBook} ${selectedChapter} అధ్యాయం సందర్భంలో సమాధానం ఇవ్వండి: ${input}`
+      : `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
   }
-
   
-  // GLOBAL CHAT (no Bible anchoring)
+
   return input;
 };
 
@@ -672,18 +847,24 @@ const buildContextualInput = (input: string) => {
     const finalInput = forcedInput ?? input.trim();
 if (!finalInput || isLoading) return;
 
+const currentModelLang = modelLanguageRef.current;
+const currentUILang = languageRef.current;
+
 // STEP 3: detect direct question
 
 
 const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
+  const isTelugu = currentModelLang === "TE";
+
+
   if (depth === "SHORT") {
     return `
 SYSTEM INSTRUCTION (CRITICAL):
 
-You are a Bible reference assistant.
+${isTelugu ? "మీరు బైబిల్ సహాయకుడు." : "You are a Bible reference assistant."}
 
 Return a SINGLE valid JSON object.
-Do NOT include markdown, emojis, or explanations beyond what is asked.
+Do NOT include markdown, emojis, or extra text.
 
 REQUIRED SCHEMA:
 {
@@ -699,13 +880,9 @@ REQUIRED SCHEMA:
 STRICT RULES FOR SHORT:
 - EXACTLY 2 sections only
 - Each explanation MUST be 1–2 sentences MAX
-- NO historical background
-- NO extended context
-- NO application teaching
-- State the core idea plainly
-- Be concise and factual
 
 LANGUAGE RULES:
+- ${isTelugu ? "సంపూర్ణంగా తెలుగులోనే ఇవ్వండి (ఇంగ్లీష్ వద్దు)." : "Use English only."}
 - Plain text only
 - No markdown
 - No emojis
@@ -717,7 +894,6 @@ Return JSON ONLY wrapped like this:
 </json>
 
 DO NOT output anything outside <json>...</json>.
-
 `;
   }
 
@@ -725,7 +901,7 @@ DO NOT output anything outside <json>...</json>.
     return `
 SYSTEM INSTRUCTION (CRITICAL):
 
-You are a Bible teacher giving a clear explanation.
+${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు. స్పష్టంగా వివరించండి." : "You are a Bible teacher giving a clear explanation."}
 
 Return a SINGLE valid JSON object.
 Do NOT include markdown or emojis.
@@ -744,8 +920,7 @@ REQUIRED SCHEMA:
 RULES FOR MEDIUM:
 - 3 sections
 - 4–5 sentences per section
-- Include brief context and meaning
-- Limited application
+- ${isTelugu ? "తెలుగులోనే ఇవ్వండి." : "Answer in English."}
 
 Return JSON ONLY wrapped like this:
 
@@ -754,7 +929,6 @@ Return JSON ONLY wrapped like this:
 </json>
 
 DO NOT output anything outside <json>...</json>.
-
 `;
   }
 
@@ -762,7 +936,7 @@ DO NOT output anything outside <json>...</json>.
   return `
 SYSTEM INSTRUCTION (CRITICAL):
 
-You are a Bible teacher giving a detailed exposition.
+${isTelugu ? "మీరు బైబిల్ ఉపదేశకుడు. లోతుగా వివరించండి." : "You are a Bible teacher giving a detailed exposition."}
 
 Return a SINGLE valid JSON object.
 Do NOT include markdown or emojis.
@@ -781,8 +955,7 @@ REQUIRED SCHEMA:
 RULES FOR DEEP:
 - 4–5 sections
 - 6–8 sentences per section
-- Include historical context, theology, and application
-- Use multiple Scripture references
+- ${isTelugu ? "సంపూర్ణంగా తెలుగులో మాత్రమే ఇవ్వండి." : "Answer in English."}
 
 Return JSON ONLY wrapped like this:
 
@@ -791,10 +964,8 @@ Return JSON ONLY wrapped like this:
 </json>
 
 DO NOT output anything outside <json>...</json>.
-
 `;
 };
-
 
 
     const userMessage: Message = {
@@ -811,6 +982,34 @@ DO NOT output anything outside <json>...</json>.
     const contextualizedInput = buildContextualInput(finalInput);
 
     const getStructuredIntent = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
+      if (currentModelLang === "TE") {
+        if (depth === "SHORT") {
+          return `
+    Structure the answer using ONLY these sections:
+    1. ప్రధాన బోధ
+    2. ముఖ్య వచనాలు
+    `;
+        }
+    
+        if (depth === "MEDIUM") {
+          return `
+    Structure the answer using these sections:
+    1. ప్రధాన బోధ
+    2. బైబిలు సందర్భం
+    3. రోజువారీ జీవితానికి అర్థం
+    `;
+        }
+    
+        return `
+    Structure the answer using these sections:
+    1. ప్రధాన బోధ
+    2. బైబిలు సందర్భం
+    3. రోజువారీ జీవితానికి అర్థం
+    4. సహాయక వచనాలు
+    `;
+      }
+    
+      // EN default
       if (depth === "SHORT") {
         return `
     Structure the answer using ONLY these sections:
@@ -828,7 +1027,6 @@ DO NOT output anything outside <json>...</json>.
     `;
       }
     
-      // DEEP
       return `
     Structure the answer using these sections:
     1. Core Teaching
@@ -839,10 +1037,8 @@ DO NOT output anything outside <json>...</json>.
     };
     
 
-
     // Use modelLanguage for AI instruction (this guarantees Option B)
-    const langInstruction = modelLanguage === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
-
+    const langInstruction = currentModelLang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
     try {
       const response = await sendMessageToLlama(
         `${contextualizedInput}
@@ -855,7 +1051,7 @@ ${getFormattingRules(answerDepth)}
 
       `,
         [...messages, userMessage],
-        modelLanguage,
+        currentModelLang,
         answerDepth
       );
       
@@ -920,10 +1116,10 @@ const botMessage: Message = {
 
       const fallback =
         err?.error?.code === 503 || err?.status === "UNAVAILABLE"
-          ? modelLanguage === "TE"
+          ? currentModelLang === "TE"
             ? "AI మోడల్ ఓవరోడెడ్ అయ్యింది. దయచేసి మోడల్ మార్చండి."
             : "The AI model is overloaded. Try switching models."
-          : modelLanguage === "TE"
+          : currentModelLang === "TE"
           ? "ఏదో తప్పిపోయింది. దయచేసి మళ్లీ ప్రయత్నించండి."
           : "Something went wrong. Please try again.";
 
@@ -946,11 +1142,16 @@ const botMessage: Message = {
   // When user switches UI language, we update both UI language and modelLanguage depending on intent.
   // For Option B we set modelLanguage immediately to the new choice so all future responses follow.
   const handleLanguageSelect = (newLang: "EN" | "TE") => {
-    setLanguage(newLang);       // controls UI text & suggestions
-    setModelLanguage(newLang);  // controls future AI replies & follow-ups
-    setFollowUpQs([]);          // clear any old-language follow-ups
-
+    setLanguage(newLang);
+    setModelLanguage(newLang);
+  
+    // ✅ force immediate sync for next send
+    languageRef.current = newLang;
+    modelLanguageRef.current = newLang;
+  
+    setFollowUpQs([]);
   };
+  
 
   return (
     <>
@@ -1185,7 +1386,7 @@ const botMessage: Message = {
             {followUpQs.length > 0 && (
               <div className="flex flex-col gap-2 mb-2 mt-2">
                 <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                  {modelLanguage === "TE" ? UI_TEXT.followUpHeading_te : UI_TEXT.followUpHeading_en}
+                {modelLanguageRef.current === "TE" ? UI_TEXT.followUpHeading_te : UI_TEXT.followUpHeading_en}
                 </div>
                 {followUpQs.map((q, i) => (
   <button
@@ -1244,24 +1445,37 @@ const botMessage: Message = {
 {isPreviewOpen && (
   <ModalPortal>
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
       onMouseDown={() => setIsPreviewOpen(false)}
     >
       <div
-        className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-md w-full shadow-xl"
-        onMouseDown={(e) => e.stopPropagation()}   // ✅ IMPORTANT
-        onClick={(e) => e.stopPropagation()}       // optional, but fine
+        className="
+          bg-white dark:bg-gray-800
+          rounded-2xl w-full max-w-md
+          shadow-xl
+          flex flex-col
+          max-h-[85vh]
+        "
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold mb-2">{previewRef}</h3>
+        {/* Header (fixed) */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+          <h3 className="text-base font-bold">{previewRef}</h3>
+        </div>
 
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {previewText || "Verse not found."}
-        </p>
+        {/* Scrollable content */}
+        <div className="p-4 overflow-y-auto flex-1 overscroll-contain">
+        <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+            {previewText || "Verse not found."}
+          </p>
+        </div>
 
-        <div className="mt-4 text-right">
+        {/* Footer (fixed) */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 shrink-0 flex justify-end">
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onMouseDown={(e) => e.stopPropagation()}  // ✅ also important
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setIsPreviewOpen(false)}
           >
             Close
