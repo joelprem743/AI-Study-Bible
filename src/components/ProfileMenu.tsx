@@ -1,16 +1,31 @@
 // src/components/ProfileMenu.tsx
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import ProfileNotes from "./ProfileNotes";
 import ProfileHighlights from "./ProfileHighlights";
+import type { ReaderSettings, FontSize } from "../hooks/useReaderSettings";
 
 
 type AuthMode = "signin" | "signup";
 
-export default function ProfileMenu() {
+type ProfileMenuProps = {
+  readerSettings: ReaderSettings;
+  setReaderSettings: (next: ReaderSettings) => void;
+};
+
+
+
+export default function ProfileMenu({
+  readerSettings,
+  setReaderSettings,
+}: ProfileMenuProps) {
+
   const { user, signIn, signUp, signOut, signInWithGoogle, language, setLanguage,  bibleVersion, } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  const [isReaderSettingsOpen, setIsReaderSettingsOpen] = useState(false);
+
   const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -45,6 +60,8 @@ export default function ProfileMenu() {
     setPassword("");
     setFirstName("");
   };
+
+
 
   const handleSubmit = async () => {
     setError(null);
@@ -134,6 +151,22 @@ export default function ProfileMenu() {
 
   // ------------------ LOGGED IN VIEW -------------------
 
+  const settings: ReaderSettings = readerSettings || {
+    fontSize: "md",
+    autoScrollSpeed: 1,
+    autoScrollIntervalMs: 60,
+  };
+  
+  const updateSettings = (patch: Partial<ReaderSettings>) => {
+    setReaderSettings({
+      ...settings,
+      ...patch,
+    });
+  };
+  
+  
+
+
   const firstLetter =
     user.user_metadata?.first_name?.trim()?.[0]?.toUpperCase() ??
     user.email?.[0]?.toUpperCase() ??
@@ -216,6 +249,23 @@ export default function ProfileMenu() {
 </button>
 
 
+            
+<button
+  onClick={() => {
+    setIsDropdownOpen(false);
+    setIsReaderSettingsOpen(true);
+  }}
+  className="
+    w-full text-left px-4 py-2 text-sm
+    text-gray-700 dark:text-gray-200
+    hover:bg-gray-100 dark:hover:bg-slate-800
+  "
+>
+  Reader Settings
+</button>
+
+
+
 
           <button
             onClick={handleLogout}
@@ -227,6 +277,7 @@ export default function ProfileMenu() {
           >
             Logout
           </button>
+
         </div>
       )}
 
@@ -245,6 +296,92 @@ export default function ProfileMenu() {
           onClose={() => setIsNotesOpen(false)}
         />
       )}
+
+{isReaderSettingsOpen && (
+  <div
+    className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+    onClick={() => setIsReaderSettingsOpen(false)}
+  >
+    <div
+      className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-5 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        Reader Settings
+      </h2>
+
+      {/* FONT SIZE */}
+      <div className="mb-4">
+        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+          Font Size
+        </label>
+
+        <select
+  value={settings.fontSize}
+  onChange={(e) => {
+    const value = e.target.value as FontSize;
+    updateSettings({ fontSize: value });
+  }}
+  className="w-full p-2 rounded border dark:bg-gray-800 dark:border-slate-700"
+>
+
+          <option value="sm">Small</option>
+          <option value="md">Medium</option>
+          <option value="lg">Large</option>
+          <option value="xl">Extra Large</option>
+        </select>
+      </div>
+
+      {/* AUTO SCROLL SPEED */}
+      <div className="mb-4">
+        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+          Auto Scroll Speed
+        </label>
+
+        <input
+  type="range"
+  min={1}
+  max={8}
+  value={settings.autoScrollSpeed}
+  onChange={(e) => {
+    const speed = Number(e.target.value);
+    updateSettings({ autoScrollSpeed: speed });
+  }}
+  className="w-full"
+/>
+
+
+        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+        Speed: {settings.autoScrollSpeed}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+      <button
+  onClick={() => {
+    updateSettings({
+      fontSize: "md",
+      autoScrollSpeed: 1,
+      autoScrollIntervalMs: 60,
+    });
+  }}
+  className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 text-sm"
+>
+  Reset
+</button>
+
+
+        <button
+          onClick={() => setIsReaderSettingsOpen(false)}
+          className="px-3 py-2 rounded bg-blue-600 text-white text-sm"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
     </div>
   );

@@ -1,28 +1,24 @@
-//src/hooks/useLocalStorage.ts
-// FIX: Import Dispatch and SetStateAction types from React.
-import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { useEffect, useState, Dispatch, SetStateAction } from "react";
 
-// FIX: Use Dispatch and SetStateAction types.
-export function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
+export function useLocalStorage<T>(
+  key: string,
+  initialValue: T
+): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      return item !== null ? (JSON.parse(item) as T) : initialValue;
     } catch (error) {
-      console.error(error);
+      console.error("useLocalStorage read error:", error);
       return initialValue;
     }
   });
 
   useEffect(() => {
     try {
-      const valueToStore =
-        typeof storedValue === 'function'
-          ? storedValue(storedValue)
-          : storedValue;
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      window.localStorage.setItem(key, JSON.stringify(storedValue));
     } catch (error) {
-      console.error(error);
+      console.error("useLocalStorage write error:", error);
     }
   }, [key, storedValue]);
 

@@ -12,6 +12,7 @@ import ProfileNotes from "./components/ProfileNotes";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
 
+
 import {
   fetchChapter,
   BIBLE_META,
@@ -27,6 +28,7 @@ import { Verse, VerseReference, FullVerse, ParsedReference } from ".";
 import { LanguageProvider } from "./context/LanguageContext";
 import ProfileMenu from "./components/ProfileMenu";
 import { useAuth } from "./context/AuthContext";
+import { useReaderSettings } from "./hooks/useReaderSettings.ts";
 
 export const AVAILABLE_VERSIONS = [
   "TELUGU_COMMUNITY_V1",
@@ -72,7 +74,18 @@ const App: React.FC = () => {
   const [selectedBook, setSelectedBook] = useLocalStorage("selectedBook", "Genesis");
   const [selectedChapter, setSelectedChapter] = useLocalStorage("selectedChapter", 1);
   const [selectedVerseRef, setSelectedVerseRef] = useState<VerseReference | null>(null);
+  const {
+    settings: readerSettingsRaw,
+    setSettings: setReaderSettings,
+  } = useReaderSettings();
   
+  const readerSettings = readerSettingsRaw ?? {
+    fontSize: "md",
+    autoScrollSpeed: 1,
+    autoScrollIntervalMs: 60,
+  };
+  
+
 
   // Study mode & versions
   const [studyMode, setStudyMode] = useLocalStorage<"single" | "parallel">("studyMode", "single");
@@ -827,7 +840,12 @@ rounded-full shadow-md overflow-hidden px-2"
 
               {/* Profile menu */}
               <div className="ml-2">
-                <ProfileMenu />
+              <ProfileMenu
+  readerSettings={readerSettings}
+  setReaderSettings={(next) => setReaderSettings(next)}
+/>
+
+
               </div>
             </div>
           </header>
@@ -899,6 +917,7 @@ rounded-full shadow-md overflow-hidden px-2"
                       onPreviousChapter={handlePreviousChapter}
                       onScrollDirectionChange={handleScrollDirectionChange}
                       highlights={highlights}
+                      readerSettings={readerSettings}
                     />
                   </div>
                 </div>

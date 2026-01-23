@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Verse, VerseReference } from "..";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+import type { ReaderSettings } from "../hooks/useReaderSettings";
 
 const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
 
@@ -25,6 +26,8 @@ interface ScriptureDisplayProps {
 
   onScrollDirectionChange?: (direction: "up" | "down") => void;
   highlights: { [verse: number]: string };
+  readerSettings: ReaderSettings;
+
 }
 
 const VerseSkeleton: React.FC = () => (
@@ -36,6 +39,7 @@ const VerseSkeleton: React.FC = () => (
     </div>
   </div>
 );
+
 
 export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   bookName,
@@ -57,8 +61,24 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   onScrollDirectionChange,
 
   highlights,
+  readerSettings,
 }) => {
 
+  const getVerseFontClass = () => {
+    switch (settings.fontSize) {
+      case "sm":
+        return "text-[0.90rem] sm:text-[0.95rem] md:text-[1.00rem]";
+      case "md":
+        return "text-[0.98rem] sm:text-[1.05rem] md:text-[1.12rem]";
+      case "lg":
+        return "text-[1.08rem] sm:text-[1.18rem] md:text-[1.30rem]";
+      case "xl":
+        return "text-[1.20rem] sm:text-[1.32rem] md:text-[1.48rem]";
+      default:
+        return "text-[0.98rem] sm:text-[1.05rem] md:text-[1.12rem]";
+    }
+  };
+  
 
   const getHighlightClass = (c: string | undefined) => {
     switch (c) {
@@ -76,7 +96,10 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   };
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const scrollTimerRef = useRef<number | null>(null);
+  const scrollTimerRef = useRef<number | null>(null); // will store requestAnimationFrame id
+  const lastFrameTimeRef = useRef<number | null>(null);
+  const accumulatedScrollRef = useRef(0);
+
   const isAutoScrollingRef = useRef(false);
   const buttonsRef = useRef<HTMLDivElement | null>(null);
 
@@ -153,6 +176,13 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   }
   return bookName;
 };
+
+const settings: ReaderSettings = readerSettings ?? {
+  fontSize: "md",
+  autoScrollSpeed: 1,
+  autoScrollIntervalMs: 60,
+};
+
   const getParallelBookHeading = () => {
     const left = getBookNameByVersion(leftVersion);
     const right = getBookNameByVersion(rightVersion);
@@ -196,41 +226,76 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   
   const stopAutoScroll = () => {
     if (scrollTimerRef.current) {
-      window.clearInterval(scrollTimerRef.current);
+      cancelAnimationFrame(scrollTimerRef.current);
       scrollTimerRef.current = null;
     }
   
-    isAutoScrollingRef.current = false; // ✅ important
+    lastFrameTimeRef.current = null;
+    accumulatedScrollRef.current = 0;
+  
+    isAutoScrollingRef.current = false;
     setAutoScrollDir(null);
   };
   
   
 
+  const startAutoScroll = (direction: "up" | "down") => {
+    stopAutoScroll();
+  
+    setAutoScrollDir(direction);
+    isAutoScrollingRef.current = true;
+  
+    const speed = Math.max(1, Math.min(8, settings.autoScrollSpeed));
+  
+    // ✅ Slow + smooth scale
+    // speed 1 = 8 px/sec
+    // speed 8 = 60 px/sec
+    const pixelsPerSecond = 4 + speed * 7;
+  
+    const stepSign = direction === "down" ? 1 : -1;
+  
+    const loop = (timestamp: number) => {
+      if (!scrollRef.current) return;
+  
+      if (lastFrameTimeRef.current === null) {
+        lastFrameTimeRef.current = timestamp;
+      }
+  
+      const dt = (timestamp - lastFrameTimeRef.current) / 1000;
+      lastFrameTimeRef.current = timestamp;
+  
+      const delta = stepSign * pixelsPerSecond * dt;
+  
+      // ✅ Accumulate fractional pixels
+      accumulatedScrollRef.current += delta;
+  
+      // ✅ Only scroll when we have at least 1 pixel
+      const wholePixels = Math.trunc(accumulatedScrollRef.current);
+  
+      if (wholePixels !== 0) {
+        scrollRef.current.scrollBy({
+          top: wholePixels,
+          behavior: "auto",
+        });
+  
+        accumulatedScrollRef.current -= wholePixels;
+      }
+  
+      scrollTimerRef.current = requestAnimationFrame(loop);
+    };
+  
+    scrollTimerRef.current = requestAnimationFrame(loop);
+  };
+     
   const toggleAutoScroll = (direction: "up" | "down") => {
-    // tap again = stop
+    // Tap again = stop
     if (autoScrollDir === direction) {
       stopAutoScroll();
       return;
     }
   
-    // switch direction
-    stopAutoScroll();
-    setAutoScrollDir(direction);
-    
-  
-    const step = direction === "down" ? 1 : -1; // ✅ super slow
-    const intervalMs = 60; // ✅ slower tick (~16fps)
-    
-
-scrollTimerRef.current = window.setInterval(() => {
-  if (!scrollRef.current) return;
-
-  scrollRef.current.scrollBy({
-    top: step,
-    behavior: "auto",
-  });
-}, intervalMs);
-
+    // Else start / switch direction
+    startAutoScroll(direction);
   };
   
 
@@ -262,6 +327,15 @@ scrollTimerRef.current = window.setInterval(() => {
       window.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [autoScrollDir]);
+
+  useEffect(() => {
+    if (autoScrollDir === null) return;
+  
+    // restart auto-scroll using latest speed/interval values
+    startAutoScroll(autoScrollDir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.autoScrollSpeed]);
+
   
   
   useEffect(() => {
@@ -313,13 +387,13 @@ scrollTimerRef.current = window.setInterval(() => {
   ref={scrollRef}
   className="relative h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6
  bg-gray-50 dark:bg-[#111418]"
-  onScroll={(e) => {
-    handleScroll(e);
+ onScroll={(e) => {
+  // ignore scroll events triggered by auto-scrolling
+  if (isAutoScrollingRef.current) return;
 
-    // ✅ DO NOT stop on programmatic scrolling
-    // scrollBy() causes scroll event too, so ignore it
-    if (isAutoScrollingRef.current) return;
-  }}
+  handleScroll(e);
+}}
+
   onWheel={stopOnManualScroll}      // ✅ mouse manual scroll stops
   onTouchMove={stopOnManualScroll}  // ✅ touch manual scroll stops
 >
@@ -331,19 +405,25 @@ scrollTimerRef.current = window.setInterval(() => {
 <div
   ref={buttonsRef}
   className="
-    fixed
-    left-1 sm:left-2
-    top-[120px] bottom-[90px]
-    z-[20]
-    flex flex-col justify-between
     pointer-events-none
+    flex flex-col justify-between
+
+    /* Mobile: float over screen */
+    fixed md:absolute
+
+    /* Mobile positioning */
+    right-3 bottom-[110px] top-[140px]
+
+    /* Desktop positioning (INSIDE scripture panel) */
+    md:right-4 md:top-30 md:bottom-6
+
+    z-[30]
   "
 >
 
 
-
-  {/* Scroll UP (TOP) */}
-  <button
+{/* Scroll UP (TOP) */}
+<button
   type="button"
   className={`
     pointer-events-auto
@@ -355,6 +435,9 @@ scrollTimerRef.current = window.setInterval(() => {
     border
     transition
     opacity-60 hover:opacity-100
+
+    md:-mt-10  /* ✅ move only UP arrow up in desktop */
+
     ${
       autoScrollDir === "up"
         ? "bg-blue-600/70 text-white border-blue-500/60"
@@ -420,7 +503,7 @@ scrollTimerRef.current = window.setInterval(() => {
              SINGLE MODE RENDERING
          ------------------------------- */}
       {isSingle && (
-        <div className="max-w-3xl mx-auto space-y-4">
+        <div className="max-w-3xl mx-auto space-y-1.5">
           {verses.map((v) => {
             const isSel =
               selectedVerseRef?.verse === v.verse &&
@@ -433,22 +516,26 @@ scrollTimerRef.current = window.setInterval(() => {
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={() => onVerseSelect(v.verse)}
-                className={`p-2.5 sm:p-4 rounded-lg cursor-pointer transition-all ${
+                className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-all ${
                   isSel
-                    ? "border-2 border-blue-400 dark:border-blue-500"
+                  ? "ring-2 ring-blue-400 dark:ring-blue-500"
                     : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
                 } ${getHighlightClass(hl)}`}
               >
-                <span className="text-[15px] sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mr-2">
-                  {v.verse}
-                </span>
+<span className="text-[13px] sm:text-[14px] font-semibold text-gray-500 dark:text-gray-400 mr-2">
+  {v.verse}
+</span>
+
                 <span
   dir="ltr"
-  className={`text-[1.12rem] sm:text-[1.22rem] md:text-[1.35rem]
-    leading-relaxed sm:leading-loose
+  className={`
+    ${getVerseFontClass()}
+    leading-relaxed sm:leading-relaxed md:leading-loose
     text-gray-900 dark:text-gray-100
-    ${englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}`}
+    ${englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}
+  `}
 >
+
   {resolveText(v, englishVersion)}
 </span>
 
@@ -493,9 +580,14 @@ scrollTimerRef.current = window.setInterval(() => {
   {v.verse}
 </span>
 
-  <p className="text-[1.05rem] sm:text-[1.12rem] md:text-[1.22rem]
-  leading-relaxed sm:leading-loose
-  text-gray-900 dark:text-gray-100">
+<p
+  className={`
+    ${getVerseFontClass()}
+    leading-relaxed sm:leading-loose
+    text-gray-900 dark:text-gray-100
+  `}
+>
+
   {resolveText(v, leftVersion)}
 </p>
 
@@ -508,10 +600,13 @@ scrollTimerRef.current = window.setInterval(() => {
     {v.verse}
   </span>
   <p
-  className={`text-[1.05rem] sm:text-[1.12rem] md:text-[1.22rem]
+  className={`
+    ${getVerseFontClass()}
     leading-relaxed sm:leading-loose
-    ${rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}`}
+    ${rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}
+  `}
 >
+
   {resolveText(v, rightVersion)}
 </p>
 
