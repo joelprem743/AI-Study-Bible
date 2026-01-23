@@ -394,23 +394,43 @@ const unifiedLabel =
 {selectionStep === "CHAPTER" && (
   <>
     <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
-  {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
-</h3>
+      {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
+    </h3>
 
     <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-      {Array.from({ length: BIBLE_META.find((b) => b.name === tempBook)?.chapters || 0 }, (_, i) => i + 1)
-        .map((ch) => (
-          <button
-            key={ch}
-            onClick={() => handleChapterSelect(ch)}
-            className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
-          >
-            {ch}
-          </button>
-        ))}
+      {Array.from(
+        { length: BIBLE_META.find((b) => b.name === tempBook)?.chapters || 0 },
+        (_, i) => i + 1
+      ).map((ch) => (
+        <button
+          key={ch}
+          onClick={() => handleChapterSelect(ch)}
+          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+        >
+          {ch}
+        </button>
+      ))}
+    </div>
+
+    {/* ✅ Back + Close buttons */}
+    <div className="mt-4 flex justify-between">
+      <button
+        onClick={() => setSelectionStep("BOOK")}
+        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+      >
+        {isTeluguSingleMode ? "వెనక్కి" : "Back"}
+      </button>
+
+      <button
+        onClick={() => setIsBookModal(false)}
+        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+      >
+        {isTeluguSingleMode ? "మూసివేయి" : "Close"}
+      </button>
     </div>
   </>
 )}
+
 
 {selectionStep === "VERSE" && (
   <>
