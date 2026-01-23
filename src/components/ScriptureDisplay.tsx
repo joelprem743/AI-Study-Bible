@@ -406,18 +406,19 @@ const settings: ReaderSettings = readerSettings ?? {
   ref={buttonsRef}
   className="
     pointer-events-none
+    fixed
+    z-[30]
     flex flex-col justify-between
 
-    /* Mobile: float over screen */
-    fixed md:absolute
-
     /* Mobile positioning */
-    right-3 bottom-[110px] top-[140px]
+    right-3 top-[140px] bottom-[110px]
 
-    /* Desktop positioning (INSIDE scripture panel) */
-    md:right-4 md:top-30 md:bottom-6
-
-    z-[30]
+    /* Desktop positioning:
+       Push it LEFT by the width of right panel (1/3)
+       so it stays INSIDE scripture panel area */
+    md:right-[calc(33.333vw+16px)]
+    md:top-[180px]
+    md:bottom-[60px]
   "
 >
 
