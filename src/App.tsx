@@ -698,7 +698,14 @@ useEffect(() => {
 
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
-          <header className="bg-white dark:bg-slate-900 px-2 py-1.5 md:px-3 md:py-2 shadow-md z-40 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+          <header className="
+  bg-slate-900 dark:bg-slate-950
+  px-3 py-2 md:px-4 md:py-3
+  shadow-md z-40
+  border-b border-white/10
+  flex items-center justify-between
+">
+
             {/* Left: Logo + Title (single source of truth) */}
 <div className="flex items-center gap-2">
   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
@@ -710,11 +717,13 @@ useEffect(() => {
   </div>
 
   <div className="flex items-center gap-1 whitespace-nowrap">
-  <span className="text-base md:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+  <span className="text-base md:text-2xl font-bold text-white leading-none">
+
   Bible Companion
 </span>
 
-<span className="hidden sm:inline text-xs md:text-sm text-gray-500 dark:text-gray-400">
+<span className="hidden sm:inline text-xs md:text-sm text-slate-300">
+
   by Joel Prem
 </span>
 
@@ -749,17 +758,22 @@ useEffect(() => {
                   }}
                   aria-label="Open search"
                   className="
-                    w-9 h-9 md:w-10 md:h-10
-                    flex items-center justify-center rounded-lg
-                    bg-gray-50 dark:bg-gray-800 
-                    border border-gray-200 dark:border-[#2A2F35]
-                    hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-                    dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-                    transition
-                  "
+  w-9 h-9 md:w-10 md:h-10
+  flex items-center justify-center
+  rounded-2xl
+  bg-white/10 dark:bg-white/5
+  border border-white/10
+  text-white
+  shadow-sm
+  hover:bg-white/15
+  hover:border-white/15
+  hover:shadow-[0_0_10px_rgba(59,130,246,0.35)]
+  transition-all duration-150
+"
+
                 >
                 
-                    <i className="fas fa-search text-gray-700 dark:text-gray-300" />
+                <i className="fas fa-search text-white/90" />
                   </button>
                 )}
 
@@ -767,9 +781,17 @@ useEffect(() => {
                 {searchOpen && (
                   <div
                   ref={desktopSearchRef}
-                  className="hidden md:flex items-center bg-white dark:bg-gray-800 
-border border-gray-300 dark:border-[#2A2F35] 
-rounded-full shadow-md overflow-hidden px-2"
+                  className="
+  hidden md:flex items-center
+  bg-white/10 dark:bg-white/5
+  border border-white/10
+  rounded-full
+  shadow-lg
+  overflow-hidden
+  px-2
+  backdrop-blur-xl
+"
+
 
                 >                
                     <form onSubmit={(e) => void handleSearch(e)} className="flex items-center">
@@ -778,17 +800,26 @@ rounded-full shadow-md overflow-hidden px-2"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
-                        className="px-3 py-2 w-80 max-w-[420px] bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100"
+                        className="
+  px-3 py-2 w-80 max-w-[420px]
+  bg-transparent outline-none text-sm
+  text-white/90 placeholder:text-white/50
+"
+
                       />
                       <button
   type="submit"
   aria-label="Search"
   className="
-  w-10 h-10 flex items-center justify-center rounded-lg 
-  bg-blue-600 text-white
-  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
+  w-10 h-10 flex items-center justify-center
+  rounded-2xl
+  bg-gradient-to-r from-blue-600 to-indigo-600
+  text-white
+  shadow-md
+  hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
+  transition-all duration-150
 "
+
 
 >
   <i className="fas fa-arrow-right" />
@@ -797,9 +828,17 @@ rounded-full shadow-md overflow-hidden px-2"
                       <button
   type="button"
   onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-  className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700"
+  className="
+  w-10 h-10 flex items-center justify-center
+  rounded-2xl
+  bg-white/10 dark:bg-white/5
+  border border-white/10
+  hover:bg-white/15
+  transition-all duration-150
+"
+
 >
-  <i className="fas fa-times text-gray-700 dark:text-gray-300" />
+<i className="fas fa-times text-white/80" />
 </button>
 
                     </form>
@@ -815,7 +854,7 @@ rounded-full shadow-md overflow-hidden px-2"
       md:hidden 
       fixed inset-0 
       z-[9999] 
-      bg-white/95 dark:bg-gray-900/95 
+      bg-slate-950/90
       backdrop-blur-sm 
       flex items-start
       p-3
@@ -832,8 +871,10 @@ rounded-full shadow-md overflow-hidden px-2"
       className="
         w-full 
         flex items-center gap-2 
-        bg-white dark:bg-gray-800
-        border border-gray-300 dark:border-[#2A2F35]
+        bg-white/10
+border border-white/10
+backdrop-blur-xl
+
         rounded-full 
         shadow-md 
         p-2
@@ -843,7 +884,7 @@ rounded-full shadow-md overflow-hidden px-2"
         autoFocus
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="flex-1 px-3 py-2 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100"
+        className="flex-1 px-3 py-2 bg-transparent outline-none text-sm text-white/90 placeholder:text-white/50"
         placeholder="Search (Psalm 23:1 | యోహాను 3:16)"
       />
 
@@ -851,7 +892,7 @@ rounded-full shadow-md overflow-hidden px-2"
         type="submit"
         className="
   w-10 h-10 flex items-center justify-center rounded-lg 
-  bg-gray-200 dark:bg-gray-700
+  bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md
   hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
   dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
 "
@@ -863,7 +904,7 @@ rounded-full shadow-md overflow-hidden px-2"
       <button
         type="button"
         onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-        className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700"
+        className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 border border-white/10 text-white/90"
       >
         <i className="fas fa-times text-gray-700 dark:text-gray-300" />
       </button>
@@ -886,7 +927,7 @@ rounded-full shadow-md overflow-hidden px-2"
           </header>
 
           {/* MAIN */}
-          <main className="flex-grow flex flex-col md:flex-row overflow-x-hidden">
+          <main className="flex-grow flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0B0F14]">
             {isSearchView ? (
               <SearchResultDisplay
               groupedResults={groupedSearchResults ?? { oldTestament: {}, newTestament: {} }}
@@ -957,7 +998,13 @@ rounded-full shadow-md overflow-hidden px-2"
                 </div>
 
                 {/* RIGHT PANEL */}
-                <div className="w-full md:w-1/3 hidden md:block bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-[#2A2F35] overflow-y-auto">
+                <div className="
+  w-full md:w-1/3 hidden md:block
+  bg-white dark:bg-slate-900
+  border-l border-slate-200 dark:border-white/10
+  overflow-y-auto
+">
+
                   {selectedVerseRef && selectedVerseData ? (
                     <VerseTools
                     verseRef={selectedVerseRef}
@@ -1157,7 +1204,13 @@ setGroupedSearchResults(
 
 
 
-          <footer className="bg-gray-200 dark:bg-[#111418] text-center p-2 text-xs text-gray-600 dark:text-gray-400">
+<footer className="
+  bg-slate-100 dark:bg-slate-950
+  text-center p-2 text-xs
+  text-slate-600 dark:text-slate-400
+  border-t border-slate-200 dark:border-white/10
+">
+
             Contact: joelpremtej@gmail.com
           </footer>
 

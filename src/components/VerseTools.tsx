@@ -2081,17 +2081,21 @@ if (cached) {
     Render
   ---------------------------*/
   return (
-    <div className="p-4 md:p-6 h-full flex flex-col relative">
+    <div className="p-4 md:p-6 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14]">
+
       {/* HEADER */}
 <div className="mb-4">
   <div className="flex items-center justify-between">
     
     {/* Title */}
-    <h2 className="text-xl font-bold text-blue-500 dark:text-blue-400">
+    <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
       {language === "TE"
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book}{" "}
-      {verseRef.chapter}:{verseRef.verse}
+      <span className="text-blue-600 dark:text-blue-400">
+  {" "}{verseRef.chapter}:{verseRef.verse}
+</span>
+
     </h2>
 
     {/* Action buttons */}
@@ -2107,8 +2111,13 @@ if (cached) {
   <button
     ref={menuButtonRef}
     onClick={() => setMenuOpen((v) => !v)}
-    className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
-               text-gray-600 dark:text-gray-300"
+    className="
+  p-2 rounded-xl
+  hover:bg-slate-100 dark:hover:bg-slate-800/60
+  text-slate-600 dark:text-slate-300
+  transition
+"
+
   >
 
       <i className="fas fa-ellipsis-v" />
@@ -2118,14 +2127,15 @@ if (cached) {
       <div
         className="
           absolute right-0 translate-x-[-8px] mt-2 min-w-[11rem]
-          bg-white dark:bg-gray-800 
-          border border-gray-300 dark:border-gray-600
-          rounded-lg shadow-xl z-[9999]"
+bg-white dark:bg-slate-900
+border border-slate-200 dark:border-white/10
+rounded-2xl shadow-2xl
+backdrop-blur-xl z-[9999]"
       >
         <button
           onClick={() => { handleCopyVerse(); setMenuOpen(false); }}
           className="w-full px-4 py-2 flex items-center gap-3 text-left 
-                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                     text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
         >
           <i className="fas fa-copy w-4" />
           {L.copyVerse}
@@ -2139,7 +2149,7 @@ if (cached) {
       setMenuOpen(false);
     }}
     className="w-full px-4 py-2 flex items-center gap-3 text-left
-               text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+               text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
   >
     <i className="fas fa-copy w-4" />
     {language === "TE"
@@ -2154,7 +2164,7 @@ if (cached) {
         <button
           onClick={() => { handleShareVerse(); setMenuOpen(false); }}
           className="w-full px-4 py-2 flex items-center gap-3 text-left 
-                     text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                     text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
         >
           <i className="fas fa-share w-4" />
 {L.shareVerse}
@@ -2167,7 +2177,7 @@ if (cached) {
     handleShareAsImage();
   }}
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
-             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+             text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
 >
 <i className="fas fa-image w-4" />
 {L.shareImage}
@@ -2202,7 +2212,7 @@ window.dispatchEvent(
     onClose?.();
   }}
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
-             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+             text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
 >
 <i className="fas fa-bookmark w-4" />
 {L.addNotes}
@@ -2217,7 +2227,7 @@ window.dispatchEvent(
     setMenuOpen(false);
   }}
   className="w-full px-4 py-2 flex items-center gap-3 text-left
-             text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+             text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
 >
   <i className="fas fa-globe w-4" />
   {L.language}: {language}
@@ -2231,7 +2241,7 @@ window.dispatchEvent(
   {onClose && (
     <button
       onClick={onClose}
-      className="text-gray-500 dark:text-gray-400 hover:text-gray-300"
+      className="text-slate-500 dark:text-slate-400 hover:text-gray-300"
     >
       <i className="fas fa-times text-lg" />
     </button>
@@ -2324,7 +2334,7 @@ window.dispatchEvent(
           }}
           className={`py-3 border-b-2 text-sm font-medium ${
             activeTab === tab
-              ? "border-blue-500 text-blue-600"
+              ? "border-blue-600 text-blue-600 dark:text-blue-400"
               : "border-transparent text-gray-500 dark:text-gray-400"
           }`}
         >
@@ -2345,7 +2355,7 @@ window.dispatchEvent(
 
   {/* ADVANCED ROW */}
   {advancedOpen && (
-    <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+    <div className="border-b border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-slate-900/60">
       <nav className="flex space-x-6 px-1">
         {ADVANCED_TABS.map((tab) => (
           <button
@@ -2384,7 +2394,16 @@ window.dispatchEvent(
 {activeTab === "Notes" ? (
   <div className="flex flex-col gap-3">
     <textarea
-      className="w-full h-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+      className="
+      w-full h-64 p-3
+      bg-white dark:bg-slate-900
+      border border-slate-200 dark:border-white/10
+      rounded-2xl
+      text-slate-900 dark:text-slate-100
+      placeholder:text-slate-400
+      focus:outline-none focus:ring-2 focus:ring-blue-500/30
+    "
+    
       placeholder={
         language === "TE"
           ? "ఈ వచనం పై మీ వ్యక్తిగత గమనికలు..."
@@ -2465,9 +2484,11 @@ window.dispatchEvent(
             <div
             ref={originalBlockRef}
             className="
-              p-3 rounded-md
-              bg-gray-50 dark:bg-gray-900
-              border border-gray-200 dark:border-gray-700
+              p-3 bg-white dark:bg-slate-900
+border border-slate-200 dark:border-white/10
+rounded-2xl
+shadow-sm
+
               space-y-2
             "
           >
@@ -2620,11 +2641,15 @@ wordRefs.current.set(idx, el);
 }
 }}
 className={`
-rounded-lg border px-4 py-3 dark:border-gray-700
+rounded-2xl border px-4 py-3
+border-slate-200 dark:border-white/10
+transition-all duration-150
+bg-white dark:bg-slate-900
+shadow-sm
 transition-colors
 ${
 activeWordIndex === idx
-? "border-yellow-400 bg-yellow-50 dark:bg-yellow-800/40"
+? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/20"
 : "bg-white dark:bg-gray-900"
 }
 `}
@@ -2761,8 +2786,10 @@ className="
 
             <div
               className="
-                bg-white dark:bg-gray-800 
-                p-4 rounded-lg shadow-lg 
+                bg-white dark:bg-slate-900
+p-5 rounded-2xl shadow-2xl
+border border-slate-200 dark:border-white/10
+
                 w-11/12 max-w-md 
                 max-h-[75vh] 
                 overflow-y-auto 
@@ -2796,7 +2823,10 @@ className="
         }}
       >
         <div
-          className="bg-white dark:bg-gray-900 w-full rounded-t-xl p-4 max-h-[70vh] overflow-y-auto"
+          className="bg-white dark:bg-slate-900 w-full rounded-t-3xl p-5
+border-t border-slate-200 dark:border-white/10
+shadow-2xl
+ max-h-[70vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="text-lg font-bold">

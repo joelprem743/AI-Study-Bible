@@ -219,23 +219,55 @@ const unifiedLabel =
   const currentVerseCount = getVerseCount(tempBook, tempChapter);
   
   return (
-    <div className="p-3 bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-[#2A2F35] shadow-sm flex items-center gap-3">
-      {/* UNIFIED BOOK+CHAPTER BUTTON */}
+    <div
+      className="
+        sticky top-0 z-30
+        px-3 md:px-4 py-2
+        bg-white/70 dark:bg-slate-950/35
+        backdrop-blur-xl
+        border-b border-slate-200/70 dark:border-white/10
+      "
+    >
       <div
         className="
-        group flex flex-1 items-center justify-between
-        bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-[#2A2F35]
-        rounded-xl px-3 py-2
-        transform-gpu transition-all duration-150 ease-out
-        hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-        dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-      "
-      
+          flex items-center gap-3
+          rounded-2xl
+          bg-white/80 dark:bg-white/5
+          border border-slate-200/60 dark:border-white/10
+          shadow-sm
+          px-3 py-2
+        "
       >
+  
+
+      {/* UNIFIED BOOK+CHAPTER BUTTON */}
+      <div
+  className="
+    group flex flex-1 items-center justify-between
+    rounded-full
+    bg-white/70 dark:bg-white/5
+    border border-slate-200/60 dark:border-white/10
+    shadow-sm
+    px-3 py-2
+    transform-gpu transition-all duration-150 ease-out
+    hover:bg-white/90 dark:hover:bg-white/10
+    hover:border-slate-300/70 dark:hover:border-white/15
+    hover:shadow-[0_0_10px_rgba(59,130,246,0.28)]
+  "
+>
+
         <button
           disabled={isFirstChapterOfBible}
           onClick={(e) => { e.stopPropagation(); onPreviousChapter(); }}
-          className="text-gray-500 dark:text-gray-400 disabled:opacity-30 px-2"
+          className="
+  w-9 h-9 flex items-center justify-center
+  rounded-xl
+  text-slate-600 dark:text-white/70
+  hover:bg-white/70 dark:hover:bg-white/10
+  transition-all duration-150
+  disabled:opacity-30 disabled:hover:bg-transparent
+"
+
           aria-label="Previous chapter"
         >
           <i className="fas fa-caret-left" />
@@ -270,7 +302,15 @@ const unifiedLabel =
         <button
           disabled={isLastChapterOfBible}
           onClick={(e) => { e.stopPropagation(); onNextChapter(); }}
-          className="text-gray-500 dark:text-gray-400 disabled:opacity-30 px-2"
+          className="
+  w-9 h-9 flex items-center justify-center
+  rounded-xl
+  text-slate-600 dark:text-white/70
+  hover:bg-white/70 dark:hover:bg-white/10
+  transition-all duration-150
+  disabled:opacity-30 disabled:hover:bg-transparent
+"
+
           aria-label="Next chapter"
         >
           <i className="fas fa-caret-right" />
@@ -282,16 +322,21 @@ const unifiedLabel =
         onClick={() => setIsPickerOpen(true)}
         className="
   w-10 h-10 flex items-center justify-center
-  rounded-xl bg-gray-50 dark:bg-gray-800
-  border border-gray-300 dark:border-[#2A2F35]
-  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-  transition
+  rounded-2xl
+  bg-white/60 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-700 dark:text-white/80
+  shadow-sm
+  hover:bg-white/80 dark:hover:bg-white/10
+  hover:border-slate-300/70 dark:hover:border-white/15
+  hover:shadow-[0_0_10px_rgba(59,130,246,0.28)]
+  transition-all duration-150
 "
+
 
         aria-label="Open version picker"
       >
-        <i className="fas fa-sliders-h text-gray-700 dark:text-gray-300" />
+        <i className="fas fa-sliders-h text-slate-700 dark:text-white/80" />
       </button>
 
       {/* Book + Chapter Modal */}
@@ -329,7 +374,16 @@ const unifiedLabel =
         <button
           key={b.name}
           onClick={() => handleBookSelect(b.name)}
-          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+          className="
+  p-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-blue-600 hover:text-white
+  hover:border-blue-500/40
+  transition-all duration-150
+"
+
         >
           {studyMode === "single" ? (
             <div
@@ -364,7 +418,16 @@ const unifiedLabel =
         <button
           key={b.name}
           onClick={() => handleBookSelect(b.name)}
-          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+          className="
+  p-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-blue-600 hover:text-white
+  hover:border-blue-500/40
+  transition-all duration-150
+"
+
         >
           {studyMode === "single" ? (
             <div
@@ -405,7 +468,16 @@ const unifiedLabel =
         <button
           key={ch}
           onClick={() => handleChapterSelect(ch)}
-          className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+          className="
+  p-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-blue-600 hover:text-white
+  hover:border-blue-500/40
+  transition-all duration-150
+"
+
         >
           {ch}
         </button>
@@ -416,14 +488,30 @@ const unifiedLabel =
     <div className="mt-4 flex justify-between">
       <button
         onClick={() => setSelectionStep("BOOK")}
-        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+        className="
+  px-4 py-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-white/90 dark:hover:bg-white/10
+  transition-all duration-150
+"
+
       >
         {isTeluguSingleMode ? "వెనక్కి" : "Back"}
       </button>
 
       <button
         onClick={() => setIsBookModal(false)}
-        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+        className="
+  px-4 py-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-white/90 dark:hover:bg-white/10
+  transition-all duration-150
+"
+
       >
         {isTeluguSingleMode ? "మూసివేయి" : "Close"}
       </button>
@@ -444,7 +532,16 @@ const unifiedLabel =
           <button
             key={v}
             onClick={() => handleVerseSelect(v)}
-            className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+            className="
+  p-2 rounded-xl
+  bg-white/70 dark:bg-white/5
+  border border-slate-200/60 dark:border-white/10
+  text-slate-900 dark:text-white/80
+  hover:bg-blue-600 hover:text-white
+  hover:border-blue-500/40
+  transition-all duration-150
+"
+
           >
             {v}
           </button>
@@ -452,21 +549,36 @@ const unifiedLabel =
       </div>
     </div>
 
-    <div className="mt-4 flex justify-between">
-      <button
-        onClick={() => setSelectionStep("CHAPTER")}
-        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-      >
-        {isTeluguSingleMode ? "వెనక్కి" : "Back"}
-      </button>
+    <div className="mt-4 flex justify-between gap-3">
+  <button
+    onClick={() => setSelectionStep("CHAPTER")}
+    className="
+      px-4 py-2 rounded-xl
+      bg-white/70 dark:bg-white/5
+      border border-slate-200/60 dark:border-white/10
+      text-slate-900 dark:text-white/80
+      hover:bg-white/90 dark:hover:bg-white/10
+      transition-all duration-150
+    "
+  >
+    {isTeluguSingleMode ? "వెనక్కి" : "Back"}
+  </button>
 
-      <button
-        onClick={() => setIsBookModal(false)}
-        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-      >
-        {isTeluguSingleMode ? "మూసివేయి" : "Close"}
-      </button>
-    </div>
+  <button
+    onClick={() => setIsBookModal(false)}
+    className="
+      px-4 py-2 rounded-xl
+      bg-gradient-to-r from-blue-600 to-indigo-600
+      text-white
+      shadow-md
+      hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
+      transition-all duration-150
+    "
+  >
+    {isTeluguSingleMode ? "మూసివేయి" : "Close"}
+  </button>
+</div>
+
   </>
 )}
 
@@ -503,7 +615,7 @@ const unifiedLabel =
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => onSetStudyMode("single")}
-                  className={`flex-1 py-2 rounded ${  studyMode === "single" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"}`}
+                  className={`flex-1 py-2 rounded ${  studyMode === "single" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-slate-700 dark:text-slate-200"}`}
                 >
                   Single
                 </button>
@@ -603,5 +715,7 @@ setIsPickerOpen(false); // ⬅️ critical for mobile
         </ModalPortal>
       )}
     </div>
+    </div>
+
   );
 }

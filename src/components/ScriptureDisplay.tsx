@@ -346,7 +346,8 @@ const settings: ReaderSettings = readerSettings ?? {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex-grow overflow-y-auto p-4 bg-gray-50 dark:bg-[#111418]">
+<div className="flex-grow overflow-y-auto p-4 bg-slate-50 dark:bg-[#0B0F14]">
+
         {[...Array(10)].map((_, i) => (
           <VerseSkeleton key={i} />
         ))}
@@ -385,8 +386,12 @@ const settings: ReaderSettings = readerSettings ?? {
   return (
 <div
   ref={scrollRef}
-  className="relative h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6
- bg-gray-50 dark:bg-[#111418]"
+  className="
+  relative h-full w-full overflow-y-auto overflow-x-hidden
+  p-4 md:p-6
+  bg-slate-50 dark:bg-[#0B0F14]
+"
+
  onScroll={(e) => {
   // ignore scroll events triggered by auto-scrolling
   if (isAutoScrollingRef.current) return;
@@ -431,18 +436,20 @@ const settings: ReaderSettings = readerSettings ?? {
     w-8 h-8 sm:w-9 sm:h-9
     rounded-full
     flex items-center justify-center
-    shadow-sm
-    backdrop-blur-md
-    border
-    transition
-    opacity-60 hover:opacity-100
+shadow-lg
+backdrop-blur-xl
+border
+transition-all duration-150
+opacity-70 hover:opacity-100
+
 
     md:-mt-10  /* ✅ move only UP arrow up in desktop */
 
     ${
       autoScrollDir === "up"
         ? "bg-blue-600/70 text-white border-blue-500/60"
-        : "bg-white/30 dark:bg-black/30 text-gray-800 dark:text-gray-200 border-white/40 dark:border-white/10"
+        : "bg-white/60 dark:bg-slate-900/60 text-slate-800 dark:text-slate-200 border-slate-200/60 dark:border-white/10"
+
     }
   `}
   title={autoScrollDir === "up" ? "Stop scroll" : "Scroll up"}
@@ -504,7 +511,17 @@ const settings: ReaderSettings = readerSettings ?? {
              SINGLE MODE RENDERING
          ------------------------------- */}
       {isSingle && (
-        <div className="max-w-3xl mx-auto space-y-1.5">
+        <div
+        className="
+          max-w-3xl mx-auto space-y-2
+          bg-white dark:bg-slate-900
+          border border-slate-200 dark:border-white/10
+          rounded-[2rem]
+          shadow-sm
+          p-4 sm:p-6
+        "
+      >
+      
           {verses.map((v) => {
             const isSel =
               selectedVerseRef?.verse === v.verse &&
@@ -517,11 +534,20 @@ const settings: ReaderSettings = readerSettings ?? {
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={() => onVerseSelect(v.verse)}
-                className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-all ${
-                  isSel
-                  ? "ring-2 ring-blue-400 dark:ring-blue-500"
-                    : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
-                } ${getHighlightClass(hl)}`}
+                className={`
+                  p-2 sm:p-3
+                  rounded-2xl
+                  cursor-pointer
+                  transition-all duration-150
+                  border
+                  ${
+                    isSel
+                      ? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/30"
+                      : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
+                  }
+                  ${getHighlightClass(hl)}
+                `}
+                
               >
 <span className="text-[13px] sm:text-[14px] font-semibold text-gray-500 dark:text-gray-400 mr-2">
   {v.verse}
@@ -553,7 +579,17 @@ const settings: ReaderSettings = readerSettings ?? {
              PARALLEL MODE RENDERING
          ------------------------------- */}
       {!isSingle && (
-        <div className="space-y-4">
+        <div
+        className="
+          space-y-4
+          bg-white dark:bg-slate-900
+          border border-slate-200 dark:border-white/10
+          rounded-[2rem]
+          shadow-sm
+          p-4 sm:p-6
+        "
+      >
+      
           {verses.map((v) => {
             const isSel =
               selectedVerseRef?.verse === v.verse &&
@@ -566,11 +602,20 @@ const settings: ReaderSettings = readerSettings ?? {
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={() => onVerseSelect(v.verse)}
-                className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-all ${
-                  isSel
-                    ? "border-2 border-blue-400 dark:border-blue-500"
-                    : "hover:bg-gray-200 dark:hover:bg-[#1A1D21]"
-                } ${getHighlightClass(hl)}`}
+                className={`
+                  p-2 sm:p-3
+                  rounded-2xl
+                  cursor-pointer
+                  transition-all duration-150
+                  border
+                  ${
+                    isSel
+                      ? "border-blue-500/50 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/40"
+                      : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
+                  }
+                  ${getHighlightClass(hl)}
+                `}
+                
               >
                 {/* Desktop → side-by-side, Mobile → stacked */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

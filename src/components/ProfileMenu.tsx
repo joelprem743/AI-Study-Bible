@@ -108,20 +108,22 @@ export default function ProfileMenu({
       <>
         <button
   onClick={() => handleAuthOpen("signin")}
+  aria-label="Open profile"
   className="
-  w-10 h-10 rounded-full 
-  bg-gray-100 dark:bg-gray-800
-  border border-gray-300 dark:border-gray-600
-  flex items-center justify-center
-  text-gray-600 dark:text-gray-300
-  hover:bg-gray-200 dark:hover:bg-gray-700
-  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-  transition
-"
-
+    w-10 h-10
+    flex items-center justify-center
+    rounded-2xl
+    bg-white/10 dark:bg-white/5
+    border border-white/10
+    text-white
+    shadow-sm
+    hover:bg-white/15
+    hover:border-white/15
+    hover:shadow-[0_0_10px_rgba(59,130,246,0.35)]
+    transition-all duration-150
+  "
 >
-  <i className="fas fa-user text-lg" />
+  <i className="fas fa-user text-lg text-white/90" />
 </button>
 
 
@@ -176,24 +178,29 @@ export default function ProfileMenu({
     <div className="relative" ref={dropdownRef}>
       {/* Avatar Button */}
       
-<button
+      <button
   onClick={() => setIsDropdownOpen((v) => !v)}
+  aria-label="Open profile menu"
   className="
-  w-10 h-10 rounded-full 
-  bg-gray-100 dark:bg-gray-700
-  border border-gray-300 dark:border-gray-600
-  flex items-center justify-center
-  font-semibold
-  text-gray-800 dark:text-white
-  hover:bg-gray-200 dark:hover:bg-gray-600
-  hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
-  dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
-  transition
-"
-
+    w-10 h-10
+    flex items-center justify-center
+    rounded-2xl
+    bg-white/10 dark:bg-white/5
+    border border-white/10
+    text-white
+    font-semibold
+    shadow-sm
+    hover:bg-white/15
+    hover:border-white/15
+    hover:shadow-[0_0_10px_rgba(59,130,246,0.35)]
+    transition-all duration-150
+  "
 >
-  {firstLetter}
+  <span className="text-white/90">
+    {firstLetter}
+  </span>
 </button>
+
 
 
 
@@ -202,12 +209,15 @@ export default function ProfileMenu({
       {/* Dropdown Menu */}
       {isDropdownOpen && (
         <div
-          className="
-            absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-50
-            bg-white dark:bg-slate-900
-            border border-gray-200 dark:border-slate-700
-            divide-y divide-gray-200 dark:divide-slate-700
-          "
+        className="
+        absolute right-0 mt-2 w-52 rounded-2xl shadow-xl z-50
+        bg-white/95 dark:bg-slate-950/90
+        border border-slate-200/60 dark:border-white/10
+        backdrop-blur-xl
+        overflow-hidden
+        divide-y divide-slate-200/60 dark:divide-white/10
+      "
+      
         >
           <button
             onClick={() => {
@@ -215,10 +225,12 @@ export default function ProfileMenu({
               setIsDropdownOpen(false);
             }}
             className="
-              w-full text-left px-4 py-2 text-sm
-              text-gray-700 dark:text-gray-200
-              hover:bg-gray-100 dark:hover:bg-slate-800
-            "
+  w-full text-left px-4 py-2.5 text-sm
+  text-slate-700 dark:text-white/85
+  hover:bg-slate-100/70 dark:hover:bg-white/5
+  transition-colors
+"
+
           >
             My Highlights
           </button>
@@ -228,9 +240,13 @@ export default function ProfileMenu({
               setIsNotesOpen(true);
               setIsDropdownOpen(false);
             }}
-            className="w-full text-left px-4 py-2 text-sm
-                       text-gray-700 dark:text-gray-200
-                       hover:bg-gray-100 dark:hover:bg-slate-800"
+            className="
+  w-full text-left px-4 py-2.5 text-sm
+  text-slate-700 dark:text-white/85
+  hover:bg-slate-100/70 dark:hover:bg-white/5
+  transition-colors
+"
+
           >
             My Notes
           </button>
@@ -238,9 +254,10 @@ export default function ProfileMenu({
           <button
   onClick={() => setLanguage(language === "EN" ? "TE" : "EN")}
   className="
-    w-full text-left px-4 py-2 text-sm
-    text-gray-700 dark:text-gray-200
-    hover:bg-gray-100 dark:hover:bg-slate-800
+  w-full text-left px-4 py-2.5 text-sm
+  text-slate-700 dark:text-white/85
+  hover:bg-slate-100/70 dark:hover:bg-white/5
+  transition-colors
     flex items-center justify-between
   "
 >

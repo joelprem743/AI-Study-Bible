@@ -163,9 +163,19 @@ const labels = isTeluguMode
     
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-[#0B0F14]">
+
       {/* HEADER */}
-      <header className="p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between sticky top-0 z-10">
+      <header className="
+  p-3
+  bg-white/90 dark:bg-slate-950/80
+  backdrop-blur-xl
+  border-b border-slate-200 dark:border-white/10
+  shadow-sm
+  flex items-center justify-between
+  sticky top-0 z-10
+">
+
       <h2 className="text-lg font-bold">
   Search Results
   {!isLoading && hasResults && (
@@ -179,14 +189,31 @@ const labels = isTeluguMode
         <div className="flex gap-2">
           <button
             onClick={onOpenFilters}
-            className="px-3 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 rounded-lg"
+            className="
+  px-3 py-2 text-sm font-medium rounded-xl
+  bg-slate-100 hover:bg-slate-200
+  dark:bg-slate-900 dark:hover:bg-slate-800
+  border border-slate-200 dark:border-white/10
+  text-slate-700 dark:text-slate-200
+  transition
+"
+
           >
             Filters
           </button>
 
           <button
             onClick={onClear}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            className="
+  px-4 py-2 text-sm font-semibold
+  text-white
+  bg-gradient-to-r from-blue-600 to-indigo-600
+  rounded-xl
+  shadow-md
+  hover:shadow-lg
+  transition
+"
+
           >
             Back to Bible
           </button>
@@ -261,7 +288,17 @@ const labels = isTeluguMode
                           {chapters[chapter].map(v => (
   <div
     key={`${v.book}-${v.chapter}-${v.verse}`}
-    className="p-3 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+    className="
+  p-4 rounded-2xl
+  bg-white dark:bg-slate-900
+  border border-slate-200 dark:border-white/10
+  shadow-sm
+  hover:bg-slate-50 dark:hover:bg-slate-800/50
+  hover:shadow-md
+  cursor-pointer
+  transition-all duration-150
+"
+
     onClick={() => onNavigate(v.book, v.chapter, v.verse)}
   >
 <div className="flex">

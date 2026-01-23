@@ -259,7 +259,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
 >
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900">
+
           <h2 className="text-lg font-semibold">My Notes</h2>
           <button
             onClick={() => {
