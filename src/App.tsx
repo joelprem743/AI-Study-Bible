@@ -74,6 +74,8 @@ const App: React.FC = () => {
   const [selectedBook, setSelectedBook] = useLocalStorage("selectedBook", "Genesis");
   const [selectedChapter, setSelectedChapter] = useLocalStorage("selectedChapter", 1);
   const [selectedVerseRef, setSelectedVerseRef] = useState<VerseReference | null>(null);
+  const [selectedVerse, setSelectedVerse] = useLocalStorage("selectedVerse", 1);
+
   const {
     settings: readerSettingsRaw,
     setSettings: setReaderSettings,
@@ -163,6 +165,12 @@ const [incomingVerse, setIncomingVerse] = useState<{
       setShowWelcome(true);
     }
   }, []);
+  const handleVerseChange = useCallback((v: number) => {
+    setSelectedVerse(v);
+    setSelectedVerseRef({ book: selectedBook, chapter: selectedChapter, verse: v });
+    setIsToolsModalOpen(false);
+  }, [selectedBook, selectedChapter]);
+  
 
   const handleWelcomeDismiss = () => {
     setShowWelcome(false);
@@ -228,9 +236,11 @@ const [incomingVerse, setIncomingVerse] = useState<{
       if (verse) {
         // Restore selection but DO NOT auto-open tools on reload
         setSelectedVerseRef({ book: meta.name, chapter: chap, verse });
+        setSelectedVerse(verse);
         setIsToolsModalOpen(false);
       } else {
         setSelectedVerseRef(null);
+        setSelectedVerse(1);
         setIsToolsModalOpen(false);
       }
       
@@ -310,15 +320,22 @@ const [incomingVerse, setIncomingVerse] = useState<{
   const handleBookChange = useCallback((book: string) => {
     setSelectedBook(book);
     setSelectedChapter(1);
+  
+    setSelectedVerse(1);
     setSelectedVerseRef(null);
+  
     setIsToolsModalOpen(false);
-  }, []);
-
+  }, [setSelectedBook, setSelectedChapter, setSelectedVerse]);
+  
   const handleChapterChange = useCallback((ch: number) => {
     setSelectedChapter(ch);
+  
+    setSelectedVerse(1);
     setSelectedVerseRef(null);
+  
     setIsToolsModalOpen(false);
-  }, []);
+  }, [setSelectedChapter, setSelectedVerse]);
+  
 
   const getEnglishVersionForLogic = () => {
     if (studyMode === "single") {
@@ -431,11 +448,12 @@ const [incomingVerse, setIncomingVerse] = useState<{
   }, []);
 
   const handleVerseSelect = useCallback((v: number) => {
+    setSelectedVerse(v);
     setSelectedVerseRef({ book: selectedBook, chapter: selectedChapter, verse: v });
     if (window.innerWidth < 768) setIsToolsModalOpen(true);
     setIsChatOpen(false);
-  }, [selectedBook, selectedChapter]);
-
+  }, [selectedBook, selectedChapter, setSelectedVerse]);
+  
   // Search parsing
   const parseReferencesFromString = (refString: string): ParsedReference[] => {
     const parts = refString.split(/\s*[;,]\s*/);
@@ -569,22 +587,39 @@ const [incomingVerse, setIncomingVerse] = useState<{
     setGroupedSearchResults({ oldTestament: {}, newTestament: {} });
     setSearchError(null);
   };
+
+  const handleNavigateTo = useCallback((book: string, chapter: number, verse: number) => {
+    setIsSearchView(false);
+  
+    setSelectedBook(book);
+    setSelectedChapter(chapter);
+  
+    setSelectedVerse(verse);
+    setSelectedVerseRef({ book, chapter, verse });
+  
+    setIsToolsModalOpen(false);
+    setIsChatOpen(false);
+  }, []);
+  
   
   const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
     setIsSearchView(false);
- 
-
     setSearchError(null);
+  
     setSelectedBook(book);
     setSelectedChapter(chap);
+  
     if (verse !== undefined) {
+      setSelectedVerse(verse);
       setSelectedVerseRef({ book, chapter: chap, verse });
       if (window.innerWidth < 768) setIsToolsModalOpen(true);
     } else {
+      setSelectedVerse(1);
       setSelectedVerseRef(null);
       setIsToolsModalOpen(false);
     }
   }, []);
+  
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -873,30 +908,29 @@ rounded-full shadow-md overflow-hidden px-2"
 
                   {/* NavigationPane remains visible (sticky) and outside the scripture scroll area */}
                   <div className="mt-0">
-                    <NavigationPane
-                      selectedBook={selectedBook}
-                      selectedChapter={selectedChapter}
-                      onBookChange={handleBookChange}
-                      onChapterChange={handleChapterChange}
-                      onNextChapter={handleNextChapter}
-                      onPreviousChapter={handlePreviousChapter}
-                      isFirstChapterOfBible={isFirstChapter}
-                      isLastChapterOfBible={isLastChapter}
+                  <NavigationPane
+  selectedBook={selectedBook}
+  selectedChapter={selectedChapter}
+  selectedVerse={selectedVerse}
+  onNavigateTo={handleNavigateTo}
 
-                      studyMode={studyMode}
-                      singleVersion={singleVersion}
-                      leftVersion={leftVersion}
-                      rightVersion={rightVersion}
-                      onSetStudyMode={setStudyMode}
-                      onSetSingleVersion={setSingleVersion}
-                      onSetLeftVersion={setLeftVersion}
-                      onSetRightVersion={setRightVersion}
-                      versions={[
-                        ...AVAILABLE_VERSIONS,
+  onNextChapter={handleNextChapter}
+  onPreviousChapter={handlePreviousChapter}
+  isFirstChapterOfBible={isFirstChapter}
+  isLastChapterOfBible={isLastChapter}
 
-                      ]}
-                      
-                    />
+  studyMode={studyMode}
+  singleVersion={singleVersion}
+  leftVersion={leftVersion}
+  rightVersion={rightVersion}
+  onSetStudyMode={setStudyMode}
+  onSetSingleVersion={setSingleVersion}
+  onSetLeftVersion={setLeftVersion}
+  onSetRightVersion={setRightVersion}
+  versions={[...AVAILABLE_VERSIONS]}
+/>
+
+
                   </div>
 
                   {/* ScriptureDisplay should be the only scrollable area inside the left column */}

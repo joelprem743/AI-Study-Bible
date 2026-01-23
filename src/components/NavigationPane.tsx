@@ -3,12 +3,16 @@ import React, { useState } from "react";
 import { BIBLE_META } from "../data/bibleMeta";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import ModalPortal from "./ModalPortal";
+import { BIBLE_META_WITH_VERSE_COUNTS } from "../data/bibleMetaWithVerseCounts";
 
 interface Props {
   selectedBook: string;
   selectedChapter: number;
-  onBookChange: (b: string) => void;
-  onChapterChange: (c: number) => void;
+  selectedVerse: number;
+
+  onNavigateTo: (book: string, chapter: number, verse: number) => void;
+
+
   onNextChapter: () => void;
   onPreviousChapter: () => void;
   isFirstChapterOfBible: boolean;
@@ -29,8 +33,9 @@ export default function NavigationPane(props: Props) {
   const {
     selectedBook,
     selectedChapter,
-    onBookChange,
-    onChapterChange,
+    selectedVerse,
+    onNavigateTo,
+
     onNextChapter,
     onPreviousChapter,
     isFirstChapterOfBible,
@@ -52,8 +57,12 @@ export default function NavigationPane(props: Props) {
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isBookModal, setIsBookModal] = useState(false);
-  const [selectionStep, setSelectionStep] = useState<"BOOK" | "CHAPTER">("BOOK");
-  const [tempBook, setTempBook] = useState(selectedBook);
+  const [selectionStep, setSelectionStep] =
+  useState<"BOOK" | "CHAPTER" | "VERSE">("BOOK");
+
+const [tempBook, setTempBook] = useState(selectedBook);
+const [tempChapter, setTempChapter] = useState(selectedChapter);
+
   const OLD_TESTAMENT = [
     "Genesis","Exodus","Leviticus","Numbers","Deuteronomy",
     "Joshua","Judges","Ruth","1 Samuel","2 Samuel",
@@ -117,13 +126,13 @@ const isValidOriginalForBook = (book: string, version?: string) => {
     version === "TELUGU_COMMUNITY_V1";
   
     
-    const getBookNameByVersion = (version?: string) => {
-      if (isTeluguVersion(version)) {
-        return TELUGU_BOOK_NAMES[selectedBook] || selectedBook;
-      }
-      return selectedBook;
-    };
-    
+  const getBookNameByVersion = (book: string, version?: string) => {
+    if (isTeluguVersion(version)) {
+      return TELUGU_BOOK_NAMES[book] || book;
+    }
+    return book;
+  };
+  
 
 const getBookLabelForPicker = (book: string) => {
   const telugu = TELUGU_BOOK_NAMES[book] || book;
@@ -147,23 +156,25 @@ const getBookLabelForPicker = (book: string) => {
 
 
 const unifiedLabel =
-studyMode === "single"
-  ? `${getBookNameByVersion(singleVersion)} ${selectedChapter}`
-  : (() => {
-      const left = getBookNameByVersion(leftVersion);
-      const right = getBookNameByVersion(rightVersion);
+  studyMode === "single"
+    ? `${getBookNameByVersion(selectedBook, singleVersion)} ${selectedChapter}`
+    : (() => {
+        const left = getBookNameByVersion(selectedBook, leftVersion);
+        const right = getBookNameByVersion(selectedBook, rightVersion);
 
-      const bookPart = left === right ? left : `${left}–${right}`;
-      return `${bookPart} ${selectedChapter}`;
-    })();
+        const bookPart = left === right ? left : `${left}–${right}`;
+        return `${bookPart} ${selectedChapter}`;
+      })();
 
 
 
-  const openBookModal = () => {
-    setTempBook(selectedBook);
-    setSelectionStep("BOOK");
-    setIsBookModal(true);
-  };
+    const openBookModal = () => {
+      setTempBook(selectedBook);
+      setTempChapter(selectedChapter);
+      setSelectionStep("BOOK");
+      setIsBookModal(true);
+    };
+    
   
 
   const handleBookSelect = (book: string) => {
@@ -179,18 +190,34 @@ studyMode === "single"
     setSelectionStep("CHAPTER");
   };
   
-
   const handleChapterSelect = (ch: number) => {
-    onBookChange(tempBook);
-    onChapterChange(ch);
+    setTempChapter(ch);
+    setSelectionStep("VERSE");
+  };
+  
+  
+  
+  const handleVerseSelect = (v: number) => {
+    onNavigateTo(tempBook, tempChapter, v);
     setIsBookModal(false);
   };
+  
+  
   
 
   // compute current chapter count for the selected book
   const currentBookMeta = BIBLE_META.find((b) => b.name === selectedBook);
   const currentChapterCount = currentBookMeta ? currentBookMeta.chapters : 0;
 
+
+  const getVerseCount = (book: string, chapter: number) => {
+    const meta = BIBLE_META_WITH_VERSE_COUNTS.find((b) => b.name === book);
+    if (!meta) return 0;
+  
+    return meta.chapters[chapter - 1] ?? 0;
+  };
+  const currentVerseCount = getVerseCount(tempBook, tempChapter);
+  
   return (
     <div className="p-3 bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-[#2A2F35] shadow-sm flex items-center gap-3">
       {/* UNIFIED BOOK+CHAPTER BUTTON */}
@@ -385,12 +412,53 @@ studyMode === "single"
   </>
 )}
 
+{selectionStep === "VERSE" && (
+  <>
+    <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
+      {isTeluguSingleMode ? "వచనం ఎంచుకోండి" : "Select Verse"}
+    </h3>
+
+    <div className="max-h-[50vh] overflow-y-auto">
+      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+        {Array.from({ length: currentVerseCount }, (_, i) => i + 1).map((v) => (
+          <button
+            key={v}
+            onClick={() => handleVerseSelect(v)}
+            className="p-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white"
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div className="mt-4 flex justify-between">
+      <button
+        onClick={() => setSelectionStep("CHAPTER")}
+        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+      >
+        {isTeluguSingleMode ? "వెనక్కి" : "Back"}
+      </button>
+
+      <button
+        onClick={() => setIsBookModal(false)}
+        className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+      >
+        {isTeluguSingleMode ? "మూసివేయి" : "Close"}
+      </button>
+    </div>
+  </>
+)}
+
 </div>
 
             </div>
           </div>
         </ModalPortal>
       )}
+
+
+
 
       {/* Version / Study Picker Modal */}
       {isPickerOpen && (
