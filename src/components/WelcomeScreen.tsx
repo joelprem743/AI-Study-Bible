@@ -21,6 +21,7 @@
   }
 
   type UILang = "EN" | "TE";
+  
 
   const extractJsonSmart = (text: string) => {
     const sentinel = text.match(/<json>([\s\S]*?)<\/json>/i);
@@ -55,6 +56,9 @@
 
     const [meaning, setMeaning] = useState<string>("");
     const [application, setApplication] = useState<string>("");
+    const isTeluguUI = language === "TE";
+const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
+
 
     useEffect(() => {
       let cancelled = false;
@@ -83,6 +87,8 @@
         // -----------------------------
         // Step 2: Fetch Verse text
         // -----------------------------
+
+
         const bibleVersion = language === "TE" ? "TELUGU_COMMUNITY_V1" : "KJV";
 
         try {
@@ -232,14 +238,15 @@
     };
 
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6 sm:p-8">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+
         <div className="
   bg-white dark:bg-gray-800
   rounded-[2.5rem] shadow-2xl
   max-w-2xl w-full
   h-[90vh]
   overflow-hidden
-  border border-slate-200 dark:border-slate-700
+  border border-slate-700 dark:border-slate-700
   flex flex-col
 ">
           
@@ -309,30 +316,46 @@
           {/* ✅ Body scroll area */}
           <div className="
   flex-1 min-h-0
-  p-6 sm:p-8
-  pb-10
+  p-4 sm:p-5
+  pb-6
   overflow-y-auto
   bg-slate-50/50 dark:bg-slate-900/40
-  space-y-5
+  space-y-4
 ">
 
             
             {/* Verse Card */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
               {loadingVerse ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {language === "TE" ? "లోడ్ అవుతోంది..." : "Loading..."}
                 </p>
               ) : verseRow ? (
                 <>
-                  <p className="text-lg md:text-xl font-semibold text-slate-900 dark:text-white leading-relaxed">
-                    “{verseRow.text}”
-                  </p>
+                  <p
+  className={`
+    text-lg md:text-xl
+    text-slate-900 dark:text-white
+    leading-relaxed
+    ${teluguUiClass}
+    ${isTeluguUI ? "font-medium tracking-[0.2px] leading-[1.85]" : "font-semibold"}
+  `}
+>
+  “{verseRow.text}”
+</p>
+
     
                   <div className="mt-4 flex items-center justify-between gap-3">
-                    <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold">
-                      {getDisplayBookName(verseRow.book, language)} {verseRow.chapter}:{verseRow.verse}
-                    </p>
+                  <p
+  className={`
+    text-sm text-slate-600 dark:text-slate-300
+    ${teluguUiClass}
+    ${isTeluguUI ? "font-medium tracking-[0.2px]" : "font-semibold"}
+  `}
+>
+  {getDisplayBookName(verseRow.book, language)} {verseRow.chapter}:{verseRow.verse}
+</p>
+
     
                     <span className="text-[10px] px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 font-bold tracking-widest">
                       {language === "TE" ? "రోజు వాక్యం" : "DAILY VERSE"}
@@ -349,8 +372,15 @@
             </div>
     
             {/* Meaning */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h3
+  className={`
+    text-xs font-bold uppercase tracking-widest
+    text-slate-600 dark:text-slate-300
+    ${teluguUiClass}
+  `}
+>
+
                 {language === "TE" ? "అర్థం" : "Meaning"}
               </h3>
     
@@ -359,14 +389,22 @@
                   {language === "TE" ? "సిద్ధమవుతోంది..." : "Preparing..."}
                 </p>
               ) : (
-                <p className="mt-3 text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                  {meaning}
-                </p>
+                <p
+  className={`
+    mt-3 text-sm text-slate-800 dark:text-slate-200
+    leading-relaxed
+    ${teluguUiClass}
+    ${isTeluguUI ? "tracking-[0.2px] leading-[1.85]" : ""}
+  `}
+>
+  {meaning}
+</p>
+
               )}
             </div>
     
 {/* Application */}
-<div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+<div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
     {language === "TE" ? "ఈ రోజు ఆచరణ" : "Live it today"}
   </h3>
@@ -376,9 +414,17 @@
       {language === "TE" ? "సిద్ధమవుతోంది..." : "Preparing..."}
     </p>
   ) : (
-    <p className="mt-3 text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-      {application}
-    </p>
+    <p
+  className={`
+    mt-3 text-sm text-slate-800 dark:text-slate-200
+    leading-relaxed
+    ${teluguUiClass}
+    ${isTeluguUI ? "tracking-[0.2px] leading-[1.85]" : ""}
+  `}
+>
+  {application}
+</p>
+
   )}
 </div>
 
