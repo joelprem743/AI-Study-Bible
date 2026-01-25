@@ -656,7 +656,7 @@ opacity-70 hover:opacity-100
 
 {/* RIGHT version (Telugu) */}
 <div className="flex gap-2">
-  <span className="text-base sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mt-1">
+  <span className="text-base sm:text-base font-semibold text-gray-500 dark:text-gray-400 mt-1">
     {v.verse}
   </span>
   <p

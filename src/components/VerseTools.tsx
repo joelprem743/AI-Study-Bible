@@ -677,14 +677,66 @@ const STRONG_REF_REGEX =
       copyVerse: "వచనం కాపీ చేయి",
       shareVerse: "వచనం షేర్ చేయి",
       shareImage: "చిత్రంగా షేర్ చేయి",
-      addNotes: "విషయ గమనికలకు జోడించు",
+      addNotes: "నోట్స్‌కి జోడించు",
       language: "భాష",
     },
   } as const;
 
+  function getAiActionText(tab: Tab, lang: "EN" | "TE") {
+    if (lang === "TE") {
+      switch (tab) {
+        case "Summary":
+          return "వివరణ చూడండి";
+        case "Cross-references":
+          return "సంబంధిత వచనాలు చూపించు";
+        case "Historical Context":
+          return "చారిత్రక నేపథ్యం చూడండి";
+        default:
+          return "వివరణ చూడండి";
+      }
+    }
+  
+    switch (tab) {
+      case "Summary":
+        return "Explain";
+      case "Cross-references":
+        return "Show Cross References";
+      case "Historical Context":
+        return "Show Historical Context";
+      default:
+        return "Explain";
+    }
+  }
+  
+  function getAiEmptyHintText(tab: Tab, lang: "EN" | "TE") {
+    if (lang === "TE") {
+      switch (tab) {
+        case "Summary":
+          return "ఈ వచనానికి వివరణ చూడాలంటే బటన్ నొక్కండి.";
+        case "Cross-references":
+          return "సంబంధిత వచనాలు చూడాలంటే బటన్ నొక్కండి.";
+        case "Historical Context":
+          return "చారిత్రక నేపథ్యం చూడాలంటే బటన్ నొక్కండి.";
+        default:
+          return "వివరణ చూడాలంటే బటన్ నొక్కండి.";
+      }
+    }
+  
+    switch (tab) {
+      case "Summary":
+        return "Tap to view the explanation for this verse.";
+      case "Cross-references":
+        return "Tap to view related cross references.";
+      case "Historical Context":
+        return "Tap to view the historical background.";
+      default:
+        return "Tap to view the explanation.";
+    }
+  }
+  
   const ADVANCED_LABEL = {
-    EN: "Advanced",
-    TE: "అధునాతన ఎంపికలు",
+    EN: "More",
+    TE: "మరిన్ని",
   } as const;
   
   
@@ -772,9 +824,16 @@ const [analysis, setAnalysis] = useState<Record<AiTab, string | null>>({
   const isProgrammaticScrollRef = useRef(false);
 
 
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+const highlightButtonRef = useRef<HTMLButtonElement | null>(null);
+
+
+
 
   
   const [menuOpen, setMenuOpen] = useState(false);
+  const [highlightOpen, setHighlightOpen] = useState(false);
+
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -782,7 +841,16 @@ const [analysis, setAnalysis] = useState<Record<AiTab, string | null>>({
   const [errorMsg, setErrorMsg] = useState("");
 
   const verseId = `${verseRef.book}-${verseRef.chapter}-${verseRef.verse}`;
+  
   const [noteText, setNoteText] = useState<string>("");
+  
+  const [noteStatus, setNoteStatus] = useState<
+  "idle" | "typing" | "saving" | "saved" | "error"
+>("idle");
+
+const saveTimerRef = useRef<number | null>(null);
+const lastSavedValueRef = useRef<string>("");
+
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({} as Record<Tab, HTMLButtonElement | null>);
 
   const [interlinearNotice, setInterlinearNotice] = useState<string | null>(null);
@@ -1567,6 +1635,25 @@ const handleWordSelect = (idx: number) => {
     Effects
   ---------------------------*/
 
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (!highlightOpen) return;
+  
+      const target = e.target as Node;
+  
+      // ✅ If click is on highlight button, DO NOTHING (let toggle handle it)
+      if (highlightButtonRef.current?.contains(target)) return;
+  
+      // ✅ If click inside highlight dropdown, DO NOTHING
+      if (highlightRef.current?.contains(target)) return;
+  
+      // ✅ Otherwise close it
+      setHighlightOpen(false);
+    };
+  
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [highlightOpen]);
   
   useEffect(() => {
     setLanguage(uiLanguage);
@@ -2091,9 +2178,11 @@ if (cached) {
   
 
       {/* HEADER */}
-<div className="mb-4">
+<div className="mb-4  ">
   <div className="flex items-center justify-between">
     
+    {/* Title */}
+        
     {/* Title */}
     <h2
   className={`text-xl font-bold text-slate-900 dark:text-white tracking-tight ${
@@ -2110,8 +2199,109 @@ if (cached) {
 
     </h2>
 
+
     {/* Action buttons */}
     <div className="flex items-center gap-2 relative">
+
+      {/* ✅ Highlight button beside ellipsis */}
+      {onHighlightChange && (
+  <div className="relative" ref={highlightRef}>
+
+    <button
+      type="button"
+      ref={highlightButtonRef}
+      onClick={() => setHighlightOpen((v) => !v)}
+      className="
+        w-10 h-10 rounded-full
+        bg-slate-100 dark:bg-white/5
+        border border-slate-200 dark:border-white/10
+        hover:bg-slate-200 dark:hover:bg-white/10
+        transition
+        flex items-center justify-center
+        text-slate-700 dark:text-white
+      "
+      title="Highlight"
+      aria-label="Highlight"
+    >
+      <i className="fas fa-highlighter text-sm" />
+    </button>
+
+    {highlightOpen && (
+      <div
+        className="
+          absolute right-0 mt-2 w-44
+          bg-white dark:bg-slate-900
+          border border-slate-200 dark:border-white/10
+          rounded-2xl shadow-2xl
+          p-3 z-[9999]
+        "
+      >
+        <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-2">
+          {language === "TE" ? "హైలైట్" : "Highlight"}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("yellow");
+              setHighlightOpen(false);
+              onClose?.();
+            }}
+            className="w-7 h-7 rounded-full border border-slate-200 bg-yellow-300"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("green");
+              setHighlightOpen(false);
+              onClose?.();
+            }}
+            className="w-7 h-7 rounded-full border border-slate-200 bg-green-300"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("pink");
+              setHighlightOpen(false);
+              onClose?.();
+            }}
+            className="w-7 h-7 rounded-full border border-slate-200 bg-rose-300"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onHighlightChange("blue");
+              setHighlightOpen(false);
+              onClose?.();
+            }}
+            className="w-7 h-7 rounded-full border border-slate-200 bg-sky-300"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            onHighlightChange(null);
+            setHighlightOpen(false);
+            onClose?.();
+          }}
+          className="
+            mt-3 w-full px-3 py-2 text-xs rounded-xl
+            border border-slate-200 dark:border-white/10
+            bg-slate-50 dark:bg-slate-800
+            text-slate-700 dark:text-slate-200
+            hover:bg-slate-100 dark:hover:bg-slate-700
+            transition
+          "
+        >
+          {language === "TE" ? "క్లియర్" : "Clear"}
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
 
       
 
@@ -2278,67 +2468,7 @@ window.dispatchEvent(
 </div>
 
 
-      {/* Highlight controls */}
-      {onHighlightChange && (
-        <div className="mb-4 flex items-center gap-3">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            Highlight
-          </span>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                onHighlightChange("yellow");
-                onClose?.();
-              }}
-              className="w-6 h-6 rounded-full border bg-yellow-300"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                onHighlightChange("green");
-                onClose?.();
-              }}
-              className="w-6 h-6 rounded-full border bg-green-300"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                onHighlightChange("pink");
-                onClose?.();
-              }}
-              className="w-6 h-6 rounded-full border bg-rose-300"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                onHighlightChange("blue");
-                onClose?.();
-              }}
-              className="w-6 h-6 rounded-full border bg-sky-300"
-            />
-
-            <button
-              type="button"
-              onClick={() => {
-                onHighlightChange(null);
-                onClose?.();
-              }}
-              className="
-                px-3 py-1 text-xs rounded 
-                border border-gray-300 dark:border-gray-600 
-                bg-gray-100 dark:bg-gray-800 
-                text-gray-700 dark:text-gray-200 
-                hover:bg-gray-200 dark:hover:bg-gray-700
-              "
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
+    
       {/* Tabs */}
 <div className="mb-4">
   {/* PRIMARY ROW */}
@@ -2737,18 +2867,13 @@ className="
   ) : isAiTab(activeTab) && analysis[activeTab] == null ? (
 
     <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
-      <p>
-        {language === "TE"
-          ? "ఈ ట్యాబ్ కోసం AI విశ్లేషణను రూపొందించడానికి క్రింది బటన్‌ను నొక్కండి."
-          : "Click the button below to generate AI analysis for this tab."}
-      </p>
+      <p>{getAiEmptyHintText(activeTab, language)}</p>
+  
       <button
         onClick={handleGenerateClick}
         className="px-3 py-2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm hover:bg-blue-700"
       >
-        {language === "TE"
-          ? "విశ్లేషణ సృష్టించు"
-          : `Generate ${activeTab}`}
+        {getAiActionText(activeTab, language)}
       </button>
     </div>
   ) : (
