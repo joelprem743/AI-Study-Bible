@@ -719,6 +719,10 @@ export const VerseTools: React.FC<{
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const [language, setLanguage] = useState<"EN" | "TE">(uiLanguage);
+  const isTeluguUI = language === "TE";
+
+  const teluguClass = isTeluguUI ? "font-telugu" : "";
+
 
 
   const [activeTab, setActiveTab] = useState<Tab>("Summary");
@@ -2081,14 +2085,22 @@ if (cached) {
     Render
   ---------------------------*/
   return (
-    <div className="p-4 md:p-6 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14]">
+    <div
+      className={`p-4 md:p-6 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14] ${teluguClass}`}
+    >
+  
 
       {/* HEADER */}
 <div className="mb-4">
   <div className="flex items-center justify-between">
     
     {/* Title */}
-    <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+    <h2
+  className={`text-xl font-bold text-slate-900 dark:text-white tracking-tight ${
+    isTeluguUI ? "font-telugu" : ""
+  }`}
+>
+
       {language === "TE"
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book}{" "}
@@ -2125,13 +2137,16 @@ if (cached) {
 
     {menuOpen && (
       <div
-        className="
-          absolute right-0 translate-x-[-8px] mt-2 min-w-[11rem]
-bg-white dark:bg-slate-900
-border border-slate-200 dark:border-white/10
-rounded-2xl shadow-2xl
-backdrop-blur-xl z-[9999]"
-      >
+      className={`
+        absolute right-0 translate-x-[-8px] mt-2 min-w-[11rem]
+        bg-white dark:bg-slate-900
+        border border-slate-200 dark:border-white/10
+        rounded-2xl shadow-2xl
+        backdrop-blur-xl z-[9999]
+        ${isTeluguUI ? "font-telugu" : ""}
+      `}
+    >
+    
         <button
           onClick={() => { handleCopyVerse(); setMenuOpen(false); }}
           className="w-full px-4 py-2 flex items-center gap-3 text-left 
@@ -2252,7 +2267,12 @@ window.dispatchEvent(
   </div>
 
   {/* Verse Text */}
-  <p className="text-gray-800 dark:text-gray-200 italic text-sm mt-2 leading-relaxed">
+  <p
+  className={`text-gray-800 dark:text-gray-200 italic text-sm mt-2 leading-relaxed ${
+    isTeluguUI ? "font-telugu font-medium" : ""
+  }`}
+>
+
     {displayVerseText ? `"${displayVerseText}"` : ""}
   </p>
 </div>
@@ -2332,7 +2352,8 @@ window.dispatchEvent(
             setAdvancedOpen(false); // 🔑 collapse advanced
             setErrorMsg("");
           }}
-          className={`py-3 border-b-2 text-sm font-medium ${
+          className={`py-3 border-b-2 text-sm font-medium ${teluguClass} ${
+
             activeTab === tab
               ? "border-blue-600 text-blue-600 dark:text-blue-400"
               : "border-transparent text-gray-500 dark:text-gray-400"
@@ -2345,7 +2366,8 @@ window.dispatchEvent(
       {/* ADVANCED TOGGLE */}
       <button
   onClick={() => setAdvancedOpen((v) => !v)}
-  className="py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700"
+  className={`py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 ${teluguClass}`}
+
 >
   {ADVANCED_LABEL[language]} {advancedOpen ? "▴" : "▾"}
 </button>
@@ -2364,7 +2386,7 @@ window.dispatchEvent(
               setActiveTab(tab);
               setErrorMsg("");
             }}
-            className={`py-2 text-sm border-b-2 ${
+            className={`py-2 text-sm border-b-2 ${teluguClass} ${
               activeTab === tab
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 dark:text-gray-400"
@@ -2394,15 +2416,17 @@ window.dispatchEvent(
 {activeTab === "Notes" ? (
   <div className="flex flex-col gap-3">
     <textarea
-      className="
-      w-full h-64 p-3
-      bg-white dark:bg-slate-900
-      border border-slate-200 dark:border-white/10
-      rounded-2xl
-      text-slate-900 dark:text-slate-100
-      placeholder:text-slate-400
-      focus:outline-none focus:ring-2 focus:ring-blue-500/30
-    "
+      className={`
+        w-full h-64 p-3
+        bg-white dark:bg-slate-900
+        border border-slate-200 dark:border-white/10
+        rounded-2xl
+        text-slate-900 dark:text-slate-100
+        placeholder:text-slate-400
+        focus:outline-none focus:ring-2 focus:ring-blue-500/30
+        ${isTeluguUI ? "font-telugu" : ""}
+      `}
+      
     
       placeholder={
         language === "TE"
@@ -2424,7 +2448,7 @@ window.dispatchEvent(
           console.error("Failed to save note", err);
         }
       }}
-      className="self-start px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+      className="self-start px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:bg-blue-700 text-white rounded-md"
     >
       {language === "TE" ? "గమనిక సేవ్ చేయండి" : "Save Note"}
     </button>
@@ -2471,7 +2495,12 @@ window.dispatchEvent(
     </div>
   )
 ) : (
-  <div className="prose prose-sm dark:prose-invert max-w-none font-sans">
+  <div
+  className={`prose prose-sm dark:prose-invert max-w-none font-sans ${
+    isTeluguUI ? "font-telugu" : ""
+  }`}
+>
+
     {errorMsg ? (
       <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
     ) : activeTab === "Interlinear" ? (
@@ -2715,7 +2744,7 @@ className="
       </p>
       <button
         onClick={handleGenerateClick}
-        className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+        className="px-3 py-2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm hover:bg-blue-700"
       >
         {language === "TE"
           ? "విశ్లేషణ సృష్టించు"
@@ -2797,9 +2826,17 @@ border border-slate-200 dark:border-white/10
               "
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold mb-2">{displayPreviewRef}</h3>
+              <h3 className={`text-lg font-bold mb-2 ${teluguClass}`}>
+  {displayPreviewRef}
+</h3>
 
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
+
+              <p
+  className={`text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words ${
+    isTeluguUI ? "font-telugu" : ""
+  }`}
+>
+
                 {previewText || "Verse not found."}
               </p>
 
@@ -2823,10 +2860,7 @@ border border-slate-200 dark:border-white/10
         }}
       >
         <div
-          className="bg-white dark:bg-slate-900 w-full rounded-t-3xl p-5
-border-t border-slate-200 dark:border-white/10
-shadow-2xl
- max-h-[70vh] overflow-y-auto"
+          className="bg-white dark:bg-gray-900 w-full rounded-t-xl p-4 max-h-[70vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="text-lg font-bold">

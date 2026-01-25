@@ -195,6 +195,21 @@ const unifiedLabel =
     setSelectionStep("VERSE");
   };
   
+  const getBookLabelClass = (book: string) => {
+    const isTelugu =
+      studyMode === "single"
+        ? isTeluguVersion(singleVersion)
+        : isTeluguVersion(leftVersion) || isTeluguVersion(rightVersion);
+  
+        return isTelugu
+        ? "font-telugu text-[13px] sm:text-[14px] font-normal truncate leading-tight tracking-[0.15px]"
+        : "text-[14px] sm:text-[15px] font-medium truncate leading-tight";
+      
+  };
+  
+  
+  
+  
   
   
   const handleVerseSelect = (v: number) => {
@@ -220,15 +235,16 @@ const unifiedLabel =
   
   return (
     <div
-      className="
-        sticky top-0 z-30
-        px-3 md:px-4 py-2
-        bg-white/70 dark:bg-slate-950/35
-        backdrop-blur-xl
-        border-b border-slate-200/70 dark:border-white/10
-      "
+    className="
+    flex items-center gap-3 sticky top-14 z-30
+    px-3 md:px-4 py-2
+    bg-white/70 dark:bg-slate-900/35
+    backdrop-blur-xl
+    border-b border-slate-200/70 dark:border-white/10
+  "
+  
     >
-      <div
+      {/* <div
         className="
           flex items-center gap-3
           rounded-2xl
@@ -237,24 +253,28 @@ const unifiedLabel =
           shadow-sm
           px-3 py-2
         "
-      >
+      > */}
   
 
       {/* UNIFIED BOOK+CHAPTER BUTTON */}
       <div
   className="
-    group flex flex-1 items-center justify-between
+    group flex-1 min-w-0
+    flex items-center
     rounded-full
     bg-white/70 dark:bg-white/5
     border border-slate-200/60 dark:border-white/10
     shadow-sm
-    px-3 py-2
+    h-10 px-2
+    overflow-hidden
     transform-gpu transition-all duration-150 ease-out
     hover:bg-white/90 dark:hover:bg-white/10
     hover:border-slate-300/70 dark:hover:border-white/15
     hover:shadow-[0_0_10px_rgba(59,130,246,0.28)]
   "
 >
+
+
 
         <button
           disabled={isFirstChapterOfBible}
@@ -275,20 +295,28 @@ const unifiedLabel =
 
         <button
   onClick={openBookModal}
-  className="flex-1 text-center text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
   title={unifiedLabel}
+  className="
+    flex-1 min-w-0
+    h-10
+    px-1
+    flex items-center justify-center
+    overflow-hidden
+    text-gray-900 dark:text-gray-100
+  "
 >
 <span
   className={`
-    font-semibold tracking-tight
+    block w-full min-w-0
+    overflow-hidden text-ellipsis whitespace-nowrap
+    font-semibold
     ${
-      studyMode === "single"
-        ? isTeluguVersion(singleVersion)
-          ? "font-telugu"
-          : ""
-        : isTeluguVersion(leftVersion) && isTeluguVersion(rightVersion)
-        ? "font-telugu"
-        : ""
+      (studyMode === "single" && isTeluguVersion(singleVersion)) ||
+      (studyMode === "parallel" &&
+        (isTeluguVersion(leftVersion) || isTeluguVersion(rightVersion)))
+      
+        ? "!font-telugu !text-[13px] sm:!text-[14px] !tracking-[0.2px]"
+        : "!text-[15px] sm:!text-[16px]"
     }
   `}
 >
@@ -297,6 +325,8 @@ const unifiedLabel =
 
 
 </button>
+
+
 
 
         <button
@@ -319,25 +349,24 @@ const unifiedLabel =
 
       {/* VERSION PICKER ICON */}
       <button
-        onClick={() => setIsPickerOpen(true)}
-        className="
-  w-10 h-10 flex items-center justify-center
-  rounded-2xl
-  bg-white/60 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-700 dark:text-white/80
-  shadow-sm
-  hover:bg-white/80 dark:hover:bg-white/10
-  hover:border-slate-300/70 dark:hover:border-white/15
-  hover:shadow-[0_0_10px_rgba(59,130,246,0.28)]
-  transition-all duration-150
-"
+  onClick={() => setIsPickerOpen(true)}
+  className="
+    shrink-0
+    w-10 h-10 flex items-center justify-center
+    rounded-2xl
+    bg-white/60 dark:bg-white/5
+    border border-slate-200/60 dark:border-white/10
+    text-slate-700 dark:text-white/80
+    shadow-sm
+    hover:bg-white/80 dark:hover:bg-white/10
+    hover:border-slate-300/70 dark:hover:border-white/15
+    transition-all duration-150
+  "
+  aria-label="Open version picker"
+>
+  <i className="fas fa-sliders-h text-slate-700 dark:text-white/80" />
+</button>
 
-
-        aria-label="Open version picker"
-      >
-        <i className="fas fa-sliders-h text-slate-700 dark:text-white/80" />
-      </button>
 
       {/* Book + Chapter Modal */}
       {isBookModal && (
@@ -352,8 +381,27 @@ const unifiedLabel =
             >
               <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-  {isTeluguSingleMode ? "గ్రంథము ఎంచుకోండి" : "Select Book"}
+  {selectionStep === "BOOK" && (isTeluguSingleMode ? "గ్రంథము ఎంచుకోండి" : "Select Book")}
+
+  {selectionStep === "CHAPTER" && (
+    <>
+      {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
+      <span className="block text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
+        {getBookLabelForPicker(tempBook)}
+      </span>
+    </>
+  )}
+
+  {selectionStep === "VERSE" && (
+    <>
+      {isTeluguSingleMode ? "వచనం ఎంచుకోండి" : "Select Verse"}
+      <span className="block text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
+        {getBookLabelForPicker(tempBook)} {tempChapter}
+      </span>
+    </>
+  )}
 </h2>
+
 
                 <button onClick={() => setIsBookModal(false)} className="p-2 text-gray-500">
                   <i className="fas fa-times" />
@@ -386,23 +434,34 @@ const unifiedLabel =
 
         >
           {studyMode === "single" ? (
-            <div
-              className={`text-sm truncate font-semibold ${
-                isTeluguVersion(singleVersion) ? "font-telugu" : ""
-              }`}
-            >
-              {getBookLabelForPicker(b.name)}
-            </div>
-          ) : (
-            <>
-              <div className="text-sm truncate">
-                {TELUGU_BOOK_NAMES[b.name]}
-              </div>
-              <div className="text-xs opacity-80 truncate">
-                {b.name}
-              </div>
-            </>
-          )}
+  <div className="flex flex-col items-center justify-center leading-tight">
+    {/* Telugu or English main label */}
+    <div className={getBookLabelClass(b.name)}>
+      {getBookLabelForPicker(b.name)}
+    </div>
+
+    {/* ✅ Show English subtitle ONLY when Telugu single mode */}
+    {isTeluguSingleMode && (
+      <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight">
+        {b.name}
+      </div>
+    )}
+  </div>
+) : (
+  <>
+    {/* Telugu */}
+    <div className="font-telugu text-[13px] sm:text-[14px] font-medium truncate leading-tight">
+      {TELUGU_BOOK_NAMES[b.name]}
+    </div>
+
+    {/* English */}
+    <div className="text-[12px] sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300 truncate leading-tight">
+      {b.name}
+    </div>
+  </>
+)}
+
+
         </button>
       ))}
     </div>
@@ -430,23 +489,30 @@ const unifiedLabel =
 
         >
           {studyMode === "single" ? (
-            <div
-              className={`text-sm truncate font-semibold ${
-                isTeluguVersion(singleVersion) ? "font-telugu" : ""
-              }`}
-            >
-              {getBookLabelForPicker(b.name)}
-            </div>
-          ) : (
-            <>
-              <div className="text-sm truncate">
-                {TELUGU_BOOK_NAMES[b.name]}
-              </div>
-              <div className="text-xs opacity-80 truncate">
-                {b.name}
-              </div>
-            </>
-          )}
+  <div className="flex flex-col items-center justify-center leading-tight">
+    {/* Telugu or English main label */}
+    <div className={getBookLabelClass(b.name)}>
+      {getBookLabelForPicker(b.name)}
+    </div>
+
+    {/* ✅ Show English subtitle ONLY when Telugu single mode */}
+    {isTeluguSingleMode && (
+      <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight">
+        {b.name}
+      </div>
+    )}
+  </div>
+) : (
+  <>
+    <div className="font-telugu text-[13px] sm:text-[14px] font-semibold truncate leading-tight tracking-[0.2px]">
+      {TELUGU_BOOK_NAMES[b.name]}
+    </div>
+    <div className="text-[11px] sm:text-[12px] opacity-80 truncate leading-tight">
+      {b.name}
+    </div>
+  </>
+)}
+
         </button>
       ))}
     </div>
@@ -456,9 +522,7 @@ const unifiedLabel =
 
 {selectionStep === "CHAPTER" && (
   <>
-    <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
-      {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
-    </h3>
+
 
     <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
       {Array.from(
@@ -505,11 +569,11 @@ const unifiedLabel =
         onClick={() => setIsBookModal(false)}
         className="
   px-4 py-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-white/90 dark:hover:bg-white/10
-  transition-all duration-150
+      bg-gradient-to-r from-blue-600 to-indigo-600
+      text-white
+      shadow-md
+      hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
+      transition-all duration-150
 "
 
       >
@@ -522,9 +586,7 @@ const unifiedLabel =
 
 {selectionStep === "VERSE" && (
   <>
-    <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">
-      {isTeluguSingleMode ? "వచనం ఎంచుకోండి" : "Select Verse"}
-    </h3>
+
 
     <div className="max-h-[50vh] overflow-y-auto">
       <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
@@ -715,7 +777,7 @@ setIsPickerOpen(false); // ⬅️ critical for mobile
         </ModalPortal>
       )}
     </div>
-    </div>
+    // </div>
 
   );
 }

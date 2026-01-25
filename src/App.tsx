@@ -11,6 +11,7 @@ import ProfileNotes from "./components/ProfileNotes";
 
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
+import { useThemeMode } from "./hooks/useThemeMode";
 
 
 import {
@@ -85,8 +86,13 @@ const App: React.FC = () => {
     fontSize: "md",
     autoScrollSpeed: 1,
     autoScrollIntervalMs: 60,
+    themeMode: "system",
   };
   
+  useThemeMode(readerSettings.themeMode);
+
+
+
 
 
   // Study mode & versions

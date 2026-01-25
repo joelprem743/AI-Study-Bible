@@ -186,8 +186,12 @@ export default function ProfileHighlights({
 
         <button
           onClick={onClose}
-          className="mt-4 px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300
-                     dark:bg-slate-700 dark:hover:bg-slate-600 rounded"
+          className="px-4 py-2 rounded-xl
+      bg-gradient-to-r from-blue-600 to-indigo-600
+      text-white
+      shadow-md
+      hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
+      transition-all duration-150"
         >
           Close
         </button>

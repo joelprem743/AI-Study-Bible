@@ -157,11 +157,17 @@ export default function ProfileMenu({
     fontSize: "md",
     autoScrollSpeed: 1,
     autoScrollIntervalMs: 60,
+    themeMode: "system",
   };
   
   const updateSettings = (patch: Partial<ReaderSettings>) => {
     setReaderSettings({
-      ...settings,
+      ...(readerSettings ?? {
+        fontSize: "md",
+        autoScrollSpeed: 1,
+        autoScrollIntervalMs: 60,
+        themeMode: "system",
+      }),
       ...patch,
     });
   };
@@ -211,7 +217,7 @@ export default function ProfileMenu({
         <div
         className="
         absolute right-0 mt-2 w-52 rounded-2xl shadow-xl z-50
-        bg-white/95 dark:bg-slate-950/90
+        bg-white/95 dark:bg-slate-900
         border border-slate-200/60 dark:border-white/10
         backdrop-blur-xl
         overflow-hidden
@@ -326,6 +332,26 @@ export default function ProfileMenu({
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Reader Settings
       </h2>
+      {/* THEME MODE */}
+<div className="mb-4">
+  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+    Theme
+  </label>
+
+  <select
+    value={settings.themeMode}
+    onChange={(e) => {
+      const mode = e.target.value as "system" | "light" | "dark";
+      updateSettings({ themeMode: mode });
+    }}
+    className="w-full p-2 rounded border dark:bg-gray-800 dark:border-slate-700"
+  >
+    <option value="system">System</option>
+    <option value="light">Light</option>
+    <option value="dark">Dark</option>
+  </select>
+</div>
+
 
       {/* FONT SIZE */}
       <div className="mb-4">
@@ -380,6 +406,7 @@ export default function ProfileMenu({
       fontSize: "md",
       autoScrollSpeed: 1,
       autoScrollIntervalMs: 60,
+      themeMode: "system",
     });
   }}
   className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 text-sm"
@@ -390,7 +417,7 @@ export default function ProfileMenu({
 
         <button
           onClick={() => setIsReaderSettingsOpen(false)}
-          className="px-3 py-2 rounded bg-blue-600 text-white text-sm"
+          className="px-3 py-2 rounded bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm"
         >
           Done
         </button>

@@ -181,6 +181,7 @@ const settings: ReaderSettings = readerSettings ?? {
   fontSize: "md",
   autoScrollSpeed: 1,
   autoScrollIntervalMs: 60,
+  themeMode: "system",
 };
 
   const getParallelBookHeading = () => {
@@ -388,7 +389,7 @@ const settings: ReaderSettings = readerSettings ?? {
   ref={scrollRef}
   className="
   relative h-full w-full overflow-y-auto overflow-x-hidden
-  p-4 md:p-6
+  p-2 md:p-3
   bg-slate-50 dark:bg-[#0B0F14]
 "
 
@@ -514,11 +515,11 @@ opacity-70 hover:opacity-100
         <div
         className="
           max-w-3xl mx-auto space-y-2
-          bg-white dark:bg-slate-900
+          bg-white dark:bg-gray-900
           border border-slate-200 dark:border-white/10
           rounded-[2rem]
           shadow-sm
-          p-4 sm:p-6
+          p-2 sm:p-6
         "
       >
       
@@ -559,7 +560,12 @@ opacity-70 hover:opacity-100
     ${getVerseFontClass()}
     leading-relaxed sm:leading-relaxed md:leading-loose
     text-gray-900 dark:text-gray-100
-    ${englishVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}
+    ${
+      englishVersion === TELUGU_VERSION_KEY
+        ? "font-telugu leading-[1.85] tracking-[0.2px]"
+        : ""
+    }
+    
   `}
 >
 
@@ -586,7 +592,7 @@ opacity-70 hover:opacity-100
           border border-slate-200 dark:border-white/10
           rounded-[2rem]
           shadow-sm
-          p-4 sm:p-6
+          p-2 sm:p-6
         "
       >
       
@@ -649,7 +655,12 @@ opacity-70 hover:opacity-100
   className={`
     ${getVerseFontClass()}
     leading-relaxed sm:leading-loose
-    ${rightVersion === TELUGU_VERSION_KEY ? "font-telugu" : ""}
+    ${
+      rightVersion === TELUGU_VERSION_KEY
+        ? "font-telugu leading-[1.85] tracking-[0.2px]"
+        : ""
+    }
+    
   `}
 >
 
