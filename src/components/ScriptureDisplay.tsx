@@ -554,20 +554,24 @@ opacity-70 hover:opacity-100
   {v.verse}
 </span>
 
-                <span
+<span
   dir="ltr"
   className={`
     ${getVerseFontClass()}
-    leading-relaxed sm:leading-relaxed md:leading-loose
     text-gray-900 dark:text-gray-100
     ${
       englishVersion === TELUGU_VERSION_KEY
-        ? "font-telugu leading-[1.85] tracking-[0.2px]"
-        : ""
+        ? `font-telugu leading-[1.85] tracking-[0.2px] ${
+            isSel ? "font-medium" : "font-normal"
+          }`
+        : `font-sans leading-relaxed sm:leading-relaxed md:leading-relaxed ${
+            isSel ? "font-medium" : "font-normal"
+          }`
     }
-    
   `}
+  
 >
+
 
   {resolveText(v, englishVersion)}
 </span>
@@ -635,10 +639,14 @@ opacity-70 hover:opacity-100
 <p
   className={`
     ${getVerseFontClass()}
-    leading-relaxed sm:leading-loose
+    font-sans
+    leading-relaxed sm:leading-relaxed
     text-gray-900 dark:text-gray-100
+    ${isSel ? "font-medium" : "font-normal"}
   `}
+  
 >
+
 
   {resolveText(v, leftVersion)}
 </p>
@@ -654,15 +662,19 @@ opacity-70 hover:opacity-100
   <p
   className={`
     ${getVerseFontClass()}
-    leading-relaxed sm:leading-loose
     ${
       rightVersion === TELUGU_VERSION_KEY
-        ? "font-telugu leading-[1.85] tracking-[0.2px]"
-        : ""
+        ? `font-telugu leading-[1.85] tracking-[0.2px] ${
+            isSel ? "font-medium" : "font-normal"
+          }`
+        : `font-sans leading-relaxed sm:leading-relaxed ${
+            isSel ? "font-medium" : "font-normal"
+          }`
     }
-    
   `}
+  
 >
+
 
   {resolveText(v, rightVersion)}
 </p>
