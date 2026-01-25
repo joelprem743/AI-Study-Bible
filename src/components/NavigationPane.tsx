@@ -202,8 +202,9 @@ const unifiedLabel =
         : isTeluguVersion(leftVersion) || isTeluguVersion(rightVersion);
   
         return isTelugu
-        ? "font-telugu text-[13px] sm:text-[14px] font-normal truncate leading-tight tracking-[0.15px]"
-        : "text-[14px] sm:text-[15px] font-medium truncate leading-tight";
+        ? "font-telugu w-full min-w-0 text-[13px] sm:text-[14px] font-normal truncate leading-tight tracking-[0.15px] text-center"
+        : "w-full min-w-0 text-[14px] sm:text-[15px] font-medium truncate leading-tight text-center";
+      
       
   };
   
@@ -434,7 +435,8 @@ const unifiedLabel =
 
         >
           {studyMode === "single" ? (
-  <div className="flex flex-col items-center justify-center leading-tight">
+  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
+
     {/* Telugu or English main label */}
     <div className={getBookLabelClass(b.name)}>
       {getBookLabelForPicker(b.name)}
@@ -489,7 +491,8 @@ const unifiedLabel =
 
         >
           {studyMode === "single" ? (
-  <div className="flex flex-col items-center justify-center leading-tight">
+  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
+
     {/* Telugu or English main label */}
     <div className={getBookLabelClass(b.name)}>
       {getBookLabelForPicker(b.name)}
@@ -497,9 +500,10 @@ const unifiedLabel =
 
     {/* ✅ Show English subtitle ONLY when Telugu single mode */}
     {isTeluguSingleMode && (
-      <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight">
-        {b.name}
-      </div>
+      <div className="w-full min-w-0 text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight text-center">
+      {b.name}
+    </div>
+    
     )}
   </div>
 ) : (
