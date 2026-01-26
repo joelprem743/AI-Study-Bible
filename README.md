@@ -1,64 +1,229 @@
-# Bible Companion
+# Bible Companion (AI Study Bible) 📖🤖
 
-Welcome to the Bible Companion, a full-featured web application designed for professional and personal Bible study. This tool combines expert-level reference navigation, parallel scripture displays (Telugu/English), and an AI-powered Bible bot to deliver precise, context-rich theological answers.
+Bible Companion is a modern Bible reading + study web app with **AI-powered assistance**, **English + Telugu support**, **parallel Bible reading**, and a full **personal study system** (highlights + notes).
 
-## Features
+It is designed for fast reading, deep study, and a clean premium UI across desktop and mobile.
 
--   **Parallel Scripture Display**: Read Telugu and English (ESV, KJV, NIV) translations side-by-side or stacked on mobile.
--   **Intuitive Navigation**: Quickly jump to any book, chapter, and verse with easy-to-use dropdowns.
--   **Advanced AI Chatbot**: Ask complex theological questions and get scholarly answers from Google's Gemini models.
--   **Multiple Chat Modes**:
-    -   **Fast Mode**: For quick, low-latency responses (`gemini-2.5-flash-lite`).
-    -   **Standard Mode**: For balanced answers, enhanced with Google Search grounding for up-to-date information (`gemini-2.5-flash`).
-    -   **Deep Thought Mode**: For your most complex queries, leveraging a larger thinking budget (`gemini-2.5-pro`).
--   **Interactive Verse Tools**: Select any verse to access AI-generated tools:
-    -   **Interlinear**: View the original Hebrew/Greek text with English transliteration and word-by-word breakdown.
-    -   **Cross-references**: Discover thematically related verses.
-    -   **Historical Context**: Understand the cultural and historical background of the text.
--   **Personal Notes**: Take and save your own notes for any verse, stored locally in your browser.
+---
 
-## Project Setup
+## ✅ Key Features
 
-To get the application running with all its features, you must complete the following setup steps.
+### 📘 Bible Reader
+- Book → Chapter → Verse navigation modal
+- Next / Previous chapter navigation
+- Clean Scripture reading experience with verse selection
 
-### 1. Add the Telugu Bible Data File (Required)
+### 🔁 Study Modes
+- **Single Mode**: read one Bible version
+- **Parallel Mode**: read two versions side-by-side (example: **English + Telugu**)
 
-This application now uses a local JSON file for all Telugu Bible verses to ensure data completeness and offline availability.
+### 🌍 Multi-Language + Telugu Support
+- Full Telugu Bible support (`TELUGU_COMMUNITY_V1`)
+- Telugu book names mapping
+- Telugu UI mode supported across multiple screens
 
-**A. Obtain `telugubible.json`**
+### 🔍 Advanced Search
+- Search by **Reference**
+  - Example: `Psalm 23:1`, `John 3:16`, `యోహాను 3:16`
+- Search by **Keyword** (English + Telugu)
+- Search results grouped by:
+  - Old Testament / New Testament
+  - Book → Chapter → Verses
+- Filters included:
+  - Testament filter (Old/New)
+  - Multi-book selection
+  - Chapter range filter
 
-You must provide this file. It should contain the entire Telugu Bible.
+### 🧠 AI Bible Companion Chatbot
+AI-powered Bible study assistant with:
+- **Scope selection**
+  - Global
+  - Chapter
+  - Verse
+- **Answer depth**
+  - Short
+  - Medium
+  - Deep
+- **Language control**
+  - English
+  - Telugu
+- Smart verse references inside answers
+  - Clickable verse references open a preview modal
 
-**B. Format the JSON File**
+### 🌅 Daily Verse Welcome Screen
+A daily verse experience that includes:
+- Verse display in English or Telugu
+- AI-generated devotional content:
+  - Meaning (2–3 simple sentences)
+  - Application (2–3 practical steps)
+- “Explain this verse” opens the AI chatbot automatically
 
-The file must be a single JSON object with a specific nested structure that follows the pattern: `Book -> Chapter -> Verse`. The root object must have a key named `"Book"`, which is an array of book objects. The order of books and chapters must match the standard Protestant Bible canon (Genesis to Revelation), as this is how the application maps them.
+---
 
-Each verse object must have a key `"Verse"` containing the Telugu text. The `"Verseid"` key is present but not used by the application.
+## 👤 User System (Supabase)
 
-**Example Format:**
-```json
-{
-  "Book": [
-    {
-      "Chapter": [
-        {
-          "Verse": [
-            { "Verseid": "00000000", "Verse": "ఆదియందు దేవుడు భూమ్యాకాశములను సృజించెను." },
-            { "Verseid": "00000001", "Verse": "భూమి నిరాకారముగాను శూన్యముగాను ఉండెను..." }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
+### 🔐 Authentication
+- Email/Password Sign In + Sign Up
+- Google Sign In
 
-**C. Place the file**
+### ✨ Highlights (Saved to Supabase)
+- Highlight any verse using colors:
+  - Yellow / Green / Pink / Blue
+- View highlights in Profile:
+  - Grouped by Old/New Testament
+  - Book → Chapter → Verse
+- Clicking a highlight navigates directly to the verse
 
-Place your formatted `telugubible.json` file inside the `data/` directory of the project.
+### 📝 Notes System
+Two types of notes:
 
-### 2. Configure Your Gemini API Key (Required for AI features)
+#### 1) Verse Notes
+- Notes attached to specific verses
+- Grouped by Testament → Book → Chapter
+- Expand/collapse view for clean UI
+- “Go to verse” navigation supported
 
-The AI features (chatbot, verse analysis) are powered by the Google Gemini API. Your API key is expected to be available as an environment variable (`process.env.API_KEY`) in the execution environment. The application will use it automatically.
+#### 2) Topical Notes
+- Create long-form study notes (topics/sermons/devotionals)
+- Edit / delete notes
+- Add verses into topical notes
+- Export topical notes to **DOCX** (Word document)
 
-Your AI Bible Study Companion is now ready to use.
+---
+
+## ⚙️ Reader Settings
+User-controlled reading preferences:
+- Theme Mode:
+  - System
+  - Light
+  - Dark
+- Font Size:
+  - Small / Medium / Large / Extra Large
+- Auto Scroll Speed adjustment
+- Reset to defaults
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- React + TypeScript
+- Tailwind CSS
+- FontAwesome Icons
+
+### Backend / Database
+- Supabase (Auth + Database)
+
+### AI
+- Gemini-based service integration (AI devotional + chatbot)
+
+### Export
+- `docx` + `file-saver` for topical note downloads
+
+---
+
+## 📂 Project Structure (Simplified)
+
+```txt
+src/
+  components/
+    NavigationPane.tsx
+    ScriptureDisplay.tsx
+    VerseTools.tsx
+    Chatbot.tsx
+    WelcomeScreen.tsx
+    SearchResultDisplay.tsx
+
+    ProfileMenu.tsx
+    ProfileHighlights.tsx
+    ProfileNotes.tsx
+
+  context/
+    AuthContext.tsx
+    NotesContext.tsx
+    LanguageContext.tsx
+
+  hooks/
+    useHighlights.ts
+    useReaderSettings.ts
+    useThemeMode.ts
+
+  services/
+    bibleService.ts
+    geminiService.ts
+
+  lib/
+    supabaseClient.ts
+    dailyVerseService.ts
+    bibleVersesService.ts
+
+
+🚀 Getting Started
+1) Clone the repository
+git clone https://github.com/joelprem743/AI-Study-Bible.git
+cd AI-Study-Bible
+
+2) Install dependencies
+npm install
+
+3) Run development server
+npm run dev
+
+🔑 Environment Variables
+
+Create a .env file:
+
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+VITE_GEMINI_API_KEY=your_ai_key
+
+
+If AI keys are missing, the Bible reading features can still work, but AI features may fail.
+
+✅ Supported Bible Versions
+
+Example versions included in the UI:
+
+.Telugu Community Bible (TELUGU_COMMUNITY_V1)
+
+.KJV
+
+.NKJV
+
+.ESV
+
+.NIV
+
+.NLT
+
+.NASB (1995)
+
+.GNB
+
+.Aramaic Bible (Plain English - NT)
+
+📌 Roadmap (Recommended Next)
+
+.If you want this project to look “complete” and production-ready:
+
+.Bookmark system
+
+.Verse sharing (copy/share image)
+
+.Notes search (by keyword inside notes)
+
+.Offline/PWA support
+
+.User profile page with activity history
+
+.Sync Reader Settings to Supabase (cloud settings)
+
+.Admin panel for Bible version management
+
+👤 Author
+
+Built by Joel Prem Tej
+GitHub: https://github.com/joelprem743
+
+Contact: joelpremtej@gmail.com
