@@ -682,6 +682,17 @@ const STRONG_REF_REGEX =
     },
   } as const;
 
+  const lockScroll = () => {
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+  };
+  
+  const unlockScroll = () => {
+    document.body.style.overflow = "";
+    document.body.style.touchAction = "";
+  };
+  
+
   function getAiActionText(tab: Tab, lang: "EN" | "TE") {
     if (lang === "TE") {
       switch (tab) {
@@ -769,11 +780,18 @@ export const VerseTools: React.FC<{
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const verseContainerRef = useRef<HTMLDivElement | null>(null);
+const [isLongVerse, setIsLongVerse] = useState(false);
 
   const [language, setLanguage] = useState<"EN" | "TE">(uiLanguage);
   const isTeluguUI = language === "TE";
 
   const teluguClass = isTeluguUI ? "font-telugu" : "";
+
+  const [previewHighlight, setPreviewHighlight] =
+  useState<string | null>(null);
 
 
 
@@ -822,10 +840,16 @@ const [analysis, setAnalysis] = useState<Record<AiTab, string | null>>({
   const originalBlockRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isProgrammaticScrollRef = useRef(false);
+  const touchMovedRef = useRef(false);
+
 
 
   const highlightRef = useRef<HTMLDivElement | null>(null);
 const highlightButtonRef = useRef<HTMLButtonElement | null>(null);
+const longPressTimerRef = useRef<number | null>(null);
+const isLongPressActiveRef = useRef(false);
+const pendingHighlightRef = useRef<string | null>(null);
+
 
 
 
@@ -1636,6 +1660,23 @@ const handleWordSelect = (idx: number) => {
   ---------------------------*/
 
   useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+  }, []);
+  
+
+  useEffect(() => {
+    if (!highlightOpen) {
+      unlockScroll();
+    }
+  }, [highlightOpen]);
+  
+
+  useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
       if (!highlightOpen) return;
   
@@ -1810,6 +1851,21 @@ const handleWordSelect = (idx: number) => {
   
 
 
+  useEffect(() => {
+    const el = verseContainerRef.current;
+    if (!el) return;
+  
+    // Get computed line-height
+    const style = window.getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight);
+  
+    if (!lineHeight) return;
+  
+    const lines = Math.round(el.scrollHeight / lineHeight);
+  
+    // ✅ only treat as long if 5+ lines
+    setIsLongVerse(lines >= 5);
+  }, [displayVerseText, language]);
   
   
   
@@ -2168,20 +2224,26 @@ if (cached) {
     [saveNoteFor, refreshNoteFor, verseRef]
   );
 
+
+  const effectiveHighlight =
+  previewHighlight !== null
+    ? previewHighlight
+    : currentHighlight;
+
   /* -------------------------
     Render
   ---------------------------*/
   return (
-    <div
-      className={`p-4 md:p-6 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14] ${teluguClass}`}
-    >
-  
+<div
+  className={`p-3 md:p-4 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14] ${teluguClass}`}
+>
+
+
 
       {/* HEADER */}
-<div className="mb-4  ">
+<div className="mb-3">
   <div className="flex items-center justify-between">
-    
-    {/* Title */}
+
         
     {/* Title */}
     <h2
@@ -2207,24 +2269,102 @@ if (cached) {
       {onHighlightChange && (
   <div className="relative" ref={highlightRef}>
 
-    <button
-      type="button"
-      ref={highlightButtonRef}
-      onClick={() => setHighlightOpen((v) => !v)}
-      className="
-        w-10 h-10 rounded-full
-        bg-slate-100 dark:bg-white/5
-        border border-slate-200 dark:border-white/10
-        hover:bg-slate-200 dark:hover:bg-white/10
-        transition
-        flex items-center justify-center
-        text-slate-700 dark:text-white
-      "
-      title="Highlight"
-      aria-label="Highlight"
-    >
-      <i className="fas fa-highlighter text-sm" />
-    </button>
+<button
+  type="button"
+  ref={highlightButtonRef}
+  className="
+    w-10 h-10 rounded-full
+    bg-slate-100 dark:bg-white/5
+    border border-slate-200 dark:border-white/10
+    hover:bg-slate-200 dark:hover:bg-white/10
+    transition
+    flex items-center justify-center
+    text-slate-700 dark:text-white
+  "
+  title="Highlight"
+  aria-label="Highlight"
+
+  // ✅ Tap / desktop click
+  onClick={() => {
+    if (isLongPressActiveRef.current) return;
+    setHighlightOpen(v => !v);
+  }}
+
+  // ✅ Start long-press detection
+  onTouchStart={() => {
+    touchMovedRef.current = false;
+  
+    longPressTimerRef.current = window.setTimeout(() => {
+      if (touchMovedRef.current) return; // ❌ abort
+      isLongPressActiveRef.current = true;
+      pendingHighlightRef.current = null;
+      setPreviewHighlight(null);
+      lockScroll();
+      setHighlightOpen(true);
+    }, 350);
+  }}
+  
+  
+
+  // ✅ Track finger position (NO APPLY)
+  onTouchMove={(e) => {
+    if (!isLongPressActiveRef.current) {
+      touchMovedRef.current = true;
+      return;
+    }
+  
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(
+      touch.clientX,
+      touch.clientY
+    );
+  
+    if (!(el instanceof HTMLElement)) return;
+  
+    const color = el.dataset.highlightColor;
+    if (color) {
+      const resolved = color === "clear" ? null : color;
+      pendingHighlightRef.current = resolved;
+      setPreviewHighlight(resolved);
+    }
+  }}
+  
+  // ✅ Apply ONLY on release
+  onTouchEnd={() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  
+    if (isLongPressActiveRef.current && onHighlightChange) {
+      onHighlightChange(pendingHighlightRef.current);
+      unlockScroll();
+      setHighlightOpen(false);
+      onClose?.();
+    }
+  
+    isLongPressActiveRef.current = false;
+    pendingHighlightRef.current = null;
+    setPreviewHighlight(null); // 🔑 cleanup
+  }}
+  
+  
+  
+  onTouchCancel={() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  
+    unlockScroll();
+    isLongPressActiveRef.current = false;
+    pendingHighlightRef.current = null;
+    setHighlightOpen(false);
+  }}
+  
+>
+  <i className="fas fa-highlighter text-sm" />
+</button>
+
 
     {highlightOpen && (
       <div
@@ -2241,51 +2381,60 @@ if (cached) {
         </p>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("yellow");
-              setHighlightOpen(false);
-              onClose?.();
-            }}
-            className="w-7 h-7 rounded-full border border-slate-200 bg-yellow-300"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("green");
-              setHighlightOpen(false);
-              onClose?.();
-            }}
-            className="w-7 h-7 rounded-full border border-slate-200 bg-green-300"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("pink");
-              setHighlightOpen(false);
-              onClose?.();
-            }}
-            className="w-7 h-7 rounded-full border border-slate-200 bg-rose-300"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              onHighlightChange("blue");
-              setHighlightOpen(false);
-              onClose?.();
-            }}
-            className="w-7 h-7 rounded-full border border-slate-200 bg-sky-300"
-          />
+        <button
+  type="button"
+  data-highlight-color="yellow"
+  onClick={() => {
+    onHighlightChange("yellow");
+    setHighlightOpen(false);
+    onClose?.();
+  }}
+  className="w-7 h-7 rounded-full border border-slate-200 bg-yellow-300"
+/>
+
+<button
+  type="button"
+  data-highlight-color="green"
+  onClick={() => {
+    onHighlightChange("green");
+    setHighlightOpen(false);
+    onClose?.();
+  }}
+  className="w-7 h-7 rounded-full border border-slate-200 bg-green-300"
+/>
+
+<button
+  type="button"
+  data-highlight-color="pink"
+  onClick={() => {
+    onHighlightChange("pink");
+    setHighlightOpen(false);
+    onClose?.();
+  }}
+  className="w-7 h-7 rounded-full border border-slate-200 bg-rose-300"
+/>
+
+<button
+  type="button"
+  data-highlight-color="blue"
+  onClick={() => {
+    onHighlightChange("blue");
+    setHighlightOpen(false);
+    onClose?.();
+  }}
+  className="w-7 h-7 rounded-full border border-slate-200 bg-sky-300"
+/>
+
         </div>
 
         <button
-          type="button"
-          onClick={() => {
-            onHighlightChange(null);
-            setHighlightOpen(false);
-            onClose?.();
-          }}
+  type="button"
+  data-highlight-color="clear"
+  onClick={() => {
+    onHighlightChange(null);
+    setHighlightOpen(false);
+    onClose?.();
+  }}
           className="
             mt-3 w-full px-3 py-2 text-xs rounded-xl
             border border-slate-200 dark:border-white/10
@@ -2455,22 +2604,98 @@ window.dispatchEvent(
 
     </div>
   </div>
+    {/* VERSE CARD */}
+    <div
+  className={`
+    mt-2 mb-0
+    border border-slate-200 dark:border-white/10
+    rounded-2xl
+    shadow-sm
+    p-3
+    transition-colors
 
-  {/* Verse Text */}
-  <p
-  className={`text-gray-800 dark:text-gray-200 italic text-sm mt-2 leading-relaxed ${
-    isTeluguUI ? "font-telugu font-medium" : ""
-  }`}
+    ${
+      effectiveHighlight === "yellow"
+        ? "bg-yellow-100 dark:bg-yellow-600/30"
+        : effectiveHighlight === "green"
+        ? "bg-green-100 dark:bg-green-600/30"
+        : effectiveHighlight === "pink"
+        ? "bg-rose-100 dark:bg-rose-600/30"
+        : effectiveHighlight === "blue"
+        ? "bg-sky-100 dark:bg-sky-600/30"
+        : "bg-white dark:bg-slate-900"
+    }
+  `}
 >
 
+
+  {/* Verse Text */}
+  <div
+  ref={verseContainerRef}
+  className={`
+    relative overflow-hidden
+    ${expanded || !isLongVerse ? "" : "max-h-[9.5rem]"}
+  `}
+>
+
+  <p
+    className={`
+      italic text-sm leading-relaxed
+      ${isTeluguUI ? "font-telugu font-medium" : ""}
+    `}
+  >
     {displayVerseText ? `"${displayVerseText}"` : ""}
   </p>
+
+  {!expanded && isLongVerse && (
+  <div
+    className={`
+      pointer-events-none
+      absolute bottom-0 left-0 right-0
+      h-4
+      bg-gradient-to-t
+      ${
+        effectiveHighlight === "yellow"
+          ? "from-yellow-100 dark:from-yellow-600/30"
+          : effectiveHighlight === "green"
+          ? "from-green-100 dark:from-green-600/30"
+          : effectiveHighlight === "pink"
+          ? "from-rose-100 dark:from-rose-600/30"
+          : effectiveHighlight === "blue"
+          ? "from-sky-100 dark:from-sky-600/30"
+          : "from-white dark:from-slate-900"
+      }
+      to-transparent
+    `}
+  />
+)}
+
+</div>
+{isLongVerse && (
+  <div className="flex justify-end mt-1">
+    <button
+      onClick={() => setExpanded(v => !v)}
+      className="
+  text-xs font-medium
+  text-slate-400 dark:text-slate-500
+  hover:text-slate-500 dark:hover:text-slate-400
+  no-underline
+"
+
+    >
+      {expanded ? "Show less ▲" : "Read more ▼"}
+    </button>
+  </div>
+)}
+
+
+  </div>
 </div>
 
 
     
       {/* Tabs */}
-<div className="mb-4">
+<div className="mb-0">
   {/* PRIMARY ROW */}
   <div className="border-b border-gray-200 dark:border-gray-700">
     <nav className="-mb-px flex items-center space-x-6">
