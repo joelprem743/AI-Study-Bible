@@ -32,10 +32,20 @@ export const getOrCreateDailyVerse = async (): Promise<DailyVerseRow> => {
   if (existing.error) throw existing.error;
   if (existing.data) return existing.data as DailyVerseRow;
 
-  // 2) Pick random verse reference from KJV
+  // 2) Pick random verse reference from ESV
   const picked = await supabase.rpc("pick_random_verse_ref", {
-    p_version: "KJV",
+    p_books: [
+      "Psalms",
+      "Proverbs",
+      "Matthew",
+      "Mark",
+      "Luke",
+      "John",
+      "Romans",
+      "Philippians",
+    ],
   });
+  
 
   if (picked.error) throw picked.error;
   if (!picked.data || picked.data.length === 0) {

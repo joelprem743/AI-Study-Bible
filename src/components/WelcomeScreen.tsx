@@ -51,6 +51,7 @@
 
     const [loadingVerse, setLoadingVerse] = useState(true);
     const [loadingDevotional, setLoadingDevotional] = useState(true);
+    
 
     const [verseRow, setVerseRow] = useState<BibleVerseRow | null>(null);
 
@@ -89,7 +90,7 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
         // -----------------------------
 
 
-        const bibleVersion = language === "TE" ? "TELUGU_COMMUNITY_V1" : "KJV";
+        const bibleVersion = language === "TE" ? "TELUGU_COMMUNITY_V1" : "ESV";
 
         try {
           const v = await fetchVerseByRef(
@@ -107,7 +108,7 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
               daily.book,
               daily.chapter,
               daily.verse,
-              "KJV"
+              "ESV"
             );
             if (!cancelled) setVerseRow(fallback);
           } catch (err2) {

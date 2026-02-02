@@ -69,9 +69,9 @@ const BotMessage: React.FC<{
 
       {/* Bot bubble */}
       <div className="flex flex-col w-full max-w-[92%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
-        {answer.sections.map((sec, i) => (
-          <div
-            key={i}
+      {answer.sections.map((sec, i) => (
+        <div 
+            key={`${sec.heading || "section"}-${i}`}
             className="mb-3 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50/60 dark:bg-slate-900/40"
           >
             <button
@@ -79,8 +79,9 @@ const BotMessage: React.FC<{
               className="w-full flex items-center justify-between px-4 py-3 text-left bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
               <span className="font-semibold text-[13px] text-slate-900 dark:text-white">
-                {sec.title}
-              </span>
+  {sec.heading}
+</span>
+
               <span className="text-xs opacity-70">
                 {openSections[i] ? "−" : "+"}
               </span>
@@ -88,35 +89,30 @@ const BotMessage: React.FC<{
 
             {openSections[i] && (
               <div className="p-4 space-y-3">
-                <div className="text-[13px] leading-relaxed whitespace-pre-wrap">
-                  {renderWithRefs(sec.explanation)}
-                </div>
+<div className="text-[13px] leading-relaxed whitespace-pre-wrap">
+  {renderWithRefs(sec.content)}
+</div>
 
-                {sec.references.length > 0 && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
-                      References
-                    </div>
+{sec.scriptures.length > 0 && (
+  <div>
+    <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+      Scriptures
+    </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {sec.references.map((ref, j) => (
-                        <button
-                          key={j}
-                          onClick={() => onReferenceClick(ref)}
-                          className="
-                            text-[11px] px-3 py-1 rounded-full
-                            border border-slate-200 dark:border-slate-600
-                            bg-white dark:bg-slate-800
-                            hover:bg-slate-100 dark:hover:bg-slate-700
-                            transition
-                          "
-                        >
-                          {ref}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+    <div className="flex flex-wrap gap-2">
+      {sec.scriptures.map((ref, j) => (
+        <button
+          key={j}
+          onClick={() => onReferenceClick(ref)}
+          className="text-[11px] px-3 py-1 rounded-full border"
+        >
+          {ref}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
               </div>
             )}
           </div>
@@ -263,6 +259,7 @@ const [answerDepth, setAnswerDepth] = useState<
   const [isLoading, setIsLoading] = useState(false);
 
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const messagesRef = useRef<Message[]>([]);
 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -272,6 +269,11 @@ const [answerDepth, setAnswerDepth] = useState<
   const lastAutoSentRef = useRef<string | null>(null);
   const modelLanguageRef = useRef<"EN" | "TE">("EN");
 const languageRef = useRef<"EN" | "TE">("EN");
+
+useEffect(() => {
+  messagesRef.current = messages;
+}, [messages]);
+
 
 useEffect(() => {
   modelLanguageRef.current = modelLanguage;
@@ -412,7 +414,7 @@ useEffect(() => {
   useEffect(() => {
     const handler = (e: any) => {
       // ❌ Never stream when structured JSON is expected
-      if (isLoading) return;
+
     };
   
     window.addEventListener("llama-stream", handler);
@@ -608,8 +610,9 @@ const normalizeQuestions = (qs: string[]) => {
   - Do NOT include numbering like "1)" or "Q1"
   - Escape any newline inside strings as \\n
   
-  Base them on these section titles:
-  ${answerJson.sections.map(s => `- ${s.title}`).join("\n")}
+  Base them on these section headings:
+  ${answerJson.sections.map(s => `- ${s.heading}`).join("\n")}
+
   
   ${langInstruction}
   `;
@@ -722,6 +725,9 @@ const normalizeQuestions = (qs: string[]) => {
   };
   
   const handleClickReference = async (reference: string) => {
+    const meta = findBookMetadata(reference.split(/\s+\d+:/)[0]);
+    if (!meta) return; // ignore garbage matches
+  
     setPreviewRef(reference);
     const text = await loadReferenceText(reference);
     setPreviewText(text);
@@ -841,6 +847,7 @@ const buildContextualInput = (input: string) => {
 
   // SEND MESSAGE
   const handleSend = async (forcedInput?: string) => {
+    if (isLoading) return;
     // clear old follow-ups (they belong to previous bot answer)
     setFollowUpQs([]);
 
@@ -852,190 +859,73 @@ const currentUILang = languageRef.current;
 
 // STEP 3: detect direct question
 
-
 const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
   const isTelugu = currentModelLang === "TE";
 
+  const sectionRules =
+    depth === "SHORT"
+      ? "2 sections, concise, devotional"
+      : depth === "MEDIUM"
+      ? "3 sections, clear teaching flow"
+      : "Up to 4 sections, deep insight without padding";
 
-  if (depth === "SHORT") {
-    return `
-SYSTEM INSTRUCTION (CRITICAL):
-
-${isTelugu ? "మీరు బైబిల్ సహాయకుడు." : "You are a Bible reference assistant."}
-
-Return a SINGLE valid JSON object.
-Do NOT include markdown, emojis, or extra text.
-
-REQUIRED SCHEMA:
-{
-  "sections": [
-    {
-      "title": string,
-      "explanation": string,
-      "references": string[]
-    }
-  ]
-}
-
-STRICT RULES FOR SHORT:
-- EXACTLY 2 sections only
-- Each explanation MUST be 1–2 sentences MAX
-
-LANGUAGE RULES:
-- ${isTelugu ? "సంపూర్ణంగా తెలుగులోనే ఇవ్వండి (ఇంగ్లీష్ వద్దు)." : "Use English only."}
-- Plain text only
-- No markdown
-- No emojis
-
-Return JSON ONLY wrapped like this:
-
-<json>
-{ ... }
-</json>
-
-DO NOT output anything outside <json>...</json>.
-`;
-  }
-
-  if (depth === "MEDIUM") {
-    return `
-SYSTEM INSTRUCTION (CRITICAL):
-
-${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు. స్పష్టంగా వివరించండి." : "You are a Bible teacher giving a clear explanation."}
-
-Return a SINGLE valid JSON object.
-Do NOT include markdown or emojis.
-
-REQUIRED SCHEMA:
-{
-  "sections": [
-    {
-      "title": string,
-      "explanation": string,
-      "references": string[]
-    }
-  ]
-}
-
-RULES FOR MEDIUM:
-- 3 sections
-- 4–5 sentences per section
-- ${isTelugu ? "తెలుగులోనే ఇవ్వండి." : "Answer in English."}
-
-Return JSON ONLY wrapped like this:
-
-<json>
-{ ... }
-</json>
-
-DO NOT output anything outside <json>...</json>.
-`;
-  }
-
-  // DEEP
   return `
 SYSTEM INSTRUCTION (CRITICAL):
 
-${isTelugu ? "మీరు బైబిల్ ఉపదేశకుడు. లోతుగా వివరించండి." : "You are a Bible teacher giving a detailed exposition."}
+${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు." : "You are a Bible teacher."}
 
-Return a SINGLE valid JSON object.
-Do NOT include markdown or emojis.
+Return ONE valid JSON object.
+No markdown.
+No emojis.
+Plain text only.
+Bullet points using "-" or "•" are ALLOWED.
+Use line breaks for readability.
+
 
 REQUIRED SCHEMA:
 {
   "sections": [
     {
-      "title": string,
-      "explanation": string,
-      "references": string[]
+      "heading": string,
+      "content": string,
+      "scriptures": string[]
     }
   ]
 }
 
-RULES FOR DEEP:
-- 4–5 sections
-- 6–8 sentences per section
-- ${isTelugu ? "సంపూర్ణంగా తెలుగులో మాత్రమే ఇవ్వండి." : "Answer in English."}
+RULES:
+- ${sectionRules}
+- Each section explains ONE idea
+- Scriptures must SUPPORT the content
+- No verse dumping
+- No repetition
+- Natural paragraph flow
+- ${isTelugu ? "పూర్తిగా తెలుగులో మాత్రమే ఇవ్వండి." : "English only."}
 
-Return JSON ONLY wrapped like this:
+Return JSON wrapped EXACTLY like this:
 
 <json>
 { ... }
 </json>
 
-DO NOT output anything outside <json>...</json>.
+DO NOT output anything outside <json>.
 `;
 };
 
+const userMessage: Message = {
+  id: crypto.randomUUID(),
+  text: finalInput,
+  sender: "user",
+};
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: finalInput,
-      sender: "user",
-    };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage].slice(-50));
     setInput("");
     setIsLoading(true);
 
 
     const contextualizedInput = buildContextualInput(finalInput);
 
-    const getStructuredIntent = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
-      if (currentModelLang === "TE") {
-        if (depth === "SHORT") {
-          return `
-    Structure the answer using ONLY these sections:
-    1. ప్రధాన బోధ
-    2. ముఖ్య వచనాలు
-    `;
-        }
-    
-        if (depth === "MEDIUM") {
-          return `
-    Structure the answer using these sections:
-    1. ప్రధాన బోధ
-    2. బైబిలు సందర్భం
-    3. రోజువారీ జీవితానికి అర్థం
-    `;
-        }
-    
-        return `
-    Structure the answer using these sections:
-    1. ప్రధాన బోధ
-    2. బైబిలు సందర్భం
-    3. రోజువారీ జీవితానికి అర్థం
-    4. సహాయక వచనాలు
-    `;
-      }
-    
-      // EN default
-      if (depth === "SHORT") {
-        return `
-    Structure the answer using ONLY these sections:
-    1. Core Teaching
-    2. Key Scripture
-    `;
-      }
-    
-      if (depth === "MEDIUM") {
-        return `
-    Structure the answer using these sections:
-    1. Core Teaching
-    2. Biblical Context
-    3. Meaning for Daily Life
-    `;
-      }
-    
-      return `
-    Structure the answer using these sections:
-    1. Core Teaching
-    2. Biblical Context
-    3. Meaning for Daily Life
-    4. Key Supporting Scriptures
-    `;
-    };
-    
 
     // Use modelLanguage for AI instruction (this guarantees Option B)
     const langInstruction = currentModelLang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
@@ -1043,14 +933,14 @@ DO NOT output anything outside <json>...</json>.
       const response = await sendMessageToLlama(
         `${contextualizedInput}
       
-        ${getStructuredIntent(answerDepth)}
+
 
 ${langInstruction}
 
 ${getFormattingRules(answerDepth)}
 
       `,
-        [...messages, userMessage],
+      [...messagesRef.current, userMessage],
         currentModelLang,
         answerDepth
       );
@@ -1066,44 +956,51 @@ try {
   parsed = {
     sections: [
       {
-        title: "Explanation",
-        explanation: normalizeText(response.text),
-        references: []
+        heading: currentModelLang === "TE" ? "వివరణ" : "Explanation",
+        content: normalizeText(response.text),
+        scriptures: []
       }
     ]
   };
+  
 }
 
-
-if (!Array.isArray(parsed.sections)) {
-  parsed = {
-    sections: [
+parsed.sections = Array.isArray(parsed.sections)
+  ? parsed.sections
+  : [
       {
-        title: "Explanation",
-        explanation: normalizeText(response.text),
+        heading: currentModelLang === "TE" ? "వివరణ" : "Explanation",
+        content: normalizeText(response.text),
+        scriptures: [],
+      },
+    ];
 
-        references: []
-      }
-    ]
-  };
-}
 
-const botMessage: Message = {
-  id: (Date.now() + 1).toString(),
-  sender: "bot",
-  answer: parsed,
-  sources: response.sources,
-};
+    parsed.sections = parsed.sections.map(sec => ({
+      heading: typeof sec.heading === "string" ? sec.heading.trim() : "",
+      content: typeof sec.content === "string" ? sec.content.trim() : "",
+      scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
+    }));
+    
+
+    const botMessage: Message = {
+      id: crypto.randomUUID(),
+      sender: "bot",
+      answer: parsed,
+      sources: response.sources,
+    };
+    
 
       
 
-      setMessages((prev) => [...prev, botMessage]);
+    setMessages(prev => [...prev, botMessage].slice(-50));
+
 
       // generate follow-ups using the same model language
       try {
         const aiQs = await generateAIFollowUps(
           parsed,
-          [...messages.filter(m => m.sender === "user"), userMessage]
+          [...messagesRef.current.filter(m => m.sender === "user"), userMessage]
         );
         
         setFollowUpQs(aiQs);
@@ -1123,13 +1020,14 @@ const botMessage: Message = {
           ? "ఏదో తప్పిపోయింది. దయచేసి మళ్లీ ప్రయత్నించండి."
           : "Something went wrong. Please try again.";
 
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: fallback,
-        sender: "bot",
-      };
+          const errorMessage: Message = {
+            id: crypto.randomUUID(),
+            text: fallback,
+            sender: "bot",
+          };
+          
 
-      setMessages((prev) => [...prev, errorMessage]);
+          setMessages(prev => [...prev, errorMessage].slice(-50));
     } finally {
       setIsLoading(false);
     }

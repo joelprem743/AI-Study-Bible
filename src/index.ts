@@ -83,15 +83,16 @@ export interface BookMetadata {
   CHATBOT STRUCTURED ANSWER (Option A)
 ============================================================ */
 
-export interface ChatbotSection {
-  title: string;
-  explanation: string;
-  references: string[]; // e.g. ["John 3:16", "Romans 8:1–4"]
-}
+export type ChatbotSection = {
+  heading: string;
+  content: string;
+  scriptures: string[];
+};
 
-export interface ChatbotAnswer {
+export type ChatbotAnswer = {
   sections: ChatbotSection[];
-}
+};
+
 
 export interface FollowUpResponse {
   questions: string[];
