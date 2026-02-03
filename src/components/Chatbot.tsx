@@ -37,7 +37,120 @@ const UI_TEXT = {
   send_te: `పంపండి`,
 };
 
+const renderChatGPTStyleContent = (
+  text: string,
+  renderWithRefs: (node: React.ReactNode) => React.ReactNode
+) => {
+  text = text.replace(/[−–—]/g, "-");
 
+  const lines = text
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  const blocks: React.ReactNode[] = [];
+  let currentUL: string[] = [];
+  let currentOL: string[] = [];
+
+  const flushUL = () => {
+    if (!currentUL.length) return;
+    blocks.push(
+      <div
+        key={`ul-box-${blocks.length}`}
+        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 p-3"
+      >
+        <ul className="list-disc pl-5 space-y-1 text-[13px]">
+          {currentUL.map((item, i) => (
+            <li key={i}>{renderWithRefs(item)}</li>
+          ))}
+        </ul>
+      </div>
+    );
+    
+    currentUL = [];
+  };
+
+  const flushOL = () => {
+    if (!currentOL.length) return;
+    blocks.push(
+      <ol
+        key={`ol-${blocks.length}`}
+        className="list-decimal pl-6 space-y-1 text-[13px]"
+      >
+        {currentOL.map((item, i) => (
+          <li key={i}>{renderWithRefs(item)}</li>
+        ))}
+      </ol>
+    );
+    currentOL = [];
+  };
+
+  const isImplicitListLine = (line: string) =>
+    /^[A-Z]/.test(line) &&
+    line.length < 120 &&
+    !line.endsWith(":") &&
+    (line.match(/[.!?]/g)?.length ?? 0) <= 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const next = lines[i + 1];
+
+    // 1️⃣ Explicit unordered list
+    if (/^[-•]\s+/.test(line)) {
+      flushOL();
+      currentUL.push(line.replace(/^[-•]\s+/, ""));
+      continue;
+    }
+
+    // 2️⃣ Explicit ordered list
+    if (/^(\d+[\.\)]|[①②③④⑤⑥⑦⑧⑨⑩])\s+/.test(line)) {
+      flushUL();
+      currentOL.push(
+        line.replace(/^(\d+[\.\)]|[①②③④⑤⑥⑦⑧⑨⑩])\s+/, "")
+      );
+      continue;
+    }
+
+    // 3️⃣ Implicit unordered list (2+ consecutive list-like lines)
+    if (
+      isImplicitListLine(line) &&
+      next &&
+      isImplicitListLine(next)
+    ) {
+      flushOL();
+      currentUL.push(line);
+      continue;
+    }
+
+    // 4️⃣ Paragraph
+    flushUL();
+    flushOL();
+
+    const sentences = line.split(/(?<=[.!?])\s+/);
+
+    blocks.push(
+      <p
+        key={`p-${blocks.length}`}
+        className="text-[13px] leading-relaxed"
+      >
+        <span className="font-medium">
+          {renderWithRefs(sentences[0])}
+        </span>
+        {sentences.length > 1 && (
+          <>
+            {" "}
+            {renderWithRefs(sentences.slice(1).join(" "))}
+          </>
+        )}
+      </p>
+    );
+  }
+
+  flushUL();
+  flushOL();
+
+  return blocks;
+};
 
 
 // BOT MESSAGE COMPONENT (PREMIUM)
@@ -46,6 +159,7 @@ const BotMessage: React.FC<{
   sources?: GroundingChunk[];
   renderWithRefs: (node: React.ReactNode) => React.ReactNode;
   onReferenceClick: (ref: string) => void;
+  
 }> = ({ answer, sources, renderWithRefs, onReferenceClick }) => {
   const [openSections, setOpenSections] = React.useState<Record<number, boolean>>(
     () =>
@@ -54,6 +168,8 @@ const BotMessage: React.FC<{
         return acc;
       }, {} as Record<number, boolean>)
   );
+  console.log("BOTMESSAGE RENDER", answer);
+  console.log("SECTIONS", answer.sections, Array.isArray(answer.sections));
 
   const toggle = (i: number) =>
     setOpenSections((prev) => ({ ...prev, [i]: !prev[i] }));
@@ -89,9 +205,10 @@ const BotMessage: React.FC<{
 
             {openSections[i] && (
               <div className="p-4 space-y-3">
-<div className="text-[13px] leading-relaxed whitespace-pre-wrap">
-  {renderWithRefs(sec.content)}
+<div className="space-y-2">
+{renderChatGPTStyleContent(sec.content, renderWithRefs)}
 </div>
+
 
 {sec.scriptures.length > 0 && (
   <div>
@@ -284,17 +401,6 @@ useEffect(() => {
 }, [language]);
 
 
-  // Detect initial chatbot language from current Bible version
-// const detectInitialLanguage = (): "EN" | "TE" => {
-//   return englishVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN";
-// };
-
-
-  // const CHAT_MODE_LABELS = {
-  //   [ChatMode.FAST]: language === "TE" ? "ఫాస్ట్" : "Fast",
-  //   [ChatMode.STANDARD]: language === "TE" ? "స్టాండర్డ్" : "Standard",
-  //   [ChatMode.DEEP_THOUGHT]: language === "TE" ? "డీప్ థాట్" : "Deep Thought",
-  // } as Record<ChatMode, string>;
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages, followUpQs]);
@@ -500,6 +606,62 @@ const stripIllegalControlChars = (s: string) => {
   return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
 };
 
+// Convert raw newlines that appear INSIDE JSON string literals into escaped "\\n"
+// This repairs model output like: "content": "line1
+// line2"  ->  "content": "line1\nline2"
+const escapeNewlinesInsideJsonStrings = (input: string) => {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (!inString) {
+      if (ch === '"') inString = true;
+      out += ch;
+      continue;
+    }
+
+    // inString === true
+    if (escaped) {
+      // current char is escaped, keep as-is
+      out += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = false;
+      out += ch;
+      continue;
+    }
+
+    // Raw line breaks are illegal inside JSON strings
+    if (ch === "\n") {
+      out += "\\n";
+      continue;
+    }
+    if (ch === "\r") {
+      // normalize CR or CRLF to \n
+      out += "\\n";
+      // swallow following \n if present (CRLF)
+      if (input[i + 1] === "\n") i++;
+      continue;
+    }
+
+    out += ch;
+  }
+
+  return out;
+};
+
 // 2) Try to extract JSON from <json>...</json> or fallback to first {...} block
 const extractBestJsonCandidate = (raw: string): string => {
   // prefer <json> sentinel
@@ -525,6 +687,16 @@ const tryRepairJson = (jsonText: string) => {
 
   // strip illegal control chars
   s = stripIllegalControlChars(s);
+
+  // Find the first { and last } to extract clean JSON
+  const firstBrace = s.indexOf("{");
+  const lastBrace = s.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    s = s.slice(firstBrace, lastBrace + 1);
+  }
+
+  // Repair raw newlines inside quoted strings (common model failure mode)
+  s = escapeNewlinesInsideJsonStrings(s);
 
   // remove trailing commas:  {"a":[1,2,],}  -> {"a":[1,2]}
   s = s.replace(/,\s*([}\]])/g, "$1");
@@ -570,6 +742,7 @@ const normalizeQuestions = (qs: string[]) => {
     .filter(Boolean)
     .slice(0, 3);
 };
+
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
   const generateAIFollowUps = async (
@@ -702,27 +875,36 @@ const normalizeQuestions = (qs: string[]) => {
     }
   };
   
-
-  const normalizeText = (text: string) => {
-    return text
-      // Remove markdown headers and emphasis
-      .replace(/^#+\s*/gm, "")
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/`+/g, "")
-  
-      // Normalize bullet points: force each onto a new line
-      .replace(/\s*\*\s+/g, "\n• ")
-  
-      // Force known section labels onto new paragraphs
-      .replace(
-        /\b(Summary of John \d+|Summary|Key Points|Important Verses|Bible References|Conclusion)\b/g,
-        "\n\n$1"
-      )
-  
-      // Clean up excessive whitespace
+  const normalizePlainText = (text: string) =>
+    text
+      .replace(/[−–—]/g, "-")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-  };
+  
+      
+
+  // ✅ Recover multiple sections from plain text when JSON parsing fails
+const recoverSectionsFromText = (raw: string): ChatbotAnswer["sections"] => {
+  const text = normalizePlainText(raw);
+
+  // Split on blank lines before Title-like lines
+  const blocks = text.split(/\n{2,}(?=[A-Z][^\n]{0,80}\n)/);
+
+  return blocks
+    .map((block, i) => {
+      const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+      if (!lines.length) return null;
+
+      return {
+        heading: lines[0].slice(0, 80),
+        content: lines.slice(1).join("\n"),
+        scriptures: [],
+      };
+    })
+    .filter(Boolean) as ChatbotAnswer["sections"];
+};
+
+  
   
   const handleClickReference = async (reference: string) => {
     const meta = findBookMetadata(reference.split(/\s+\d+:/)[0]);
@@ -874,12 +1056,23 @@ SYSTEM INSTRUCTION (CRITICAL):
 
 ${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు." : "You are a Bible teacher."}
 
-Return ONE valid JSON object.
+Return ONE valid JSON object ONLY.
+ABSOLUTELY NOTHING may appear before or after <json>.
+
 No markdown.
 No emojis.
 Plain text only.
-Bullet points using "-" or "•" are ALLOWED.
-Use line breaks for readability.
+
+When listing multiple ideas:
+- You MUST use bullet points starting with "- "
+- Each bullet MUST be on its own line
+- Never write list-like sentences without bullets
+
+When explaining steps or sequences:
+- You MUST use numbered lists starting with "1. ", "2. "
+
+Never place dashes, titles, or labels outside <json>.
+Never place a dash on a line by itself.
 
 
 REQUIRED SCHEMA:
@@ -895,10 +1088,15 @@ REQUIRED SCHEMA:
 
 RULES:
 - ${sectionRules}
-- Each section explains ONE idea
+- Each section must have a clear heading and matching content
+- CRITICAL: JSON string values MUST be valid JSON strings.
+  - Do NOT include raw line breaks inside strings.
+  - If you need a new line inside "content", use "\\n" (two characters) inside the string.
 - Scriptures must SUPPORT the content
 - No verse dumping
 - No repetition
+- When explaining multiple points, ALWAYS use bullets or numbers
+- Never separate a heading and its content with a dash line
 - Natural paragraph flow
 - ${isTelugu ? "పూర్తిగా తెలుగులో మాత్రమే ఇవ్వండి." : "English only."}
 
@@ -948,41 +1146,53 @@ ${getFormattingRules(answerDepth)}
       
       let parsed: ChatbotAnswer;
 
-try {
-  const jsonText = extractJsonObject(response.text);
-  parsed = JSON.parse(jsonText);
-} catch {
-  // 🔁 AUTO-RECOVERY FALLBACK
-  parsed = {
-    sections: [
-      {
-        heading: currentModelLang === "TE" ? "వివరణ" : "Explanation",
-        content: normalizeText(response.text),
-        scriptures: []
+      // 1️⃣ Try strict <json> extraction first
+      const strictJson = extractJsonFromSentinel(response.text);
+      
+      if (strictJson) {
+        const repaired = tryRepairJson(strictJson);
+        const attempt = safeJsonParse<ChatbotAnswer>(repaired);
+      
+        if (attempt.ok && Array.isArray(attempt.value.sections)) {
+          parsed = attempt.value;
+        } else {
+          parsed = {
+            sections: recoverSectionsFromText(response.text),
+          };
+        }
+        
+      } else {
+        // 2️⃣ Fallback: try best-effort object extraction
+        const candidate = extractBestJsonCandidate(response.text);
+        const repaired = tryRepairJson(candidate);
+        const attempt = safeJsonParse<ChatbotAnswer>(repaired);
+      
+        if (attempt.ok && Array.isArray(attempt.value.sections)) {
+          parsed = attempt.value;
+        } else {
+          parsed = {
+            sections: recoverSectionsFromText(response.text),
+          };
+        }
       }
-    ]
-  };
-  
-}
+      
+      // Ensure parsed is initialized
+      if (!parsed || !Array.isArray(parsed.sections)) {
+        parsed = {
+          sections: recoverSectionsFromText(response.text),
+        };
+      }
 
-parsed.sections = Array.isArray(parsed.sections)
-  ? parsed.sections
-  : [
-      {
-        heading: currentModelLang === "TE" ? "వివరణ" : "Explanation",
-        content: normalizeText(response.text),
-        scriptures: [],
-      },
-    ];
-
-
+    // Normalize sections
     parsed.sections = parsed.sections.map(sec => ({
       heading: typeof sec.heading === "string" ? sec.heading.trim() : "",
-      content: typeof sec.content === "string" ? sec.content.trim() : "",
+      content:
+        typeof sec.content === "string"
+          ? normalizePlainText(sec.content)
+          : "",
       scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
     }));
     
-
     const botMessage: Message = {
       id: crypto.randomUUID(),
       sender: "bot",
