@@ -52,8 +52,9 @@ export default function NavigationPane(props: Props) {
     versions,
   } = props;
 
-  const isTeluguSingleMode =
-  studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1";
+  
+  // const isTeluguSingleMode =
+  // studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1";
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isBookModal, setIsBookModal] = useState(false);
@@ -133,26 +134,30 @@ const isValidOriginalForBook = (book: string, version?: string) => {
     return book;
   };
   
+  const isTrueParallel =
+  studyMode === "parallel" &&
+  leftVersion !== rightVersion &&
+  isTeluguVersion(leftVersion) !== isTeluguVersion(rightVersion);
 
-const getBookLabelForPicker = (book: string) => {
-  const telugu = TELUGU_BOOK_NAMES[book] || book;
-  const english = book;
-
-  if (studyMode === "single") {
-    return isTeluguVersion(singleVersion) ? telugu : english;
-  }
-
-  // parallel
-  const leftIsTelugu = isTeluguVersion(leftVersion);
-  const rightIsTelugu = isTeluguVersion(rightVersion);
-
-  if (leftIsTelugu === rightIsTelugu) {
-    return leftIsTelugu ? telugu : english;
-  }
-
-  return `${english} / ${telugu}`;
-};
-
+  const getBookLabelForPicker = (book: string) => {
+    const telugu = TELUGU_BOOK_NAMES[book] || book;
+    const english = book;
+  
+    // ✅ SINGLE MODE → language of selected version only
+    if (studyMode === "single") {
+      return isTeluguVersion(singleVersion) ? telugu : english;
+    }
+  
+    // ✅ PARALLEL MODE
+    if (!isTrueParallel) {
+      // same language on both sides
+      return isTeluguVersion(leftVersion) ? telugu : english;
+    }
+  
+    // ✅ TRUE parallel (different languages)
+    return `${english} / ${telugu}`;
+  };
+  
 
 
 const unifiedLabel =
@@ -199,13 +204,11 @@ const unifiedLabel =
     const isTelugu =
       studyMode === "single"
         ? isTeluguVersion(singleVersion)
-        : isTeluguVersion(leftVersion) || isTeluguVersion(rightVersion);
+        : isTeluguVersion(leftVersion);
   
-        return isTelugu
-        ? "font-telugu w-full min-w-0 text-[13px] sm:text-[14px] font-normal truncate leading-tight tracking-[0.15px] text-center"
-        : "w-full min-w-0 text-[14px] sm:text-[15px] font-medium truncate leading-tight text-center";
-      
-      
+    return isTelugu
+      ? "font-telugu w-full min-w-0 text-[13px] sm:text-[14px] font-normal truncate leading-tight tracking-[0.15px] text-center"
+      : "w-full min-w-0 text-[14px] sm:text-[15px] font-medium truncate leading-tight text-center";
   };
   
   
@@ -376,46 +379,67 @@ const unifiedLabel =
             className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center"
             onClick={() => setIsBookModal(false)}
           >
-            <div
-              className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-[92%] max-w-2xl max-h-[85vh] overflow-y-auto p-4 border border-gray-200 dark:border-[#2A2F35]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-  {selectionStep === "BOOK" && (isTeluguSingleMode ? "గ్రంథము ఎంచుకోండి" : "Select Book")}
+<div
+  className="
+    bg-white dark:bg-gray-900
+    rounded-xl shadow-xl
+    w-[92%] max-w-2xl
+    max-h-[85vh]
+    flex flex-col
+    overflow-hidden
+    border border-gray-200 dark:border-[#2A2F35]
+  "
+  onClick={(e) => e.stopPropagation()}
+>
+<div
+  className="
+    flex-shrink-0
+    px-4 py-3
+    border-b border-slate-200 dark:border-white/10
+    bg-white dark:bg-gray-900
+  "
+>
+  <div className="flex items-center justify-between">
+    <div className="min-w-0">
+      <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">
+        {selectionStep === "BOOK" && (isTeluguVersion(singleVersion) ? "గ్రంథము ఎంచుకోండి" : "Select Book")}
+        {selectionStep === "CHAPTER" && (isTeluguVersion(singleVersion) ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter")}
+        {selectionStep === "VERSE" && (isTeluguVersion(singleVersion) ? "వచనం ఎంచుకోండి" : "Select Verse")}
+      </h2>
 
-  {selectionStep === "CHAPTER" && (
-    <>
-      {isTeluguSingleMode ? "అధ్యాయం ఎంచుకోండి" : "Select Chapter"}
-      <span className="block text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
-        {getBookLabelForPicker(tempBook)}
-      </span>
-    </>
-  )}
+      {(selectionStep === "CHAPTER" || selectionStep === "VERSE") && (
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 mt-0.5 truncate">
+          {getBookLabelForPicker(tempBook)}
+          {selectionStep === "VERSE" ? ` • ${tempChapter}` : ""}
+        </p>
+      )}
+    </div>
 
-  {selectionStep === "VERSE" && (
-    <>
-      {isTeluguSingleMode ? "వచనం ఎంచుకోండి" : "Select Verse"}
-      <span className="block text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
-        {getBookLabelForPicker(tempBook)} {tempChapter}
-      </span>
-    </>
-  )}
-</h2>
+    <button
+      onClick={() => setIsBookModal(false)}
+      className="
+        w-9 h-9 flex items-center justify-center
+        rounded-xl
+        text-slate-500 dark:text-white/70
+        hover:bg-slate-100 dark:hover:bg-white/10
+        transition
+      "
+    >
+      <i className="fas fa-times" />
+    </button>
+  </div>
+</div>
+
+<div className="flex-grow overflow-y-auto px-4 py-4">
 
 
-                <button onClick={() => setIsBookModal(false)} className="p-2 text-gray-500">
-                  <i className="fas fa-times" />
-                </button>
-              </div>
-
-              <div className="flex-grow overflow-y-auto p-4">
 
               {selectionStep === "BOOK" && (
   <>
     {/* OLD TESTAMENT */}
-    <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-  {isTeluguSingleMode ? "పాత నిబంధన" : "Old Testament"}
+    <h3 className="mt-1 mb-3 text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
+
+  {isTeluguVersion(singleVersion) ? "పాత నిబంధన" : "Old Testament"}
 </h3>
 
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
@@ -434,34 +458,29 @@ const unifiedLabel =
 "
 
         >
-          {studyMode === "single" ? (
-  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
-
-    {/* Telugu or English main label */}
-    <div className={getBookLabelClass(b.name)}>
-      {getBookLabelForPicker(b.name)}
-    </div>
-
-    {/* ✅ Show English subtitle ONLY when Telugu single mode */}
-    {isTeluguSingleMode && (
-      <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight">
-        {b.name}
-      </div>
-    )}
-  </div>
-) : (
+{isTrueParallel ? (
   <>
-    {/* Telugu */}
     <div className="font-telugu text-[13px] sm:text-[14px] font-medium truncate leading-tight">
       {TELUGU_BOOK_NAMES[b.name]}
     </div>
-
-    {/* English */}
     <div className="text-[12px] sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300 truncate leading-tight">
       {b.name}
     </div>
   </>
+) : (
+  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
+    <div className={getBookLabelClass(b.name)}>
+      {getBookLabelForPicker(b.name)}
+    </div>
+
+    {/* {isTeluguVersion(singleVersion) && (
+      <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight">
+        {b.name}
+      </div>
+    )} */}
+  </div>
 )}
+
 
 
         </button>
@@ -469,8 +488,9 @@ const unifiedLabel =
     </div>
 
     {/* NEW TESTAMENT */}
-    <h3 className="mb-2 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-  {isTeluguSingleMode ? "కొత్త నిబంధన" : "New Testament"}
+    <h3 className="mt-1 mb-3 text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
+
+  {isTeluguVersion(singleVersion) ? "కొత్త నిబంధన" : "New Testament"}
 </h3>
 
 
@@ -490,23 +510,7 @@ const unifiedLabel =
 "
 
         >
-          {studyMode === "single" ? (
-  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
-
-    {/* Telugu or English main label */}
-    <div className={getBookLabelClass(b.name)}>
-      {getBookLabelForPicker(b.name)}
-    </div>
-
-    {/* ✅ Show English subtitle ONLY when Telugu single mode */}
-    {isTeluguSingleMode && (
-      <div className="w-full min-w-0 text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight text-center">
-      {b.name}
-    </div>
-    
-    )}
-  </div>
-) : (
+{isTrueParallel ? (
   <>
     <div className="font-telugu text-[13px] sm:text-[14px] font-semibold truncate leading-tight tracking-[0.2px]">
       {TELUGU_BOOK_NAMES[b.name]}
@@ -515,7 +519,21 @@ const unifiedLabel =
       {b.name}
     </div>
   </>
+) : (
+  <div className="flex flex-col items-center justify-center leading-tight w-full min-w-0">
+    <div className={getBookLabelClass(b.name)}>
+      {getBookLabelForPicker(b.name)}
+    </div>
+
+    {/* {studyMode === "single" && isTeluguVersion(singleVersion) && (
+  <div className="text-[11px] sm:text-[12px] text-slate-500 dark:text-white/50 truncate leading-tight text-center">
+    {b.name}
+  </div>
+)} */}
+
+  </div>
 )}
+
 
         </button>
       ))}
@@ -566,7 +584,7 @@ const unifiedLabel =
 "
 
       >
-        {isTeluguSingleMode ? "వెనక్కి" : "Back"}
+        {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
       </button>
 
       <button
@@ -581,7 +599,7 @@ const unifiedLabel =
 "
 
       >
-        {isTeluguSingleMode ? "మూసివేయి" : "Close"}
+        {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
       </button>
     </div>
   </>
@@ -627,7 +645,7 @@ const unifiedLabel =
       transition-all duration-150
     "
   >
-    {isTeluguSingleMode ? "వెనక్కి" : "Back"}
+    {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
   </button>
 
   <button
@@ -641,7 +659,7 @@ const unifiedLabel =
       transition-all duration-150
     "
   >
-    {isTeluguSingleMode ? "మూసివేయి" : "Close"}
+    {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
   </button>
 </div>
 

@@ -5,3 +5,17 @@
 .font-telugu {
   font-family: "Noto Sans Telugu", system-ui, sans-serif;
 }
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+:root {
+  --app-header-h: 72px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-header-h: 88px;
+  }
+}
