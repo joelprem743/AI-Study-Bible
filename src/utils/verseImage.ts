@@ -54,12 +54,11 @@ export async function generateVerseImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No canvas context");
 
-  /* ---------- BACKGROUND (ALWAYS PAINTED) ---------- */
+  /* ---------- BACKGROUND ---------- */
 
   if (bgBitmap) {
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, 0, width, height);
-
     ctx.drawImage(bgBitmap, 0, 0, width, height);
 
     ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -72,14 +71,22 @@ export async function generateVerseImage(
     ctx.fillRect(0, 0, width, height);
   }
 
-  /* ---------- TEXT ---------- */
+  /* ---------- TEXT LAYOUT ---------- */
 
   const padX = Math.round(width * 0.1);
-  let y = Math.round(height * 0.15);
+  let y = Math.round(height * 0.22); // 🔑 moved down for balance
   const maxW = width - padX * 2;
 
   const fontSize = language === "TE" ? 42 : 44;
   const lineHeight = language === "TE" ? 68 : 64;
+
+  // 🔹 Soft backdrop behind verse (fixes empty look)
+  const backdropHeight = y + 260;
+  const backdrop = ctx.createLinearGradient(0, 0, 0, backdropHeight);
+  backdrop.addColorStop(0, "rgba(0,0,0,0.35)");
+  backdrop.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = backdrop;
+  ctx.fillRect(0, 0, width, backdropHeight);
 
   ctx.font =
     language === "TE"
@@ -120,31 +127,27 @@ export async function generateVerseImage(
 
   ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, padX, y);
 
-/* ---------- FOOTER (WATERMARK) ---------- */
+  /* ---------- FOOTER (WATERMARK) ---------- */
 
-const footerY = height - 96;
+  const footerY = height - 96;
 
-ctx.globalAlpha = 0.65;
+  ctx.globalAlpha = 0.65;
+  ctx.font = "600 26px Inter, system-ui, sans-serif";
+  ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
+  ctx.fillText("Bible Companion", padX, footerY);
 
-// Main title — bigger
-ctx.font = "600 26px Inter, system-ui, sans-serif";
-ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
-ctx.fillText("Bible Companion", padX, footerY);
+  ctx.globalAlpha = 0.55;
+  ctx.font = "400 16px Inter, system-ui, sans-serif";
+  ctx.fillText("by joel prem", padX, footerY + 26);
 
-// Sub text — smaller
-ctx.font = "400 16px Inter, system-ui, sans-serif";
-ctx.globalAlpha = 0.55;
-ctx.fillText("by joel prem", padX, footerY + 26);
+  ctx.globalAlpha = 1;
 
-ctx.globalAlpha = 1;
-
-
-  /* ---------- EXPORT (NON-EMPTY GUARANTEE) ---------- */
+  /* ---------- EXPORT ---------- */
 
   ctx.fillStyle = "rgba(0,0,0,0.01)";
   ctx.fillRect(0, 0, 1, 1);
 
   return new Promise((res, rej) => {
-    canvas.toBlob(b => (b ? res(b) : rej("Export failed")), "image/png");
+    canvas.toBlob((b) => (b ? res(b) : rej("Export failed")), "image/png");
   });
 }
