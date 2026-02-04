@@ -818,6 +818,7 @@ export const VerseTools: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareSheetText, setShareSheetText] = useState("");
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   // Background selection for verse images
   const [isBackgroundSelectorOpen, setIsBackgroundSelectorOpen] = useState(false);
@@ -1251,11 +1252,40 @@ const handleWordSelect = (idx: number) => {
     }
   };
 
+
+
+
   // Open background selector first
   const handleShareAsImageClick = () => {
     setIsBackgroundSelectorOpen(true);
   };
 
+  const handleNativeImageShare = async () => {
+    if (!pendingImageFile) {
+      showToast("Image not ready");
+      return;
+    }
+  
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [pendingImageFile] })) {
+        await navigator.share({
+          files: [pendingImageFile],
+          title: "Bible Verse",
+        });
+      } else {
+        const url = URL.createObjectURL(pendingImageFile);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "verse.png";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      console.error("Native image share failed", e);
+      showToast("Sharing failed");
+    }
+  };
+  
   // Generate and share image with selected background
   const handleShareAsImage = async (backgroundUrl?: string | null) => {
     try {
@@ -1270,84 +1300,56 @@ const handleWordSelect = (idx: number) => {
   
       const file = new File([blob], "verse.png", { type: "image/png" });
   
-      const bookName =
-        language === "TE"
-          ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-          : verseRef.book;
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Bible Verse",
+        });
+      } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "verse.png";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("Image share failed", err);
+      showToast("Failed to share image");
+    }
+  };
   
-      const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+  const handleCopyShareText = () => {
+    const bookName =
+      language === "TE"
+        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+        : verseRef.book;
   
-      const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+    const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-      const shareText =
+    const verseUrl =
+      `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+  
+    const text =
       `${SHARE_CAPTION}\n\n` +
       `${refText}\n\n` +
       `Read full chapter & context:\n` +
       `${verseUrl}`;
-    
   
-      // 🔑 Try native share (best effort)
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: "Bible Verse",
-          text: shareText, // MAY be dropped by target app
-          files: [file],
-        });
-  
-        // ✅ ALWAYS copy link as backup
-        await navigator.clipboard.writeText(shareText);
-
-        // Store text for bottom sheet
-        setShareSheetText(shareText);
-        
-        // Mobile-first explicit UX
-        setShareSheetOpen(true);
-        
-        // Lightweight hint
-        showToast("Link copied");
-        
-  
-        return;
-      }
-  
-      // ---------- Fallback (no native share) ----------
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "verse.png";
-      a.click();
-      URL.revokeObjectURL(url);
-  
-      await navigator.clipboard.writeText(shareText);
-      showToast("Image downloaded. Link copied.");
-  
-    } catch (err) {
-      console.error("Image share failed", err);
-      showToast("Sharing failed. Please try again.");
+    try {
+      navigator.clipboard.writeText(text);
+      showToast("Link copied");
+    } catch (e) {
+      console.error("Clipboard failed", e);
     }
   };
   
-  
-  function normalizeStrongRef(ref: string): string {
-    // Mat.3:1 → Mat 3:1
-    const cleaned = ref.replace(".", " ");
-  
-    const m = cleaned.match(/^([1-3]?\s?[A-Za-z]+)\s+(\d+:\d+(?:-\d+)?)$/);
-    if (!m) return ref;
-  
-    const bookKey = m[1].replace(/\s+/g, "");
-    const rest = m[2];
-  
-    const fullBook = STRONG_BOOK_MAP[bookKey];
-    if (!fullBook) return ref;
-  
-    return `${fullBook} ${rest}`;
-  }
   
 
   /* -------------------------
     loadReferenceText
   ---------------------------*/
+  
   const loadReferenceText = useCallback(
     async (refStringRaw: string) => {
       try {
@@ -2136,7 +2138,7 @@ const handleWordSelect = (idx: number) => {
             key={`${ref}-${start}`}
             role="button"
             className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
-            onClick={() => handleClickReference(normalizeStrongRef(ref))}
+            onClick={() => handleClickReference(normalizeRef(ref))}
           >
             {ref}
           </span>
@@ -3293,26 +3295,62 @@ border border-slate-200 dark:border-white/10
             onClick={() => setIsBackgroundSelectorOpen(false)}
           >
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-11/12 max-w-2xl max-h-[85vh] overflow-y-auto p-6"
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 dark:border-white/10 w-11/12 max-w-2xl max-h-[85vh] overflow-y-auto p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {language === "TE" ? "పరిసర చిత్రాన్ని ఎంచుకోండి" : "Choose Background"}
-                </h3>
-                <button
-                  onClick={() => setIsBackgroundSelectorOpen(false)}
-                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                >
-                  <i className="fas fa-times text-xl" />
-                </button>
-              </div>
+{/* Header – elevated premium */}
+<div
+  className="
+    relative -mx-6 -mt-6 mb-5 px-6 py-4
+    rounded-t-2xl
+    overflow-hidden
+    bg-gradient-to-br
+    from-slate-900 via-slate-800 to-slate-900
+    dark:from-slate-950 dark:via-slate-900 dark:to-slate-950
+    text-white
+  "
+>
+  {/* subtle top light */}
+  <div className="absolute inset-x-0 top-0 h-px bg-white/20" />
 
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-                {language === "TE" 
-                  ? "మీ వచనం చిత్రానికి ఒక పరిసర చిత్రాన్ని ఎంచుకోండి" 
-                  : "Select a background image for your verse"}
-              </p>
+  {/* soft bottom fade into content */}
+  <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/40 to-transparent" />
+
+  {/* inner glass sheen */}
+  <div className="absolute inset-0 bg-white/5 pointer-events-none" />
+
+  <div className="relative flex items-center justify-between">
+    <div>
+      <p
+        className={`text-sm font-semibold tracking-wide ${
+          language === "TE" ? "font-telugu" : ""
+        }`}
+      >
+        {language === "TE"
+          ? "వచనాన్ని అందంగా షేర్ చేయండి"
+          : "Share verse beautifully"}
+      </p>
+
+
+    </div>
+
+    <button
+      onClick={() => setIsBackgroundSelectorOpen(false)}
+      className="
+        w-8 h-8 rounded-full
+        flex items-center justify-center
+        text-white/80 hover:text-white
+        hover:bg-white/10
+        transition
+      "
+      aria-label="Close"
+    >
+      ✕
+    </button>
+  </div>
+</div>
+
+
 
               {/* Background Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
@@ -3329,12 +3367,27 @@ border border-slate-200 dark:border-white/10
                       : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
                   `}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-800 dark:to-slate-900" />
+<div className="absolute inset-0 bg-gradient-to-br 
+  from-indigo-400 via-sky-300 to-blue-500
+  dark:from-indigo-600 dark:via-sky-500 dark:to-blue-700"
+/>
+
+{/* subtle light vignette */}
+<div className="absolute inset-0 bg-gradient-to-t 
+  from-black/25 via-transparent to-white/20"
+/>
+
+{/* noise overlay (fake texture) */}
+<div className="absolute inset-0 opacity-[0.08] 
+  bg-[url('/noise.png')]"
+/>
+
+
                   <div className="absolute inset-0 flex items-center justify-center">
                     <i className="fas fa-palette text-2xl text-slate-400" />
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
-                    {language === "TE" ? "రంగు" : "Gradient"}
+                    {language === "TE" ? "Gradient" : "Gradient"}
                   </div>
                 </button>
 
@@ -3347,10 +3400,15 @@ border border-slate-200 dark:border-white/10
                     }}
                     
                     className={`
-                      relative aspect-square rounded-xl overflow-hidden border-2 transition-all
-                      ${selectedBackground === bg.url 
-                        ? "border-blue-600 ring-2 ring-blue-300" 
-                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
+                      relative aspect-square rounded-xl overflow-hidden border
+shadow-sm
+hover:shadow-md
+transition-all
+ transition-all
+ ${selectedBackground === bg.url
+  ? "ring-2 ring-blue-500/60 border-blue-500"
+  : "border-slate-200 dark:border-slate-700"}
+
                     `}
                   >
                     <img
@@ -3380,24 +3438,55 @@ border border-slate-200 dark:border-white/10
                   </button>
                 ))}
               </div>
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex items-center gap-2 mt-6">
+  {/* Cancel – least emphasis */}
   <button
     onClick={() => setIsBackgroundSelectorOpen(false)}
-    className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400
-               hover:bg-slate-100 dark:hover:bg-slate-800"
+    className={`
+      px-3 py-1.5 rounded-md
+      text-xs font-medium
+      text-slate-500 dark:text-slate-400
+      hover:bg-slate-100 dark:hover:bg-slate-800
+      ${language === "TE" ? "font-telugu" : ""}
+    `}
   >
-    {language === "TE" ? "రద్దు చేయి" : "Cancel"}
+    {language === "TE" ? "రద్దు" : "Cancel"}
   </button>
 
+  {/* Copy link – secondary */}
   <button
-    disabled={selectedBackground === undefined}
-    onClick={() => handleShareAsImage(selectedBackground)}
-    className="px-4 py-2 rounded-lg bg-blue-600 text-white
-               hover:bg-blue-700 disabled:opacity-50"
+    onClick={handleCopyShareText}
+    className={`
+      flex-1 px-3 py-1.5 rounded-md
+      text-xs font-medium
+      border border-slate-300 dark:border-white/20
+      text-slate-700 dark:text-slate-200
+      hover:bg-slate-100 dark:hover:bg-slate-800
+      ${language === "TE" ? "font-telugu" : ""}
+    `}
   >
-    {language === "TE" ? "చిత్రంగా షేర్ చేయి" : "Share Image"}
+    {language === "TE"
+      ? "లింక్ కాపీ చేయి"
+      : "Copy link"}
+  </button>
+
+  {/* Share image – primary */}
+  <button
+    onClick={() => handleShareAsImage(selectedBackground)}
+    className={`
+      flex-1 px-3 py-1.5 rounded-md
+      text-xs font-semibold
+      bg-blue-600 text-white
+      hover:bg-blue-700
+      ${language === "TE" ? "font-telugu" : ""}
+    `}
+  >
+    {language === "TE"
+      ? "చిత్రంగా షేర్ చేయి"
+      : "Share Image"}
   </button>
 </div>
+
 
               
             </div>
@@ -3475,10 +3564,11 @@ Transliteration
       </div>
     </ModalPortal>
   )}
-  <ShareLinkSheet
+<ShareLinkSheet
   open={shareSheetOpen}
   text={shareSheetText}
   onClose={() => setShareSheetOpen(false)}
+  onShareImage={handleNativeImageShare}
 />
 
     </div>
