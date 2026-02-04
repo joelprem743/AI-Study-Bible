@@ -29,6 +29,8 @@ import {
 } from "../services/geminiService";
 
 import { AVAILABLE_VERSIONS } from "../App";
+import ShareLinkSheet from "./ShareLinkSheet";
+
 
 
 /* -------------------------
@@ -810,7 +812,9 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareSheetText, setShareSheetText] = useState("");
+
   // Background selection for verse images
   const [isBackgroundSelectorOpen, setIsBackgroundSelectorOpen] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
@@ -1279,9 +1283,16 @@ const handleWordSelect = (idx: number) => {
   
         // ✅ ALWAYS copy link as backup
         await navigator.clipboard.writeText(shareText);
-  
-        // 🔔 TELL USER (critical)
-        showToast("Link copied — paste it if not visible");
+
+        // Store text for bottom sheet
+        setShareSheetText(shareText);
+        
+        // Mobile-first explicit UX
+        setShareSheetOpen(true);
+        
+        // Lightweight hint
+        showToast("Link copied");
+        
   
         return;
       }
@@ -3451,7 +3462,12 @@ Transliteration
       </div>
     </ModalPortal>
   )}
-  
+  <ShareLinkSheet
+  open={shareSheetOpen}
+  text={shareSheetText}
+  onClose={() => setShareSheetOpen(false)}
+/>
+
     </div>
   );
 };
