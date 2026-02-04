@@ -607,6 +607,26 @@ const ADVANCED_TABS: Tab[] = [
   "Historical Context",
 ];
 
+const GRADIENT_PRESETS = [
+  // Light sky paper
+  { id: "sky", from: "#e0f2fe", to: "#f0f9ff" },
+
+  // Soft lavender parchment
+  { id: "lavender", from: "#ede9fe", to: "#faf5ff" },
+
+  // Warm sunrise paper
+  { id: "peach", from: "#fff1f2", to: "#fffbeb" },
+
+  // Calm mint page
+  { id: "mint", from: "#ecfdf5", to: "#f0fdfa" },
+
+  // Neutral scripture paper (best default)
+  { id: "sand", from: "#f8fafc", to: "#f1f5f9" },
+
+  // Soft blue-gray (WhatsApp-friendly)
+  { id: "cloud", from: "#eef2ff", to: "#f8fafc" },
+];
+
 
 /* -------------------------
   Inline reference regex
@@ -819,6 +839,15 @@ export const VerseTools: React.FC<{
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareSheetText, setShareSheetText] = useState("");
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [selectedGradient, setSelectedGradient] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
+
+  const gradientSectionRef = useRef<HTMLDivElement | null>(null);
+  const [highlightShareCTA, setHighlightShareCTA] = useState(false);
+
+  const shareActionsRef = useRef<HTMLDivElement | null>(null);
 
   // Background selection for verse images
   const [isBackgroundSelectorOpen, setIsBackgroundSelectorOpen] = useState(false);
@@ -1295,9 +1324,10 @@ const handleWordSelect = (idx: number) => {
         verseRef,
         displayVerseText,
         language,
-        backgroundUrl
+        backgroundUrl,
+        selectedGradient
       );
-  
+      
       const file = new File([blob], "verse.png", { type: "image/png" });
   
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -3356,9 +3386,18 @@ border border-slate-200 dark:border-white/10
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
                 {/* Option: No background (gradient) */}
                 <button
-                  onClick={() => {
-                    setSelectedBackground(null);
-                  }}
+  onClick={() => {
+    setSelectedBackground(null);
+
+    // 🔑 Auto-scroll to gradient colors
+    requestAnimationFrame(() => {
+      gradientSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }}
+
                   
                   className={`
                     relative aspect-square rounded-xl overflow-hidden border-2 transition-all
@@ -3397,7 +3436,23 @@ border border-slate-200 dark:border-white/10
                     key={bg.id}
                     onClick={() => {
                       setSelectedBackground(bg.url);
+                      setSelectedGradient(null);
+                    
+                      // Scroll to share actions
+                      requestAnimationFrame(() => {
+                        shareActionsRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "end",
+                        });
+                      });
+                    
+                      // Highlight Share button
+                      setHighlightShareCTA(true);
+                      setTimeout(() => setHighlightShareCTA(false), 1400);
                     }}
+                    
+                    
+                    
                     
                     className={`
                       relative aspect-square rounded-xl overflow-hidden border
@@ -3438,7 +3493,53 @@ transition-all
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 mt-6">
+              {/* Gradient color presets – shown only for Gradient */}
+              {selectedBackground === null && (
+  <div ref={gradientSectionRef} className="mt-2 mb-4" >
+
+    <p
+      className={`text-xs font-semibold mb-2 text-slate-600 dark:text-slate-300 ${
+        language === "TE" ? "font-telugu" : ""
+      }`}
+    >
+      {language === "TE" ? "గ్రాడియెంట్ రంగులు" : "Gradient colors"}
+    </p>
+
+    <div className="flex gap-3 overflow-x-auto pb-2">
+      {GRADIENT_PRESETS.map((g) => {
+        const active =
+          selectedGradient?.from === g.from &&
+          selectedGradient?.to === g.to;
+
+        return (
+          <button
+            key={g.id}
+            onClick={() => setSelectedGradient({ from: g.from, to: g.to })}
+            className={`
+              w-14 h-14 rounded-xl flex-shrink-0
+              border-2 transition
+              ${
+                active
+                  ? "border-blue-600 ring-2 ring-blue-400"
+                  : "border-slate-200 dark:border-slate-700"
+              }
+            `}
+            style={{
+              background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+            }}
+            aria-label={`Gradient ${g.id}`}
+          />
+        );
+      })}
+    </div>
+  </div>
+)}
+
+              <div
+  ref={shareActionsRef}
+  className="flex items-center gap-2 mt-6"
+>
+
   {/* Cancel – least emphasis */}
   <button
     onClick={() => setIsBackgroundSelectorOpen(false)}
@@ -3472,15 +3573,21 @@ transition-all
 
   {/* Share image – primary */}
   <button
-    onClick={() => handleShareAsImage(selectedBackground)}
-    className={`
-      flex-1 px-3 py-1.5 rounded-md
-      text-xs font-semibold
-      bg-blue-600 text-white
-      hover:bg-blue-700
-      ${language === "TE" ? "font-telugu" : ""}
-    `}
-  >
+  onClick={() => handleShareAsImage(selectedBackground)}
+  className={`
+    flex-1 px-3 py-1.5 rounded-md
+    text-xs font-semibold
+    bg-blue-600 text-white
+    hover:bg-blue-700
+    transition-all
+
+    ${highlightShareCTA
+      ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 animate-pulse"
+      : ""
+    }
+  `}
+>
+
     {language === "TE"
       ? "చిత్రంగా షేర్ చేయి"
       : "Share Image"}

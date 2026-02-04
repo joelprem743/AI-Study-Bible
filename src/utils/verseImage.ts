@@ -18,8 +18,10 @@ export async function generateVerseImage(
   verseRef: VerseReference,
   verseText: string,
   language: "EN" | "TE",
-  backgroundImageUrl?: string | null
+  backgroundImageUrl?: string | null,
+  gradient?: { from: string; to: string } | null
 ): Promise<Blob> {
+
   if (!verseText.trim()) throw new Error("Empty verse");
 
   if ((document as any).fonts?.ready) {
@@ -64,9 +66,16 @@ export async function generateVerseImage(
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.fillRect(0, 0, width, height);
   } else {
-    const g = ctx.createLinearGradient(0, 0, 0, height);
-    g.addColorStop(0, "#e2e8f0");
-    g.addColorStop(1, "#cbd5e1");
+    const g = ctx.createLinearGradient(0, 0, width, height);
+
+    if (gradient) {
+      g.addColorStop(0, gradient.from);
+      g.addColorStop(1, gradient.to);
+    } else {
+      g.addColorStop(0, "#e2e8f0");
+      g.addColorStop(1, "#cbd5e1");
+    }
+    
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, width, height);
   }
