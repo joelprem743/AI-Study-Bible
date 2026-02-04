@@ -120,12 +120,24 @@ export async function generateVerseImage(
 
   ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, padX, y);
 
-  /* ---------- FOOTER ---------- */
+/* ---------- FOOTER (WATERMARK) ---------- */
 
-  ctx.globalAlpha = 0.6;
-  ctx.font = "24px Inter, system-ui, sans-serif";
-  ctx.fillText("AI Study Bible", padX, height - 80);
-  ctx.globalAlpha = 1;
+const footerY = height - 96;
+
+ctx.globalAlpha = 0.65;
+
+// Main title — bigger
+ctx.font = "600 26px Inter, system-ui, sans-serif";
+ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
+ctx.fillText("Bible Companion", padX, footerY);
+
+// Sub text — smaller
+ctx.font = "400 16px Inter, system-ui, sans-serif";
+ctx.globalAlpha = 0.55;
+ctx.fillText("by joel prem", padX, footerY + 26);
+
+ctx.globalAlpha = 1;
+
 
   /* ---------- EXPORT (NON-EMPTY GUARANTEE) ---------- */
 
