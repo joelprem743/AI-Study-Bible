@@ -713,6 +713,10 @@ const STRONG_REF_REGEX =
     },
   } as const;
 
+  const SHARE_CAPTION =
+  "📖 Bible Companion — read with context\n" +
+  "https://ai-study-bible.vercel.app";
+
   const lockScroll = () => {
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
@@ -1215,7 +1219,14 @@ const handleWordSelect = (idx: number) => {
   
     const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-    const message = `${ref}\n${correctText}\n\n${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+    const verseUrl =
+    `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+  
+  const message =
+    `${ref}\n` +
+    `${correctText}\n\n` +
+    `${SHARE_CAPTION}\n\n`;
+
   
     const shareData = {
       title: "Bible Verse",
@@ -1269,9 +1280,11 @@ const handleWordSelect = (idx: number) => {
       const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
   
       const shareText =
-        `${refText}\n\n` +
-        `Read full chapter & context:\n` +
-        `${verseUrl}`;
+      `${SHARE_CAPTION}\n\n` +
+      `${refText}\n\n` +
+      `Read full chapter & context:\n` +
+      `${verseUrl}`;
+    
   
       // 🔑 Try native share (best effort)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
