@@ -781,6 +781,10 @@ export const VerseTools: React.FC<{
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  
+  // Background selection for verse images
+  const [isBackgroundSelectorOpen, setIsBackgroundSelectorOpen] = useState(false);
+  const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
 
   const verseContainerRef = useRef<HTMLDivElement | null>(null);
 const [isLongVerse, setIsLongVerse] = useState(false);
@@ -792,6 +796,20 @@ const [isLongVerse, setIsLongVerse] = useState(false);
 
   const [previewHighlight, setPreviewHighlight] =
   useState<string | null>(null);
+
+  // Nature background images for verse sharing
+  const NATURE_BACKGROUNDS = [
+    { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
+    { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
+    { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
+    { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
+    { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
+    { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
+    { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
+    { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
+    { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
+    { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
+  ];
 
 
 
@@ -1189,12 +1207,21 @@ const handleWordSelect = (idx: number) => {
     }
   };
 
-  const handleShareAsImage = async () => {
+  // Open background selector first
+  const handleShareAsImageClick = () => {
+    setIsBackgroundSelectorOpen(true);
+  };
+
+  // Generate and share image with selected background
+  const handleShareAsImage = async (backgroundUrl?: string | null) => {
     try {
+      setIsBackgroundSelectorOpen(false);
+      
       const blob = await generateVerseImage(
         verseRef,
         displayVerseText,
-        language
+        language,
+        backgroundUrl
       );
   
       const file = new File([blob], "verse.png", { type: "image/png" });
@@ -2528,7 +2555,7 @@ if (cached) {
         <button
   onClick={() => {
     setMenuOpen(false);
-    handleShareAsImage();
+    handleShareAsImageClick();
   }}
   className="w-full px-4 py-2 flex items-center gap-3 text-left 
              text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60"
@@ -3105,6 +3132,11 @@ className="
     <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          // Process raw text nodes to make references clickable
+          text({ children }) {
+            // ReactMarkdown passes text as string, but handle all cases
+            return <>{renderNodeWithRefs(children)}</>;
+          },
           h1({ children }) {
             return (
               <h1 className="text-xl font-bold mt-4 mb-2">
@@ -3121,24 +3153,15 @@ className="
           },
 
           p({ children }) {
-            const text =
-              typeof children === "string" ? children.trim() : "";
-          
-            const isLikelyHeading =
-              text.length < 30 &&
-              !text.endsWith(".");
-          
-            if (isLikelyHeading) {
-              return (
-                <p className="font-bold text-base mt-4 mb-1">
-                  {children}
-                </p>
-              );
-            }
-          
+            // Let ReactMarkdown handle headings via # syntax
+            // Don't auto-bold short paragraphs - too aggressive
             return <p>{renderNodeWithRefs(children)}</p>;
-          }
+          },
           
+          // Also handle list items
+          li({ children }) {
+            return <li>{renderNodeWithRefs(children)}</li>;
+          }
           
         }}
       >
@@ -3200,6 +3223,134 @@ border border-slate-200 dark:border-white/10
           </div>
         </ModalPortal>
       )}
+
+      {/* Background Selector Modal */}
+      {isBackgroundSelectorOpen && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+            onClick={() => setIsBackgroundSelectorOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-11/12 max-w-2xl max-h-[85vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {language === "TE" ? "పరిసర చిత్రాన్ని ఎంచుకోండి" : "Choose Background"}
+                </h3>
+                <button
+                  onClick={() => setIsBackgroundSelectorOpen(false)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <i className="fas fa-times text-xl" />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                {language === "TE" 
+                  ? "మీ వచనం చిత్రానికి ఒక పరిసర చిత్రాన్ని ఎంచుకోండి" 
+                  : "Select a background image for your verse"}
+              </p>
+
+              {/* Background Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+                {/* Option: No background (gradient) */}
+                <button
+                  onClick={() => {
+                    setSelectedBackground(null);
+                  }}
+                  
+                  className={`
+                    relative aspect-square rounded-xl overflow-hidden border-2 transition-all
+                    ${selectedBackground === null 
+                      ? "border-blue-600 ring-2 ring-blue-300" 
+                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
+                  `}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-800 dark:to-slate-900" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <i className="fas fa-palette text-2xl text-slate-400" />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
+                    {language === "TE" ? "రంగు" : "Gradient"}
+                  </div>
+                </button>
+
+                {/* Nature backgrounds */}
+                {NATURE_BACKGROUNDS.map((bg) => (
+                  <button
+                    key={bg.id}
+                    onClick={() => {
+                      setSelectedBackground(bg.url);
+                    }}
+                    
+                    className={`
+                      relative aspect-square rounded-xl overflow-hidden border-2 transition-all
+                      ${selectedBackground === bg.url 
+                        ? "border-blue-600 ring-2 ring-blue-300" 
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
+                    `}
+                  >
+                    <img
+                      src={bg.url}
+                      alt={bg.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback if image doesn't exist
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
+                              <i class="fas fa-image text-3xl text-blue-400"></i>
+                            </div>
+                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
+                              ${bg.name}
+                            </div>
+                          `;
+                        }
+                      }}
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
+                      {bg.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+  <button
+    onClick={() => setIsBackgroundSelectorOpen(false)}
+    className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400
+               hover:bg-slate-100 dark:hover:bg-slate-800"
+  >
+    {language === "TE" ? "రద్దు చేయి" : "Cancel"}
+  </button>
+
+  <button
+    disabled={selectedBackground === undefined}
+    onClick={() => handleShareAsImage(selectedBackground)}
+    className="px-4 py-2 rounded-lg bg-blue-600 text-white
+               hover:bg-blue-700 disabled:opacity-50"
+  >
+    {language === "TE" ? "చిత్రంగా షేర్ చేయి" : "Share Image"}
+  </button>
+</div>
+
+              {/* <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setIsBackgroundSelectorOpen(false)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                >
+                  {language === "TE" ? "రద్దు చేయి" : "Cancel"}
+                </button>
+              </div> */}
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
       {strongPopup && (
     <ModalPortal>
       <div

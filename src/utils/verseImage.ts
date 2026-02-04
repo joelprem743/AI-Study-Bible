@@ -1,101 +1,138 @@
-// src/utils/verseImage.ts
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { VerseReference } from "..";
+
+const MAX_CANVAS = 2048;
+
+async function loadBitmap(url: string): Promise<ImageBitmap> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("Image fetch failed");
+
+  const blob = await res.blob();
+  if (!blob.size) throw new Error("Empty image blob");
+
+  return await createImageBitmap(blob);
+}
 
 export async function generateVerseImage(
   verseRef: VerseReference,
   verseText: string,
-  language: "EN" | "TE"
+  language: "EN" | "TE",
+  backgroundImageUrl?: string | null
 ): Promise<Blob> {
-  const canvas = document.createElement("canvas");
+  if (!verseText.trim()) throw new Error("Empty verse");
 
-  const width = 1080;
-  const height = 1080;
+  if ((document as any).fonts?.ready) {
+    await (document as any).fonts.ready;
+  }
+
+  let bgBitmap: ImageBitmap | null = null;
+  let width = 1080;
+  let height = 1080;
+
+  if (backgroundImageUrl) {
+    try {
+      bgBitmap = await loadBitmap(backgroundImageUrl);
+
+      const scale = Math.min(
+        MAX_CANVAS / bgBitmap.width,
+        MAX_CANVAS / bgBitmap.height,
+        1
+      );
+
+      width = Math.round(bgBitmap.width * scale);
+      height = Math.round(bgBitmap.height * scale);
+    } catch (e) {
+      console.error("Bitmap load failed, using gradient", e);
+      bgBitmap = null;
+    }
+  }
+
+  const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas not supported");
+  if (!ctx) throw new Error("No canvas context");
 
-  /* ---------------- Background (clean, calm) ---------------- */
-  const bg = ctx.createLinearGradient(0, 0, 0, height);
-  bg.addColorStop(0, "#f8fafc"); // slate-50
-  bg.addColorStop(1, "#eef2f7"); // soft gray
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  /* ---------- BACKGROUND (ALWAYS PAINTED) ---------- */
 
-  /* ---------------- Padding system ---------------- */
-  const paddingX = 120;
-  let cursorY = 160;
+  if (bgBitmap) {
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, width, height);
 
-  /* ---------------- Fonts ---------------- */
-  const verseFont =
-    language === "TE"
-      ? "42px Noto Serif Telugu, serif"
-      : "44px Inter, system-ui, sans-serif";
+    ctx.drawImage(bgBitmap, 0, 0, width, height);
 
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, height);
+    g.addColorStop(0, "#e2e8f0");
+    g.addColorStop(1, "#cbd5e1");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  /* ---------- TEXT ---------- */
+
+  const padX = Math.round(width * 0.1);
+  let y = Math.round(height * 0.15);
+  const maxW = width - padX * 2;
+
+  const fontSize = language === "TE" ? 42 : 44;
   const lineHeight = language === "TE" ? 68 : 64;
-  const maxWidth = width - paddingX * 2;
 
-  ctx.fillStyle = "#0f172a"; // slate-900
-  ctx.textAlign = "left";
+  ctx.font =
+    language === "TE"
+      ? `${fontSize}px Noto Serif Telugu, serif`
+      : `${fontSize}px Inter, system-ui, sans-serif`;
+
+  ctx.fillStyle = bgBitmap ? "#ffffff" : "#0f172a";
   ctx.textBaseline = "top";
 
-  /* ---------------- Verse Text ---------------- */
-  ctx.font = verseFont;
+  if (bgBitmap) {
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+  }
 
-  const words = verseText.split(" ");
   let line = "";
-
-  for (const word of words) {
-    const testLine = line + word + " ";
-    const { width: w } = ctx.measureText(testLine);
-
-    if (w > maxWidth) {
-      ctx.fillText(line, paddingX, cursorY);
-      line = word + " ";
-      cursorY += lineHeight;
+  for (const w of verseText.split(/\s+/)) {
+    const t = line + w + " ";
+    if (ctx.measureText(t).width > maxW) {
+      ctx.fillText(line, padX, y);
+      line = w + " ";
+      y += lineHeight;
     } else {
-      line = testLine;
+      line = t;
     }
   }
+  if (line) ctx.fillText(line, padX, y);
 
-  if (line) {
-    ctx.fillText(line, paddingX, cursorY);
-    cursorY += lineHeight;
-  }
+  /* ---------- REFERENCE ---------- */
 
-  /* ---------------- Divider ---------------- */
-  cursorY += 40;
-  ctx.strokeStyle = "#cbd5e1"; // slate-300
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(paddingX, cursorY);
-  ctx.lineTo(width - paddingX, cursorY);
-  ctx.stroke();
+  y += lineHeight + 40;
+  ctx.font = "500 32px Inter, system-ui, sans-serif";
 
-  /* ---------------- Reference ---------------- */
-  cursorY += 40;
-
-  const bookName =
+  const book =
     language === "TE"
       ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
       : verseRef.book;
 
-  const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+  ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, padX, y);
 
-  ctx.font = "500 32px Inter, system-ui, sans-serif";
-  ctx.fillStyle = "#334155"; // slate-700
-  ctx.fillText(refText, paddingX, cursorY);
+  /* ---------- FOOTER ---------- */
 
-  /* ---------------- Footer (minimal branding) ---------------- */
   ctx.globalAlpha = 0.6;
   ctx.font = "24px Inter, system-ui, sans-serif";
-  ctx.fillStyle = "#475569";
-  ctx.fillText("AI Study Bible", paddingX, height - 80);
+  ctx.fillText("AI Study Bible", padX, height - 80);
   ctx.globalAlpha = 1;
 
-  return new Promise((resolve) =>
-    canvas.toBlob((blob) => resolve(blob!), "image/png")
-  );
+  /* ---------- EXPORT (NON-EMPTY GUARANTEE) ---------- */
+
+  ctx.fillStyle = "rgba(0,0,0,0.01)";
+  ctx.fillRect(0, 0, 1, 1);
+
+  return new Promise((res, rej) => {
+    canvas.toBlob(b => (b ? res(b) : rej("Export failed")), "image/png");
+  });
 }
