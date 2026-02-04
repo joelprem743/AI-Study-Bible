@@ -1355,23 +1355,17 @@ const handleWordSelect = (idx: number) => {
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book;
   
-    const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+    const reference = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
     const verseUrl =
       `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
   
     const text =
-      `${SHARE_CAPTION}\n\n` +
-      `${refText}\n\n` +
-      `Read full chapter & context:\n` +
+      `📖 Bible Companion — read with context\n\n` +
+      `${reference} - ${displayVerseText}\n\n` +
       `${verseUrl}`;
   
-    try {
-      navigator.clipboard.writeText(text);
-      showToast("Link copied");
-    } catch (e) {
-      console.error("Clipboard failed", e);
-    }
+    navigator.clipboard.writeText(text);
   };
   
   
