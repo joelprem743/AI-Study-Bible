@@ -1233,10 +1233,15 @@ const handleWordSelect = (idx: number) => {
   
       const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-      const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+      const verseUrl = `${window.location.origin}/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+
   
       // 🔑 THIS is what YouVersion does
-      const shareText = `${refText}\n\n${verseUrl}`;
+      const shareText =
+      `${refText}\n\n` +
+      `Read full chapter & context:\n` +
+      `${verseUrl}`;
+    
   
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
@@ -3338,14 +3343,7 @@ border border-slate-200 dark:border-white/10
   </button>
 </div>
 
-              {/* <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setIsBackgroundSelectorOpen(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
-                >
-                  {language === "TE" ? "రద్దు చేయి" : "Cancel"}
-                </button>
-              </div> */}
+              
             </div>
           </div>
         </ModalPortal>

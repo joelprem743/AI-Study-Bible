@@ -2,6 +2,7 @@ import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { VerseReference } from "..";
 
 const MAX_CANVAS = 2048;
+const SITE_URL = "ai-study-bible.vercel.app";
 
 async function loadBitmap(url: string): Promise<ImageBitmap> {
   const res = await fetch(url, { cache: "no-store" });
@@ -41,8 +42,7 @@ export async function generateVerseImage(
 
       width = Math.round(bgBitmap.width * scale);
       height = Math.round(bgBitmap.height * scale);
-    } catch (e) {
-      console.error("Bitmap load failed, using gradient", e);
+    } catch {
       bgBitmap = null;
     }
   }
@@ -71,16 +71,15 @@ export async function generateVerseImage(
     ctx.fillRect(0, 0, width, height);
   }
 
-  /* ---------- TEXT LAYOUT ---------- */
+  /* ---------- TEXT ---------- */
 
   const padX = Math.round(width * 0.1);
-  let y = Math.round(height * 0.22); // 🔑 moved down for balance
+  let y = Math.round(height * 0.22);
   const maxW = width - padX * 2;
 
   const fontSize = language === "TE" ? 42 : 44;
   const lineHeight = language === "TE" ? 68 : 64;
 
-  // 🔹 Soft backdrop behind verse (fixes empty look)
   const backdropHeight = y + 260;
   const backdrop = ctx.createLinearGradient(0, 0, 0, backdropHeight);
   backdrop.addColorStop(0, "rgba(0,0,0,0.35)");
@@ -127,18 +126,18 @@ export async function generateVerseImage(
 
   ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, padX, y);
 
-  /* ---------- FOOTER (WATERMARK) ---------- */
+  /* ---------- FOOTER (BRANDING + URL) ---------- */
 
-  const footerY = height - 96;
+  const footerY = height - 104;
 
-  ctx.globalAlpha = 0.65;
+  ctx.globalAlpha = 0.7;
   ctx.font = "600 26px Inter, system-ui, sans-serif";
   ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
   ctx.fillText("Bible Companion", padX, footerY);
 
-  ctx.globalAlpha = 0.55;
-  ctx.font = "400 16px Inter, system-ui, sans-serif";
-  ctx.fillText("by joel prem", padX, footerY + 26);
+  ctx.globalAlpha = 0.5;
+  ctx.font = "400 15px Inter, system-ui, sans-serif";
+  ctx.fillText(SITE_URL, padX, footerY + 24);
 
   ctx.globalAlpha = 1;
 
@@ -148,6 +147,6 @@ export async function generateVerseImage(
   ctx.fillRect(0, 0, 1, 1);
 
   return new Promise((res, rej) => {
-    canvas.toBlob((b) => (b ? res(b) : rej("Export failed")), "image/png");
+    canvas.toBlob(b => (b ? res(b) : rej("Export failed")), "image/png");
   });
 }
