@@ -628,6 +628,35 @@ const INLINE_REF_RENDER_REGEX = new RegExp(
   "gu"
 );
 
+const showToast = (message: string, duration = 3000) => {
+  const toast = document.createElement("div");
+  toast.textContent = message;
+
+  toast.style.position = "fixed";
+  toast.style.bottom = "20px";
+  toast.style.left = "50%";
+  toast.style.transform = "translateX(-50%)";
+  toast.style.background = "rgba(0,0,0,0.85)";
+  toast.style.color = "#fff";
+  toast.style.padding = "10px 16px";
+  toast.style.borderRadius = "999px";
+  toast.style.fontSize = "14px";
+  toast.style.zIndex = "10000";
+  toast.style.boxShadow = "0 10px 25px rgba(0,0,0,0.3)";
+  toast.style.opacity = "0";
+  toast.style.transition = "opacity 200ms ease";
+
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 200);
+  }, duration);
+};
 
 
 
@@ -1216,7 +1245,7 @@ const handleWordSelect = (idx: number) => {
   const handleShareAsImage = async (backgroundUrl?: string | null) => {
     try {
       setIsBackgroundSelectorOpen(false);
-      
+  
       const blob = await generateVerseImage(
         verseRef,
         displayVerseText,
@@ -1233,27 +1262,31 @@ const handleWordSelect = (idx: number) => {
   
       const refText = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-      const verseUrl = `${window.location.origin}/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
-
+      const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
   
-      // 🔑 THIS is what YouVersion does
       const shareText =
-      `${refText}\n\n` +
-      `Read full chapter & context:\n` +
-      `${verseUrl}`;
-    
+        `${refText}\n\n` +
+        `Read full chapter & context:\n` +
+        `${verseUrl}`;
   
+      // 🔑 Try native share (best effort)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: "Bible Verse",
-          text: shareText,   // ✅ URL OUTSIDE the image
-          files: [file],     // ✅ Image
+          text: shareText, // MAY be dropped by target app
+          files: [file],
         });
+  
+        // ✅ ALWAYS copy link as backup
+        await navigator.clipboard.writeText(shareText);
+  
+        // 🔔 TELL USER (critical)
+        showToast("Link copied — paste it if not visible");
+  
         return;
       }
   
-      // ---------- Fallback ----------
-      // Download image
+      // ---------- Fallback (no native share) ----------
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1261,13 +1294,12 @@ const handleWordSelect = (idx: number) => {
       a.click();
       URL.revokeObjectURL(url);
   
-      // Copy verse + URL
       await navigator.clipboard.writeText(shareText);
-// silent fallback – no blocking UI
-
-      
+      showToast("Image downloaded. Link copied.");
+  
     } catch (err) {
       console.error("Image share failed", err);
+      showToast("Sharing failed. Please try again.");
     }
   };
   
