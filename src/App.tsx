@@ -672,8 +672,7 @@ useEffect(() => {
       {loading ? (
         <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
       ) : (
-        <div className="flex flex-col h-screen pt-14 md:pt-16">
-
+        <div className="flex flex-col h-screen">
 
 {showWelcome && (
   <WelcomeScreen
@@ -705,19 +704,13 @@ useEffect(() => {
 
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
-<header
-  className="
-    fixed top-0 left-0 right-0
-    bg-slate-900 dark:bg-slate-950
-    px-3 py-2 md:px-4 md:py-3
-    shadow-md
-    border-b border-white/10
-    flex items-center justify-between
-    z-50
-  "
->
-
-
+          <header className="
+  bg-slate-900 dark:bg-slate-950
+  px-3 py-2 md:px-4 md:py-3
+  shadow-md z-40
+  border-b border-white/10
+  flex items-center justify-between
+">
 
             {/* Left: Logo + Title (single source of truth) */}
 <div className="flex items-center gap-2">
@@ -961,8 +954,7 @@ backdrop-blur-xl
                 <div className="w-full md:w-2/3 flex flex-col min-h-0">
 
                   {/* NavigationPane remains visible (sticky) and outside the scripture scroll area */}
-                  <div className="sticky top-0 z-40">
-
+                  <div className="mt-0">
                   <NavigationPane
   selectedBook={selectedBook}
   selectedChapter={selectedChapter}
@@ -989,7 +981,7 @@ backdrop-blur-xl
                   </div>
 
                   {/* ScriptureDisplay should be the only scrollable area inside the left column */}
-                  <div className="flex-grow min-h-0 overflow-y-auto">
+                  <div className="flex-grow min-h-0 overflow-hidden">
                     <ScriptureDisplay
                       bookName={selectedBook}
                       chapterNum={selectedChapter}
