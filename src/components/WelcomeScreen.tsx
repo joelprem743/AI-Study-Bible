@@ -7,6 +7,9 @@
   import { fetchVerseByRef, BibleVerseRow } from "../lib/bibleVersesService";
   import { sendMessageToLlama } from "../services/geminiService";
   import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+  import VerseImageShare from "./VerseImageShare";
+
+  import ModalPortal from "./ModalPortal";
 
   interface WelcomeScreenProps {
     onDismiss: () => void;
@@ -57,7 +60,24 @@
 
     const [meaning, setMeaning] = useState<string>("");
     const [application, setApplication] = useState<string>("");
-    const isTeluguUI = language === "TE";
+    // const [openImageShare, setOpenImageShare] = useState(false);
+    type ShareStep = "background" | "content" | null;
+
+    const [shareStep, setShareStep] = useState<ShareStep>(null);
+    
+    const [selectedBackground, setSelectedBackground] =
+      useState<string | null>(null);
+    
+    const [selectedGradient, setSelectedGradient] =
+      useState<{ from: string; to: string } | null>(null);
+    
+    // -----------------------------
+// Share Daily Verse state
+// -----------------------------
+
+
+
+const isTeluguUI = language === "TE";
 const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 
 
@@ -101,7 +121,7 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
           );
           if (!cancelled) setVerseRow(v);
         } catch (err) {
-          console.warn("Verse fetch failed, fallback to KJV:", err);
+          console.warn("Verse fetch failed, fallback to ESV:", err);
 
           try {
             const fallback = await fetchVerseByRef(
@@ -238,6 +258,7 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
       });
     };
 
+
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
 
@@ -346,22 +367,32 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 </p>
 
     
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                  <p
-  className={`
-    text-sm text-slate-600 dark:text-slate-300
-    ${teluguUiClass}
-    ${isTeluguUI ? "font-medium tracking-[0.2px]" : "font-semibold"}
-  `}
->
-  {getDisplayBookName(verseRow.book, language)} {verseRow.chapter}:{verseRow.verse}
-</p>
+<div className="mt-4 flex items-center justify-between gap-3">
+  <p
+    className={`
+      text-sm text-slate-600 dark:text-slate-300
+      ${teluguUiClass}
+      ${isTeluguUI ? "font-medium tracking-[0.2px]" : "font-semibold"}
+    `}
+  >
+    {getDisplayBookName(verseRow.book, language)} {verseRow.chapter}:{verseRow.verse}
+  </p>
 
-    
-                    <span className="text-[10px] px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 font-bold tracking-widest">
-                      {language === "TE" ? "రోజు వాక్యం" : "DAILY VERSE"}
-                    </span>
-                  </div>
+  <div className="flex items-center gap-2">
+  <button
+  onClick={() => setShareStep("background")}
+  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+>
+  {language === "TE" ? "షేర్ చేయి" : "Share"}
+</button>
+
+
+    <span className="text-[10px] px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 font-bold tracking-widest">
+      {language === "TE" ? "రోజు వాక్యం" : "DAILY VERSE"}
+    </span>
+  </div>
+</div>
+
                 </>
               ) : (
                 <p className="text-sm text-red-500">
@@ -466,6 +497,167 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 
         </div>
         </div>
+{/* STEP 2 — Verse / Reflection selector */}
+{shareStep === "content" && verseRow && (
+  <ModalPortal>
+    
+<VerseImageShare
+  verseRef={{
+    book: verseRow.book,
+    chapter: verseRow.chapter,
+    verse: verseRow.verse,
+  }}
+  verseText={verseRow.text}
+  meaning={meaning}              // ✅ THIS WAS MISSING
+  language={language}
+  backgroundUrl={selectedBackground}
+  gradient={selectedGradient}
+  onClose={() => setShareStep(null)}
+  onBack={() => setShareStep("background")}
+/>
+
+
+  </ModalPortal>
+)}
+
+
+{/* STEP 1 — Background / Gradient picker */}
+{shareStep === "background" && verseRow && (
+  <ModalPortal>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={() => setShareStep(null)}
+    >
+<div
+  className="
+    bg-white dark:bg-slate-900
+    rounded-[1.75rem]
+    shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)]
+    w-11/12 max-w-2xl
+    max-h-[85vh] overflow-y-auto
+    p-7
+  "
+        onClick={(e) => e.stopPropagation()}
+      >
+<div
+  className="
+    -mx-7 -mt-7 mb-6
+    px-7 py-5
+    rounded-t-[1.75rem]
+    bg-gradient-to-b from-slate-900 to-slate-800
+    text-white
+    flex items-center justify-between
+  "
+>
+  <div>
+    <h3 className="text-sm font-semibold tracking-wide">
+      {language === "TE"
+        ? "వచనాన్ని అందంగా షేర్ చేయండి"
+        : "Share verse beautifully"}
+    </h3>
+    <p className="text-xs text-slate-300 mt-1">
+      {language === "TE"
+        ? "నేపథ్యాన్ని ఎంచుకోండి"
+        : "Choose a background style"}
+    </p>
+  </div>
+
+  <button
+    onClick={() => setShareStep(null)}
+    className="
+      w-9 h-9 rounded-full
+      bg-white/10 hover:bg-white/20
+      flex items-center justify-center
+      transition
+    "
+    aria-label="Close"
+  >
+    ✕
+  </button>
+</div>
+
+        {/* --- BACKGROUND GRID (10 images) --- */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-8">
+
+          {/* Gradient option */}
+          <button
+            onClick={() => {
+              setSelectedBackground(null);
+              setSelectedGradient({ from: "#eef2ff", to: "#f8fafc" });
+              setShareStep("content");
+            }}
+            className="
+              aspect-square rounded-2xl
+              border border-slate-200 dark:border-slate-700
+              bg-gradient-to-br from-indigo-50 to-slate-100
+              dark:from-slate-800 dark:to-slate-700
+              flex items-center justify-center
+              text-sm font-semibold text-slate-700 dark:text-slate-200
+              hover:scale-[1.03] hover:shadow-md
+              transition
+            "
+          >
+  <span className="text-xl">🎨</span>
+  <span className="text-xs font-semibold opacity-80">
+    Gradient
+  </span>
+            </button>
+          
+
+          {/* Example image placeholders (replace with your real URLs) */}
+          {[
+            "mountain-sunrise",
+            "ocean-waves",
+            "forest-path",
+            "desert-dunes",
+            "mountain-lake",
+            "sunset-fields",
+            "coastal-cliffs",
+            "autumn-forest",
+            "mountain-peak",
+            "peaceful-meadow",
+          ].map((id) => (
+            <button
+              key={id}
+              onClick={() => {
+                setSelectedBackground(`/verse-bg/${id}.png`);
+                setSelectedGradient(null);
+                setShareStep("content");
+              }}
+              className="
+              group aspect-square rounded-2xl overflow-hidden
+              border border-slate-200 dark:border-slate-700
+              hover:scale-[1.03]
+              hover:shadow-lg
+              transition
+            "
+            >
+<img
+  src={`/verse-bg/${id}.png`}
+  className="w-full h-full object-cover group-hover:brightness-105 transition"
+  alt={id}
+/>
+
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setShareStep(null)}
+          className="
+          text-sm font-medium
+          text-slate-500 dark:text-slate-400
+          hover:text-slate-700 dark:hover:text-slate-200
+          transition
+        "
+        >
+          {language === "TE" ? "రద్దు" : "Cancel"}
+        </button>
+      </div>
+    </div>
+  </ModalPortal>
+)}
+
       </div>
     );
     

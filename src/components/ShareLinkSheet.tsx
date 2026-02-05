@@ -1,14 +1,16 @@
 import ModalPortal from "./ModalPortal";
 
 const ShareLinkSheet = ({
-  open,
-  text,
-  onClose,
-}: {
-  open: boolean;
-  text: string;
-  onClose: () => void;
-}) => {
+    open,
+    text,
+    onClose,
+    onShareImage,
+  }: {
+    open: boolean;
+    text: string;
+    onClose: () => void;
+    onShareImage: () => Promise<void>;
+  })   => {
   if (!open) return null;
 
   return (
@@ -51,22 +53,27 @@ const ShareLinkSheet = ({
             "
           />
 
-          <button
-            onClick={async () => {
-              await navigator.clipboard.writeText(text);
-            }}
-            className="
-              mt-4
-              w-full
-              py-2
-              rounded-xl
-              bg-blue-600
-              text-white
-              font-medium
-            "
-          >
-            Copy again
-          </button>
+<button
+  onClick={() => {
+    navigator.clipboard.writeText(text);
+  }}
+  className="mt-4 w-full py-2 rounded-xl bg-blue-600 text-white font-medium"
+>
+  📋 Copy caption & link
+</button>
+
+<button
+  onClick={async () => {
+    await onShareImage();
+  }}
+  className="mt-3 w-full py-2 rounded-xl
+             bg-slate-100 dark:bg-slate-800
+             text-slate-800 dark:text-slate-200
+             font-medium"
+>
+  📤 Share image
+</button>
+
         </div>
       </div>
     </ModalPortal>

@@ -80,75 +80,97 @@ export async function generateVerseImage(
     ctx.fillRect(0, 0, width, height);
   }
 
-  /* ---------- TEXT ---------- */
+/* ---------- TEXT (PREMIUM VERSE LAYOUT) ---------- */
 
-  const padX = Math.round(width * 0.1);
-  let y = Math.round(height * 0.22);
-  const maxW = width - padX * 2;
+const columnWidth = Math.round(width * 0.64); // narrower = elegant
+const startX = Math.round((width - columnWidth) / 2);
+let y = Math.round(height * 0.30);
 
-  const fontSize = language === "TE" ? 42 : 44;
-  const lineHeight = language === "TE" ? 68 : 64;
 
-  const backdropHeight = y + 260;
-  const backdrop = ctx.createLinearGradient(0, 0, 0, backdropHeight);
-  backdrop.addColorStop(0, "rgba(0,0,0,0.35)");
-  backdrop.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = backdrop;
-  ctx.fillRect(0, 0, width, backdropHeight);
+ctx.textBaseline = "top";
+ctx.textAlign = "center";
 
-  ctx.font =
-    language === "TE"
-      ? `${fontSize}px Noto Serif Telugu, serif`
-      : `${fontSize}px Inter, system-ui, sans-serif`;
+// Subtle dark overlay ONLY for photos
+if (bgBitmap) {
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  const overlay = ctx.createLinearGradient(0, 0, 0, height);
+overlay.addColorStop(0, "rgba(0,0,0,0.45)");
+overlay.addColorStop(0.4, "rgba(0,0,0,0.25)");
+overlay.addColorStop(0.7, "rgba(0,0,0,0.05)");
+overlay.addColorStop(1, "rgba(0,0,0,0)");
+ctx.fillStyle = overlay;
+ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = bgBitmap ? "#ffffff" : "#0f172a";
-  ctx.textBaseline = "top";
+}
 
-  if (bgBitmap) {
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetY = 2;
+// Verse typography
+ctx.font =
+  language === "TE"
+    ? "38px Noto Serif Telugu, serif"
+    : "italic 36px Georgia, serif";
+
+ctx.fillStyle = "#ffffff";
+ctx.shadowColor = "rgba(0,0,0,0.4)";
+ctx.shadowBlur = 6;
+ctx.shadowOffsetY = 2;
+
+const lineHeight = language === "TE" ? 64 : 58;
+
+// Word wrapping (centered)
+let line = "";
+for (const word of verseText.split(/\s+/)) {
+  const test = line + word + " ";
+  if (ctx.measureText(test).width > columnWidth) {
+    ctx.fillText(line.trim(), width / 2, y);
+    line = word + " ";
+    y += lineHeight;
+  } else {
+    line = test;
   }
+}
+if (line) {
+  ctx.fillText(line.trim(), width / 2, y);
+  y += lineHeight;
+}
 
-  let line = "";
-  for (const w of verseText.split(/\s+/)) {
-    const t = line + w + " ";
-    if (ctx.measureText(t).width > maxW) {
-      ctx.fillText(line, padX, y);
-      line = w + " ";
-      y += lineHeight;
-    } else {
-      line = t;
-    }
-  }
-  if (line) ctx.fillText(line, padX, y);
+/* ---------- REFERENCE ---------- */
 
-  /* ---------- REFERENCE ---------- */
+y += 36;
 
-  y += lineHeight + 40;
-  ctx.font = "500 32px Inter, system-ui, sans-serif";
+ctx.shadowBlur = 0;
+ctx.globalAlpha = 0.6;
+ctx.font = "500 22px Inter, system-ui, sans-serif";
 
-  const book =
-    language === "TE"
-      ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-      : verseRef.book;
+const book =
+  language === "TE"
+    ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+    : verseRef.book;
 
-  ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, padX, y);
+ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, width / 2, y);
 
-  /* ---------- FOOTER (BRANDING + URL) ---------- */
+ctx.globalAlpha = 1;
+ctx.textAlign = "left";
 
-  const footerY = height - 104;
 
-  ctx.globalAlpha = 0.7;
-  ctx.font = "600 26px Inter, system-ui, sans-serif";
-  ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
-  ctx.fillText("Bible Companion", padX, footerY);
+/* ---------- FOOTER (BRANDING + URL) ---------- */
 
-  ctx.globalAlpha = 0.5;
-  ctx.font = "400 15px Inter, system-ui, sans-serif";
-  ctx.fillText(SITE_URL, padX, footerY + 24);
+const footerY = height - 120;
 
-  ctx.globalAlpha = 1;
+ctx.textAlign = "center";
+ctx.textBaseline = "top";
+
+ctx.globalAlpha = 0.6;
+ctx.font = "600 22px Inter, system-ui, sans-serif";
+ctx.fillStyle = "#ffffff";
+ctx.fillText("Bible Companion", width / 2, footerY);
+
+ctx.globalAlpha = 0.45;
+ctx.font = "400 14px Inter, system-ui, sans-serif";
+ctx.fillText(SITE_URL, width / 2, footerY + 22);
+
+ctx.globalAlpha = 1;
+ctx.textAlign = "left"; // reset
+
 
   /* ---------- EXPORT ---------- */
 
