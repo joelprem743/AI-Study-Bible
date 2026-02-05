@@ -180,9 +180,25 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 
   Rules:
   - meaning: 2–3 simple sentences
+  - meaning MUST be written in second person
+  - meaning must address the reader directly (use "you")
+  - DO NOT explain or describe the verse
+  - DO NOT use teaching language ("learn", "understand", "this shows", "this verse says")
+  - meaning should feel personal, comforting, and direct
+
   - application: 2–3 short practical steps
+  - application MUST also be in second person
+  - application must be actionable for today
+
   - NO emojis
-  - If language is Telugu, output must be fully Telugu (no English)
+  - NO third-person language of any kind
+  - NO meta or commentary tone
+
+  - If language is Telugu:
+    - output must be fully Telugu
+    - MUST use second-person Telugu grammar (నీవు / మీరు)
+    - DO NOT mix English words
+          
 
   Language: ${language === "TE" ? "Telugu" : "English"}
   `.trim();
