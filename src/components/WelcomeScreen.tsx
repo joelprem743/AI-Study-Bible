@@ -25,7 +25,9 @@
 
   type UILang = "EN" | "TE";
   
-
+  const buildVerseUrl = (book: string, chapter: number, verse: number) =>
+    `${window.location.origin}/#/${book}/${chapter}/${verse}`;
+  
   const extractJsonSmart = (text: string) => {
     const sentinel = text.match(/<json>([\s\S]*?)<\/json>/i);
     if (sentinel) return sentinel[1].trim();
@@ -164,44 +166,76 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
           const verseTextForPrompt =
             verseRow?.text || `${daily.book} ${daily.chapter}:${daily.verse}`;
 
-          const prompt = `
-  SYSTEM:
-  Return ONLY valid JSON. No markdown. No extra text.
-
-  Schema:
-  {
-    "meaning": "string",
-    "application": "string"
-  }
-
-  Verse:
-  "${verseTextForPrompt}"
-  Reference: ${daily.book} ${daily.chapter}:${daily.verse}
-
-  Rules:
-  - meaning: 2–3 simple sentences
-  - meaning MUST be written in second person
-  - meaning must address the reader directly (use "you")
-  - DO NOT explain or describe the verse
-  - DO NOT use teaching language ("learn", "understand", "this shows", "this verse says")
-  - meaning should feel personal, comforting, and direct
-
-  - application: 2–3 short practical steps
-  - application MUST also be in second person
-  - application must be actionable for today
-
-  - NO emojis
-  - NO third-person language of any kind
-  - NO meta or commentary tone
-
-  - If language is Telugu:
-    - output must be fully Telugu
-    - MUST use second-person Telugu grammar (నీవు / మీరు)
-    - DO NOT mix English words
-          
-
-  Language: ${language === "TE" ? "Telugu" : "English"}
-  `.trim();
+            const prompt = `
+            SYSTEM:
+            Return ONLY valid JSON.
+            NO markdown.
+            NO extra text.
+            NO explanations.
+            
+            Schema:
+            {
+              "meaning": "string",
+              "application": "string"
+            }
+            
+            Verse:
+            "${verseTextForPrompt}"
+            Reference: ${daily.book} ${daily.chapter}:${daily.verse}
+            
+            GLOBAL RULES (ABSOLUTE):
+            - Output MUST strictly match the JSON schema
+            - Do NOT add extra fields
+            - Do NOT add comments or explanations
+            - Do NOT include text outside JSON
+            - Do NOT quote the verse or restate it
+            
+            VOICE & PERSON RULES (CRITICAL):
+            - Speak ONLY as a narrator addressing the reader
+            - Use ONLY second-person language ("you" / "నీవు")
+            - NEVER speak as God or Jesus
+            - NEVER use first-person divine language ("I", "me", "my", "we", "us", "నా", "నేను", "మేము")
+            - NEVER use collective devotional language ("we", "us", "let us", "మనము")
+            
+            MEANING RULES:
+            - 2–3 short sentences ONLY
+            - MUST be written in second person
+            - MUST directly address the reader
+            - MUST feel personal, comforting, and direct
+            - DO NOT explain the verse
+            - DO NOT paraphrase or summarize the verse
+            - DO NOT teach or analyze theology
+            - DO NOT use phrases like:
+              "this verse", "this passage", "this shows", "this teaches", "learn", "understand"
+            
+            APPLICATION RULES:
+            - 2–3 short practical steps ONLY
+            - MUST be written in second person
+            - MUST be actionable for TODAY
+            - Prefer clear imperative language
+            - NO abstract or vague advice
+            
+            STYLE CONSTRAINTS:
+            - No emojis
+            - No third-person narration
+            - No sermon or preaching tone
+            - Each sentence MAX 20 words
+            - Keep language simple and natural
+            
+            LANGUAGE RULES:
+            - Language: ${language === "TE" ? "Telugu" : "English"}
+            
+            IF LANGUAGE IS TELUGU (STRICT, NON-NEGOTIABLE):
+            - Use ONLY the pronoun "నీవు"
+            - NEVER use "మీరు"
+            - Use ONLY pure Telugu words
+            - DO NOT use English words, loanwords, or transliterations
+            - DO NOT mix scripts
+            - Avoid Sanskrit-heavy constructions
+            - Avoid modern slang
+            - Maintain natural devotional Telugu tone
+            `.trim();
+            
 
           const ai = await sendMessageToLlama(prompt, [], language, "SHORT");
 
@@ -517,15 +551,20 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 {shareStep === "content" && verseRow && (
   <ModalPortal>
     
-<VerseImageShare
+    <VerseImageShare
   verseRef={{
     book: verseRow.book,
     chapter: verseRow.chapter,
     verse: verseRow.verse,
   }}
   verseText={verseRow.text}
-  meaning={meaning}              // ✅ THIS WAS MISSING
+  meaning={meaning}
   language={language}
+  verseUrl={buildVerseUrl(
+    verseRow.book,
+    verseRow.chapter,
+    verseRow.verse
+  )}
   backgroundUrl={selectedBackground}
   gradient={selectedGradient}
   onClose={() => setShareStep(null)}

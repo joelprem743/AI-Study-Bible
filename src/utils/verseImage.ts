@@ -19,9 +19,9 @@ export async function generateVerseImage(
   verseText: string,
   language: "EN" | "TE",
   backgroundImageUrl?: string | null,
-  gradient?: { from: string; to: string } | null
+  gradient?: { from: string; to: string } | null,
+  churchName?: string
 ): Promise<Blob> {
-
   if (!verseText.trim()) throw new Error("Empty verse");
 
   if ((document as any).fonts?.ready) {
@@ -152,25 +152,47 @@ ctx.globalAlpha = 1;
 ctx.textAlign = "left";
 
 
-/* ---------- FOOTER (BRANDING + URL) ---------- */
+/* ---------- FOOTER (ATTRIBUTION + BRANDING + URL) ---------- */
 
-const footerY = height - 120;
+const footerY = height - 140;
 
 ctx.textAlign = "center";
 ctx.textBaseline = "top";
+ctx.fillStyle = "#ffffff";
 
+/* Optional Church Attribution */
+if (churchName && churchName.trim()) {
+  ctx.globalAlpha = 0.6;
+  ctx.font = "400 16px Inter, system-ui, sans-serif";
+
+  const attributionText =
+    language === "TE"
+      ? `— ${churchName} నుండి షేర్ చేయబడింది`
+      : `— Shared by ${churchName}`;
+
+  ctx.fillText(attributionText, width / 2, footerY);
+}
+
+/* App Name */
 ctx.globalAlpha = 0.6;
 ctx.font = "600 22px Inter, system-ui, sans-serif";
-ctx.fillStyle = "#ffffff";
-ctx.fillText("Bible Companion", width / 2, footerY);
+ctx.fillText(
+  "Bible Companion",
+  width / 2,
+  footerY + (churchName ? 22 : 0)
+);
 
+/* URL */
 ctx.globalAlpha = 0.45;
 ctx.font = "400 14px Inter, system-ui, sans-serif";
-ctx.fillText(SITE_URL, width / 2, footerY + 22);
+ctx.fillText(
+  SITE_URL,
+  width / 2,
+  footerY + (churchName ? 44 : 22)
+);
 
 ctx.globalAlpha = 1;
 ctx.textAlign = "left"; // reset
-
 
   /* ---------- EXPORT ---------- */
 
