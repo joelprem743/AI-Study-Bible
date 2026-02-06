@@ -81,8 +81,11 @@ export default function VerseImageShare({
   }, [language, verseText, verseRef, meaning, backgroundUrl, activeGradient]);
 
 
-const handleCopyToClipboard = async () => {
+  const resolvedVerseUrl =
+  verseUrl ??
+  `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
 
+const handleCopyToClipboard = async () => {
   const textToCopy = `
 ${reference}
 
@@ -90,9 +93,9 @@ ${meaning}
 
 📖 Bible Companion — read with context
 
-${verseUrl}
-
+${resolvedVerseUrl}
 `.trim();
+
 
   try {
     await navigator.clipboard.writeText(textToCopy);
