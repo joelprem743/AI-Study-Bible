@@ -7,6 +7,7 @@ interface Props {
     verseText: string;
     meaning: string;               // ✅ ADD THIS
     language: "EN" | "TE";
+    verseUrl: string; // ✅ REQUIRED
     backgroundUrl?: string | null;
     gradient?: { from: string; to: string } | null;
     onClose: () => void;
@@ -26,6 +27,7 @@ export default function VerseImageShare({
     verseText,
     meaning,          // ✅ REQUIRED
     language,
+    verseUrl,
     backgroundUrl,
     gradient: initialGradient,
     onClose,
@@ -37,7 +39,8 @@ export default function VerseImageShare({
   
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  
+  const reference = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+
   
   const [toast, setToast] = useState<{
     message: string;
@@ -75,10 +78,10 @@ export default function VerseImageShare({
     return () => {
       cancelled = true;
     };
-}, [ language, verseText, backgroundUrl, activeGradient]);
+  }, [language, verseText, verseRef, meaning, backgroundUrl, activeGradient]);
+
 
 const handleCopyToClipboard = async () => {
-  const reference = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
 
   const textToCopy = `
 ${reference}
@@ -87,7 +90,8 @@ ${meaning}
 
 📖 Bible Companion — read with context
 
-https://ai-study-bible.vercel.app
+${verseUrl}
+
 `.trim();
 
   try {
@@ -128,7 +132,7 @@ https://ai-study-bible.vercel.app
       try {
         await (navigator as any).share({
           files: [file],
-          text: "Bible Companion\nai-study-bible.vercel.app",
+          text: `${reference}\n\n${meaning}\n\n${verseUrl}`,
         });
         onClose();
         return;

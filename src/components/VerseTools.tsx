@@ -1223,24 +1223,18 @@ const handleWordSelect = (idx: number) => {
   };
 
   const handleShareVerse = async () => {
-    // ALWAYS fetch correct verse fresh (fixes stale/wrong verse bug)
     const chapterData = await fetchChapter(
       verseRef.book,
       verseRef.chapter,
-      language === "TE"
-        ? "TELUGU_COMMUNITY_V1"
-        : bibleVersion
-
+      language === "TE" ? "TELUGU_COMMUNITY_V1" : bibleVersion
     );
-    
+  
     const actual = chapterData.find(v => v.verse === verseRef.verse);
   
-    const correctText =
-  language === "TE"
-    ? actual?.text.TELUGU_COMMUNITY_V1 || actual?.text.KJV || ""
-    : actual?.text[bibleVersion
-    ] || actual?.text.KJV || "";
-
+    const verseText =
+      language === "TE"
+        ? actual?.text.TELUGU_COMMUNITY_V1 || actual?.text.KJV || ""
+        : actual?.text[bibleVersion] || actual?.text.KJV || "";
   
     const bookName =
       language === "TE"
@@ -1249,38 +1243,30 @@ const handleWordSelect = (idx: number) => {
   
     const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-    const verseUrl =
-    `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+    const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
   
-  const message =
-    `${ref}\n` +
-    `${correctText}\n\n` +
-    `${SHARE_CAPTION}\n\n`;
-
+    // 🔑 URL MUST BE ON ITS OWN LINE
+    const message =
+  `${ref}
+  "${verseText}"
   
-    const shareData = {
-      title: "Bible Verse",
-      text: message
-    };
+  📖 Bible Companion — read with context
+  ${verseUrl}`;
   
     if (navigator.share) {
       try {
-        await navigator.share(shareData);
+        await navigator.share({
+          text: message,
+        });
         return;
       } catch (err) {
         console.error("Native share failed:", err);
       }
     }
   
-    try {
-      await navigator.clipboard.writeText(message);
-// silent success – consistent with Copy Verse
-
-    } catch (err) {
-      console.error("Clipboard write failed:", err);
-    }
+    await navigator.clipboard.writeText(message);
   };
-
+  
 
 
 
@@ -1355,19 +1341,19 @@ const handleWordSelect = (idx: number) => {
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book;
   
-    const reference = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
+    const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
   
-    const verseUrl =
-      `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+    const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
   
     const text =
-      `📖 Bible Companion — read with context\n\n` +
-      `${reference} - ${displayVerseText}\n\n` +
-      `${verseUrl}`;
+  `${ref}
+  "${displayVerseText}"
+  
+  📖 Bible Companion — read with context
+  ${verseUrl}`;
   
     navigator.clipboard.writeText(text);
   };
-  
   
 
   /* -------------------------
