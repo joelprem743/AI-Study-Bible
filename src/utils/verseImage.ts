@@ -72,8 +72,8 @@ export async function generateVerseImage(
       g.addColorStop(0, gradient.from);
       g.addColorStop(1, gradient.to);
     } else {
-      g.addColorStop(0, "#e2e8f0");
-      g.addColorStop(1, "#cbd5e1");
+      g.addColorStop(0, "#0f172a"); // slate-900
+      g.addColorStop(1, "#020617"); // near-black      
     }
     
     ctx.fillStyle = g;

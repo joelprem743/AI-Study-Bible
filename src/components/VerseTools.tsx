@@ -608,23 +608,23 @@ const ADVANCED_TABS: Tab[] = [
 ];
 
 const GRADIENT_PRESETS = [
-  // Light sky paper
-  { id: "sky", from: "#e0f2fe", to: "#f0f9ff" },
+  // Midnight blue (default premium)
+  { id: "midnight", from: "#0f172a", to: "#020617" },
 
-  // Soft lavender parchment
-  { id: "lavender", from: "#ede9fe", to: "#faf5ff" },
+  // Deep indigo
+  { id: "indigo", from: "#1e1b4b", to: "#020617" },
 
-  // Warm sunrise paper
-  { id: "peach", from: "#fff1f2", to: "#fffbeb" },
+  // Forest dusk
+  { id: "forest", from: "#022c22", to: "#020617" },
 
-  // Calm mint page
-  { id: "mint", from: "#ecfdf5", to: "#f0fdfa" },
+  // Royal purple
+  { id: "royal", from: "#2e1065", to: "#020617" },
 
-  // Neutral scripture paper (best default)
-  { id: "sand", from: "#f8fafc", to: "#f1f5f9" },
+  // Slate charcoal (WhatsApp-friendly)
+  { id: "charcoal", from: "#1e293b", to: "#020617" },
 
-  // Soft blue-gray (WhatsApp-friendly)
-  { id: "cloud", from: "#eef2ff", to: "#f8fafc" },
+  // Warm night (less cold)
+  { id: "ember", from: "#3f1d0b", to: "#020617" },
 ];
 
 
