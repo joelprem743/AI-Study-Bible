@@ -30,6 +30,7 @@ import {
 
 import { AVAILABLE_VERSIONS } from "../App";
 import ShareLinkSheet from "./ShareLinkSheet";
+import VerseImageShare from "./VerseImageShare";
 
 
 
@@ -608,25 +609,24 @@ const ADVANCED_TABS: Tab[] = [
 ];
 
 const GRADIENT_PRESETS = [
-  // Midnight blue (default premium)
-  { id: "midnight", from: "#0f172a", to: "#020617" },
+  // Soft slate (default – clean & premium)
+  { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
 
-  // Deep indigo
-  { id: "indigo", from: "#1e1b4b", to: "#020617" },
+  // Cool sky
+  { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
 
-  // Forest dusk
-  { id: "forest", from: "#022c22", to: "#020617" },
+  // Lavender calm
+  { id: "lavender", from: "#ede9fe", to: "#ddd6fe" },
 
-  // Royal purple
-  { id: "royal", from: "#2e1065", to: "#020617" },
+  // Mint light
+  { id: "mint", from: "#ecfeff", to: "#cffafe" },
 
-  // Slate charcoal (WhatsApp-friendly)
-  { id: "charcoal", from: "#1e293b", to: "#020617" },
+  // Warm sand
+  { id: "sand", from: "#fffbeb", to: "#fef3c7" },
 
-  // Warm night (less cold)
-  { id: "ember", from: "#3f1d0b", to: "#020617" },
+  // Rose soft
+  { id: "rose", from: "#fff1f2", to: "#ffe4e6" },
 ];
-
 
 /* -------------------------
   Inline reference regex
@@ -843,6 +843,7 @@ export const VerseTools: React.FC<{
     from: string;
     to: string;
   } | null>(null);
+  
 
   const gradientSectionRef = useRef<HTMLDivElement | null>(null);
   const [highlightShareCTA, setHighlightShareCTA] = useState(false);

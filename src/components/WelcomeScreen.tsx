@@ -53,10 +53,14 @@
     onExplainVerse,
   }) => {
     const [language, setLanguage] = useState<UILang>("EN");
+    const gradientPickerRef = React.useRef<HTMLDivElement | null>(null);
 
     const [loadingVerse, setLoadingVerse] = useState(true);
     const [loadingDevotional, setLoadingDevotional] = useState(true);
     
+    type BgMode = "none" | "gradient" | "image";
+
+    const [bgMode, setBgMode] = useState<BgMode>("none");
 
     const [verseRow, setVerseRow] = useState<BibleVerseRow | null>(null);
 
@@ -308,7 +312,15 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
       });
     };
 
-
+    useEffect(() => {
+      if (bgMode === "gradient" && gradientPickerRef.current) {
+        gradientPickerRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }, [bgMode]);
+    
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
 
@@ -430,7 +442,12 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 
   <div className="flex items-center gap-2">
   <button
-  onClick={() => setShareStep("background")}
+  onClick={() => {
+    setBgMode("none");                // 🔑 reset mode
+    setSelectedGradient(null);        // 🔑 reset gradient
+    setSelectedBackground(null);      // 🔑 reset image
+    setShareStep("background");       // open modal
+  }}
   className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
 >
   {language === "TE" ? "షేర్ చేయి" : "Share"}
@@ -631,83 +648,159 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
   </button>
 </div>
 
-        {/* --- BACKGROUND GRID (10 images) --- */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-8">
+{/* --- BACKGROUND TYPE GRID --- */}
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-6">
 
-          {/* Gradient option */}
+  {/* Gradient option */}
+  <button
+  onClick={() => {
+    setBgMode("gradient");
+    setSelectedBackground(null);
+  }}
+  className={`
+    relative aspect-square rounded-xl overflow-hidden border-2 transition-all
+    ${bgMode === "gradient"
+      ? "border-blue-600 ring-2 ring-blue-300"
+      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
+  `}
+>
+  {/* Base gradient */}
+  <div
+    className="
+      absolute inset-0
+      bg-gradient-to-br
+      from-indigo-400 via-sky-300 to-blue-500
+      dark:from-indigo-600 dark:via-sky-500 dark:to-blue-700
+    "
+  />
+
+  {/* Soft vignette */}
+  <div
+    className="
+      absolute inset-0
+      bg-gradient-to-t
+      from-black/25 via-transparent to-white/20
+    "
+  />
+
+  {/* Subtle noise */}
+  <div
+    className="
+      absolute inset-0
+      opacity-[0.08]
+      bg-[url('/noise.png')]
+    "
+  />
+
+  {/* Center icon */}
+  <div className="absolute inset-0 flex items-center justify-center">
+    <i className="fas fa-palette text-2xl text-white/80" />
+  </div>
+
+  {/* Glass footer */}
+  <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm text-white text-xs py-1.5 text-center font-semibold tracking-wide">
+    Gradient
+  </div>
+</button>
+
+
+  {/* Image options */}
+  {[
+    "mountain-sunrise",
+    "ocean-waves",
+    "forest-path",
+    "desert-dunes",
+    "mountain-lake",
+    "sunset-fields",
+    "coastal-cliffs",
+    "autumn-forest",
+    "mountain-peak",
+    "peaceful-meadow",
+  ].map((id) => (
+    <button
+      key={id}
+      onClick={() => {
+        setBgMode("image");
+        setSelectedBackground(`/verse-bg/${id}.png`);
+        setSelectedGradient(null);
+        setShareStep("content");
+      }}
+      className="
+        relative aspect-square rounded-2xl overflow-hidden
+        border border-slate-200 dark:border-slate-700
+        hover:scale-[1.03] hover:shadow-lg
+        transition
+      "
+    >
+      <img
+        src={`/verse-bg/${id}.png`}
+        className="w-full h-full object-cover"
+        alt={id}
+      />
+      <div className="absolute bottom-0 w-full bg-black/60 text-white text-xs py-1 text-center">
+        {id.replace("-", " ")}
+      </div>
+    </button>
+  ))}
+</div>
+
+{/* --- GRADIENT COLORS (ONLY AFTER SELECTING GRADIENT) --- */}
+{bgMode === "gradient" && (
+  <div ref={gradientPickerRef} className="mt-6">
+    <p className="text-xs font-semibold mb-2 text-slate-600">
+      {language === "TE" ? "గ్రాడియెంట్ రంగులు" : "Gradient colors"}
+    </p>
+
+    <div className="overflow-x-auto overflow-y-hidden pb-2">
+      <div className="flex gap-3 flex-nowrap">
+        {[
+          { id: "mist", from: "#f8fafc", to: "#e2e8f0" },
+          { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
+          { id: "meadow", from: "#ecfdf5", to: "#bbf7d0" },
+          { id: "sand", from: "#fffbeb", to: "#fde68a" },
+          { id: "lavender", from: "#f5f3ff", to: "#ddd6fe" },
+        ].map((g) => (
           <button
+            key={g.id}
             onClick={() => {
-              setSelectedBackground(null);
-              setSelectedGradient({ from: "#eef2ff", to: "#f8fafc" });
+              setSelectedGradient({ from: g.from, to: g.to });
               setShareStep("content");
             }}
             className="
-              aspect-square rounded-2xl
-              border border-slate-200 dark:border-slate-700
-              bg-gradient-to-br from-indigo-50 to-slate-100
-              dark:from-slate-800 dark:to-slate-700
-              flex items-center justify-center
-              text-sm font-semibold text-slate-700 dark:text-slate-200
-              hover:scale-[1.03] hover:shadow-md
+              w-14 h-14
+              rounded-xl
+              flex-shrink-0
+              border
+              hover:ring-2 hover:ring-blue-400
               transition
             "
-          >
-  <span className="text-xl">🎨</span>
-  <span className="text-xs font-semibold opacity-80">
-    Gradient
-  </span>
-            </button>
-          
+            style={{
+              background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
-          {/* Example image placeholders (replace with your real URLs) */}
-          {[
-            "mountain-sunrise",
-            "ocean-waves",
-            "forest-path",
-            "desert-dunes",
-            "mountain-lake",
-            "sunset-fields",
-            "coastal-cliffs",
-            "autumn-forest",
-            "mountain-peak",
-            "peaceful-meadow",
-          ].map((id) => (
-            <button
-              key={id}
-              onClick={() => {
-                setSelectedBackground(`/verse-bg/${id}.png`);
-                setSelectedGradient(null);
-                setShareStep("content");
-              }}
-              className="
-              group aspect-square rounded-2xl overflow-hidden
-              border border-slate-200 dark:border-slate-700
-              hover:scale-[1.03]
-              hover:shadow-lg
-              transition
-            "
-            >
-<img
-  src={`/verse-bg/${id}.png`}
-  className="w-full h-full object-cover group-hover:brightness-105 transition"
-  alt={id}
-/>
 
-            </button>
-          ))}
-        </div>
+<button
+  onClick={() => setShareStep(null)}
+  className="
+    mt-6 w-full
+    py-3 rounded-xl
+    text-sm font-semibold
+    text-slate-700 dark:text-slate-200
+    bg-slate-100 dark:bg-slate-800
+    border border-slate-200 dark:border-slate-700
+    hover:bg-slate-200 dark:hover:bg-slate-700
+    transition
+  "
+>
+  {language === "TE" ? "రద్దు" : "Cancel"}
+</button>
 
-        <button
-          onClick={() => setShareStep(null)}
-          className="
-          text-sm font-medium
-          text-slate-500 dark:text-slate-400
-          hover:text-slate-700 dark:hover:text-slate-200
-          transition
-        "
-        >
-          {language === "TE" ? "రద్దు" : "Cancel"}
-        </button>
       </div>
     </div>
   </ModalPortal>

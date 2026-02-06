@@ -79,6 +79,12 @@ export async function generateVerseImage(
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, width, height);
   }
+// ✅ Subtle dark wash ONLY for gradients (keeps white text readable)
+if (!bgBitmap) {
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.fillRect(0, 0, width, height);
+}
+const isImageBackground = !!bgBitmap;
 
 /* ---------- TEXT (PREMIUM VERSE LAYOUT) ---------- */
 
@@ -109,10 +115,28 @@ ctx.font =
     ? "38px Noto Serif Telugu, serif"
     : "italic 36px Georgia, serif";
 
-ctx.fillStyle = "#ffffff";
-ctx.shadowColor = "rgba(0,0,0,0.4)";
-ctx.shadowBlur = 6;
-ctx.shadowOffsetY = 2;
+/* ---------------------------------
+   TEXT COLOR RULE (FINAL)
+   ---------------------------------
+   Image background  → WHITE text
+   Gradient background → BLACK text
+---------------------------------- */
+
+if (bgBitmap) {
+  // 📸 Image background
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+} else {
+  // 🎨 Gradient background
+  ctx.fillStyle = "#0f172a"; // slate-900 (true black)
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+}
+
+
 
 const lineHeight = language === "TE" ? 64 : 58;
 
@@ -138,7 +162,9 @@ if (line) {
 y += 36;
 
 ctx.shadowBlur = 0;
-ctx.globalAlpha = 0.6;
+ctx.globalAlpha = isImageBackground ? 0.6 : 0.85;
+ctx.fillStyle = isImageBackground ? "#ffffff" : "#334155";
+ctx.shadowBlur = 0;
 ctx.font = "500 22px Inter, system-ui, sans-serif";
 
 const book =
@@ -158,16 +184,16 @@ const footerY = height - 140;
 
 ctx.textAlign = "center";
 ctx.textBaseline = "top";
-ctx.fillStyle = "#ffffff";
+const footerColor = isImageBackground ? "#ffffff" : "#0f172a";
 
 /* Optional Church Attribution */
 if (churchName && churchName.trim()) {
-  ctx.globalAlpha = 0.6;
+  ctx.globalAlpha = isImageBackground ? 0.6 : 0.8;
   ctx.font = "400 16px Inter, system-ui, sans-serif";
 
   const attributionText =
     language === "TE"
-      ? `— ${churchName} నుండి షేర్ చేయబడింది`
+      ? `— Shared by ${churchName}`
       : `— Shared by ${churchName}`;
 
   ctx.fillText(attributionText, width / 2, footerY);

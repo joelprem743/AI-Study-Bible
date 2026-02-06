@@ -2,26 +2,34 @@ import React, { useEffect, useState } from "react";
 import { generateVerseImage } from "../utils/verseImage";
 import { VerseReference } from "..";
 
-interface Props {
-    verseRef: VerseReference;
-    verseText: string;
-    meaning: string;               // ✅ ADD THIS
-    language: "EN" | "TE";
-    verseUrl: string; // ✅ REQUIRED
-    backgroundUrl?: string | null;
-    gradient?: { from: string; to: string } | null;
-    onClose: () => void;
-    onBack: () => void;
-  }
+type Props = {
+  verseRef: VerseReference;
+  verseText: string;
+  language: "EN" | "TE";
+
+  // OPTIONAL — VerseTools does not use these
+  meaning?: string;
+  verseUrl?: string;
+
+  backgroundUrl?: string | null;
+  gradient?: { from: string; to: string } | null;
+  churchName?: string;
+
+  onClose: () => void;
+  onBack: () => void;
+};
+
+
+  const GRADIENTS = [
+    { id: "mist", from: "#f8fafc", to: "#e2e8f0" },
+    { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
+    { id: "meadow", from: "#ecfdf5", to: "#bbf7d0" },
+    { id: "sand", from: "#fffbeb", to: "#fde68a" },
+    { id: "lavender", from: "#f5f3ff", to: "#ddd6fe" },
+    { id: "stone", from: "#f1f5f9", to: "#cbd5e1" },
+  ];
   
-
-const GRADIENTS = [
-  { from: "#e2e8f0", to: "#cbd5e1" },
-  { from: "#fef3c7", to: "#fde68a" },
-  { from: "#dcfce7", to: "#bbf7d0" },
-  { from: "#e0f2fe", to: "#bae6fd" },
-];
-
+  
 export default function VerseImageShare({
     verseRef,
     verseText,
