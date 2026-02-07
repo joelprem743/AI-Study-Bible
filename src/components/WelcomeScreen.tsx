@@ -24,7 +24,34 @@
   }
 
   type UILang = "EN" | "TE";
+
+  type VerseTone = "COMFORT" | "WARNING" | "INSTRUCTION" | "PRAISE";
+
+  const looksGeneric = (text: string) =>
+    /feel|comfort|trust|pray|guided|strengthen|closer|walk ahead|not alone|darkness/i.test(text) ||
+    text.split(" ").length < 8;
   
+  // Very lightweight heuristic classifier (good enough)
+const classifyVerseTone = (
+  book: string,
+  chapter: number
+): VerseTone => {
+  // Jesus' rebukes (Matthew 23, etc.)
+  if (book === "Matthew" && chapter >= 23) return "WARNING";
+
+  // Wisdom literature leans instruction
+  if (book === "Proverbs") return "INSTRUCTION";
+
+  // Psalms default to comfort/praise
+  if (book === "Psalms") return "COMFORT";
+
+  // Epistles often instruction
+  if (["Romans", "Philippians"].includes(book)) return "INSTRUCTION";
+
+  // Safe fallback
+  return "COMFORT";
+};
+
   const buildVerseUrl = (book: string, chapter: number, verse: number) =>
     `${window.location.origin}/#/${book}/${chapter}/${verse}`;
   
@@ -53,6 +80,7 @@
     onExplainVerse,
   }) => {
     const [language, setLanguage] = useState<UILang>("EN");
+    const [refreshKey, setRefreshKey] = useState(0);
     const gradientPickerRef = React.useRef<HTMLDivElement | null>(null);
 
     const [loadingVerse, setLoadingVerse] = useState(true);
@@ -163,85 +191,56 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
           return;
         }
 
+        
         // -----------------------------
         // Step 4: Generate devotional via AI
         // -----------------------------
+        const verseTone = classifyVerseTone(daily.book, daily.chapter);
+
         try {
           const verseTextForPrompt =
             verseRow?.text || `${daily.book} ${daily.chapter}:${daily.verse}`;
+        
+            const toneRules =
+            verseTone === "WARNING"
+              ? `
+          WARNING / REBUKE MODE:
+          - Tone must be serious and reflective
+          - Do NOT attempt to comfort
+          - Emphasize truth, integrity, correction, or warning
+          - Avoid soft or reassuring language
+          `
+              : `
+          COMFORT / INSTRUCTION MODE:
+          - Tone may encourage or guide
+          - Do NOT use clichés or vague reassurance
+          `;
+          
+          const prompt = `
+  SYSTEM:
+  Return ONLY valid JSON. No markdown. No extra text.
 
-            const prompt = `
-            SYSTEM:
-            Return ONLY valid JSON.
-            NO markdown.
-            NO extra text.
-            NO explanations.
-            
-            Schema:
-            {
-              "meaning": "string",
-              "application": "string"
-            }
-            
-            Verse:
-            "${verseTextForPrompt}"
-            Reference: ${daily.book} ${daily.chapter}:${daily.verse}
-            
-            GLOBAL RULES (ABSOLUTE):
-            - Output MUST strictly match the JSON schema
-            - Do NOT add extra fields
-            - Do NOT add comments or explanations
-            - Do NOT include text outside JSON
-            - Do NOT quote the verse or restate it
-            
-            VOICE & PERSON RULES (CRITICAL):
-            - Speak ONLY as a narrator addressing the reader
-            - Use ONLY second-person language ("you" / "నీవు")
-            - NEVER speak as God or Jesus
-            - NEVER use first-person divine language ("I", "me", "my", "we", "us", "నా", "నేను", "మేము")
-            - NEVER use collective devotional language ("we", "us", "let us", "మనము")
-            
-            MEANING RULES:
-            - 2–3 short sentences ONLY
-            - MUST be written in second person
-            - MUST directly address the reader
-            - MUST feel personal, comforting, and direct
-            - DO NOT explain the verse
-            - DO NOT paraphrase or summarize the verse
-            - DO NOT teach or analyze theology
-            - DO NOT use phrases like:
-              "this verse", "this passage", "this shows", "this teaches", "learn", "understand"
-            
-            APPLICATION RULES:
-            - 2–3 short practical steps ONLY
-            - MUST be written in second person
-            - MUST be actionable for TODAY
-            - Prefer clear imperative language
-            - NO abstract or vague advice
-            
-            STYLE CONSTRAINTS:
-            - No emojis
-            - No third-person narration
-            - No sermon or preaching tone
-            - Each sentence MAX 20 words
-            - Keep language simple and natural
-            
-            LANGUAGE RULES:
-            - Language: ${language === "TE" ? "Telugu" : "English"}
-            
-            IF LANGUAGE IS TELUGU (STRICT, NON-NEGOTIABLE):
-            - Use ONLY the pronoun "నీవు"
-            - NEVER use "మీరు"
-            - Use ONLY pure Telugu words
-            - DO NOT use English words, loanwords, or transliterations
-            - DO NOT mix scripts
-            - Avoid Sanskrit-heavy constructions
-            - Avoid modern slang
-            - Maintain natural devotional Telugu tone
-            `.trim();
-            
+  Schema:
+  {
+    "meaning": "string",
+    "application": "string"
+  }
 
-          const ai = await sendMessageToLlama(prompt, [], language, "SHORT");
+  Verse:
+  "${verseTextForPrompt}"
+  Reference: ${daily.book} ${daily.chapter}:${daily.verse}
+
+  Rules:
+  - meaning: 2–3 simple sentences
+  - application: 2–3 short practical steps
+  - NO emojis
+  - If language is Telugu, output must be fully Telugu (no English)
+
+  Language: ${language === "TE" ? "Telugu" : "English"}
+  `.trim();
+          
+          
+            const ai = await sendMessageToLlama(prompt, [], language, "MEDIUM");
 
           const jsonText = extractJsonSmart(ai.text);
           if (!jsonText) throw new Error("AI did not return JSON.");
@@ -251,9 +250,29 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
           const aiMeaning = String(parsed.meaning ?? "").trim();
           const aiApplication = String(parsed.application ?? "").trim();
 
+
           if (!aiMeaning || !aiApplication) {
             throw new Error("AI returned empty meaning/application.");
           }
+          let normalizedMeaning = aiMeaning;
+          let normalizedApplication = aiApplication;
+          
+          // Trim excessive verbosity safely
+          normalizedMeaning = normalizedMeaning
+            .split(/(?<=[.!?])\s+/)
+            .slice(0, 3)
+            .join(" ");
+          
+          normalizedApplication = normalizedApplication
+            .split(/(?<=[.!?])\s+/)
+            .slice(0, 3)
+            .join(" ");
+          
+          // Final safety trim
+          normalizedMeaning = normalizedMeaning.trim();
+          normalizedApplication = normalizedApplication.trim();
+
+          
 
           const patch =
             language === "TE"
@@ -267,20 +286,30 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
             setApplication(aiApplication);
           }
         } catch (err) {
-          console.error("AI devotional generation failed:", err);
+          console.warn("AI devotional normalized:", err);
 
           if (!cancelled) {
             setMeaning(
-              language === "TE"
-                ? "ఈ వాక్యం మన విశ్వాసాన్ని బలపరుస్తుంది."
-                : "This verse strengthens faith."
+              verseTone === "WARNING"
+                ? language === "TE"
+                  ? "నీవు నీ ప్రాధాన్యాలను పరిశీలించవలసి ఉంది."
+                  : "You are called to examine your priorities."
+                : language === "TE"
+                  ? "ఈ వాక్యం నీ విశ్వాసాన్ని స్థిరపరుస్తుంది."
+                  : "This verse offers steady guidance."
             );
+          
             setApplication(
-              language === "TE"
-                ? "ఈ రోజు ఒక పని: ప్రార్థనతో దేవుని మీద నమ్మకం ఉంచండి."
-                : "One step today: pray and choose trust."
+              verseTone === "WARNING"
+                ? language === "TE"
+                  ? "ఈ రోజు ఒక నిర్ణయంలో నిజాయితీని ఎంచుకో."
+                  : "Choose honesty over advantage in one decision today."
+                : language === "TE"
+                  ? "ఈ రోజు ప్రార్థనతో ప్రారంభించు."
+                  : "Begin today with prayer."
             );
           }
+          
         } finally {
           if (!cancelled) setLoadingDevotional(false);
         }
@@ -291,7 +320,7 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
       return () => {
         cancelled = true;
       };
-    }, [language]);
+    }, [language, refreshKey]);
 
     const toggleLanguage = () => {
       setLanguage((prev) => (prev === "EN" ? "TE" : "EN"));

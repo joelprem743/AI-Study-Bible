@@ -17,7 +17,12 @@ export type DailyVerseRow = {
   prayer_te: string | null;
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
+
 
 export const getOrCreateDailyVerse = async (): Promise<DailyVerseRow> => {
   const day = todayISO();
