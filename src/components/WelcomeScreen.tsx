@@ -217,27 +217,33 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
           `;
           
           const prompt = `
-  SYSTEM:
-  Return ONLY valid JSON. No markdown. No extra text.
-
-  Schema:
-  {
-    "meaning": "string",
-    "application": "string"
-  }
-
-  Verse:
-  "${verseTextForPrompt}"
-  Reference: ${daily.book} ${daily.chapter}:${daily.verse}
-
-  Rules:
-  - meaning: 2–3 simple sentences
-  - application: 2–3 short practical steps
-  - NO emojis
-  - If language is Telugu, output must be fully Telugu (no English)
-
-  Language: ${language === "TE" ? "Telugu" : "English"}
-  `.trim();
+          SYSTEM:
+          Return ONLY valid JSON. No markdown. No extra text.
+          
+          Schema:
+          {
+            "meaning": "string",
+            "application": "string"
+          }
+          
+          Verse:
+          "${verseTextForPrompt}"
+          Reference: ${daily.book} ${daily.chapter}:${daily.verse}
+          
+          Rules:
+          - meaning: 2–3 simple sentences
+          - application: 2–3 short practical steps
+          - NO emojis
+          
+          TELUGU LANGUAGE RULES (VERY IMPORTANT):
+          - Use ONLY first-person plural Telugu (మనము, మన, మనకి, మనలో, మన జీవితంలో)
+          - DO NOT use second-person words like:
+            నీవు, నీ, నిన్ను, నువ్వు, నీకు, మాకు, మా,
+          - Write as a shared reflection ("we / us"), never addressing the reader directly
+          
+          Language: ${language === "TE" ? "Telugu" : "English"}
+          `.trim();
+          
           
           
             const ai = await sendMessageToLlama(prompt, [], language, "MEDIUM");
