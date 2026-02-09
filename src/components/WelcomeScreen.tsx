@@ -751,6 +751,19 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
     "autumn-forest",
     "mountain-peak",
     "peaceful-meadow",
+    "bible-cross",
+    "blurry-grass",
+    "blurry-river",
+    "calm-horizon-light",
+    "coastal-view",
+    "dark-desert-distant-cross",
+    "light-gradient-negative-cross",
+    "old-bible",
+    "openbible-top",
+    "soft-desert",
+    "soft-forest-light-rays",
+    "soft-light-implied-cross",
+    "soft-sky-pastel-gradient"
   ].map((id) => (
     <button
       key={id}

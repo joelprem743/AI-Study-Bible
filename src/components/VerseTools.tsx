@@ -881,6 +881,71 @@ const [isLongVerse, setIsLongVerse] = useState(false);
     { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
     { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
     { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
+    {
+      id: "11",
+      name: "Bible Cross",
+      url: "/verse-bg/bible-cross.png",
+    },
+    {
+      id: "12",
+      name: "Blurry Grass",
+      url: "/verse-bg/blurry-grass.png",
+    },
+    {
+      id: "13",
+      name: "Blurry River",
+      url: "/verse-bg/blurry-river.png",
+    },
+    {
+      id: "14",
+      name: "Calm Horizon Light",
+      url: "/verse-bg/calm-horizon-light.png",
+    },
+    {
+      id: "15",
+      name: "Coastal View",
+      url: "/verse-bg/coastal-view.png",
+    },
+    {
+      id: "16",
+      name: "Desert Cross (Dark)",
+      url: "/verse-bg/dark-desert-distant-cross.png",
+    },
+    {
+      id: "17",
+      name: "Light Gradient Cross",
+      url: "/verse-bg/light-gradient-negative-cross.png",
+    },
+    {
+      id: "18",
+      name: "Old Bible",
+      url: "/verse-bg/old-bible.png",
+    },
+    {
+      id: "19",
+      name: "Open Bible (Top View)",
+      url: "/verse-bg/openbible-top.png",
+    },
+    {
+      id: "20",
+      name: "Soft Desert",
+      url: "/verse-bg/soft-desert.png",
+    },
+    {
+      id: "21",
+      name: "Soft Forest Light Rays",
+      url: "/verse-bg/soft-forest-light-rays.png",
+    },
+    {
+      id: "22",
+      name: "Implied Light Cross",
+      url: "/verse-bg/soft-light-implied-cross.png",
+    },
+    {
+      id: "23",
+      name: "Soft Sky Pastel Gradient",
+      url: "/verse-bg/soft-sky-pastel-gradient.png",
+    },
   ];
 
 
