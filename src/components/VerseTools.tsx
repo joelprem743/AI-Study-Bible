@@ -16,7 +16,7 @@ import { findBookMetadata, fetchChapter } from "../services/bibleService";
 import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { useNotes } from "../context/NotesContext";
-import { generateVerseImage } from "../utils/verseImage";
+
 import { sendMessageToLlama } from "../services/geminiService";
 import { fetchNTInterlinear } from "../lib/interlinearService";
 import {
@@ -31,6 +31,7 @@ import {
 import { AVAILABLE_VERSIONS } from "../App";
 import ShareLinkSheet from "./ShareLinkSheet";
 import VerseImageShare from "./VerseImageShare";
+
 
 
 
@@ -838,7 +839,7 @@ export const VerseTools: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareSheetText, setShareSheetText] = useState("");
-  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
   const [selectedGradient, setSelectedGradient] = useState<{
     from: string;
     to: string;
@@ -851,8 +852,12 @@ export const VerseTools: React.FC<{
   const shareActionsRef = useRef<HTMLDivElement | null>(null);
 
   // Background selection for verse images
-  const [isBackgroundSelectorOpen, setIsBackgroundSelectorOpen] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
+
+  type ShareStep = "background" | "content" | null;
+
+const [shareStep, setShareStep] = useState<ShareStep>(null);
+
   // Optional church attribution (VerseTools only)
 const [includeChurchName, setIncludeChurchName] = useState(false);
 const [churchName, setChurchName] = useState("");
@@ -1342,71 +1347,14 @@ const handleWordSelect = (idx: number) => {
 
   // Open background selector first
   const handleShareAsImageClick = () => {
-    setIsBackgroundSelectorOpen(true);
+    setShareStep("background");
   };
-
-  const handleNativeImageShare = async () => {
-    if (!pendingImageFile) {
-      showToast("Image not ready");
-      return;
-    }
   
-    try {
-      if (navigator.share && navigator.canShare?.({ files: [pendingImageFile] })) {
-        await navigator.share({
-          files: [pendingImageFile],
-          title: "Bible Verse",
-        });
-      } else {
-        const url = URL.createObjectURL(pendingImageFile);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "verse.png";
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (e) {
-      console.error("Native image share failed", e);
-      showToast("Sharing failed");
-    }
-  };
+
+
   
   // Generate and share image with selected background
-  const handleShareAsImage = async (backgroundUrl?: string | null) => {
-    try {
-      setIsBackgroundSelectorOpen(false);
-  
-      const blob = await generateVerseImage(
-        verseRef,
-        displayVerseText,
-        language,
-        backgroundUrl,
-        selectedGradient,
-        includeChurchName ? churchName.trim() : undefined
-      );
-      
-      
-      const file = new File([blob], "verse.png", { type: "image/png" });
-  
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "Bible Verse",
-        });
-      } else {
-        const url = URL.createObjectURL(file);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "verse.png";
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error("Image share failed", err);
-      showToast("Failed to share image");
-    }
-  };
-  
+
   const handleCopyShareText = () => {
     const bookName =
       language === "TE"
@@ -3323,19 +3271,15 @@ className="
       {isPreviewOpen && (
         <ModalPortal>
           <div
-  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
-
-  onClick={() => setIsPreviewOpen(false)}
-  style={{ pointerEvents: "auto" }}
-  
-  
->
-
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+            onClick={() => setIsPreviewOpen(false)}
+            style={{ pointerEvents: "auto" }}
+          >
             <div
               className="
                 bg-white dark:bg-slate-900
-p-5 rounded-2xl shadow-2xl
-border border-slate-200 dark:border-white/10
+                p-5 rounded-2xl shadow-2xl
+                border border-slate-200 dark:border-white/10
 
                 w-11/12 max-w-md 
                 max-h-[75vh] 
@@ -3345,16 +3289,14 @@ border border-slate-200 dark:border-white/10
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className={`text-lg font-bold mb-2 ${teluguClass}`}>
-  {displayPreviewRef}
-</h3>
-
+                {displayPreviewRef}
+              </h3>
 
               <p
-  className={`text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words ${
-    isTeluguUI ? "font-telugu" : ""
-  }`}
->
-
+                className={`text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words ${
+                  isTeluguUI ? "font-telugu" : ""
+                }`}
+              >
                 {previewText || "Verse not found."}
               </p>
 
@@ -3369,327 +3311,221 @@ border border-slate-200 dark:border-white/10
         </ModalPortal>
       )}
 
-      {/* Background Selector Modal */}
-      {isBackgroundSelectorOpen && (
+      {/* STEP 1 — Background / Gradient picker for image share */}
+      {shareStep === "background" && (
         <ModalPortal>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
-            onClick={() => setIsBackgroundSelectorOpen(false)}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+            onClick={() => setShareStep(null)}
           >
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 dark:border-white/10 w-11/12 max-w-2xl max-h-[85vh] overflow-y-auto p-6"
+              className="
+                bg-white dark:bg-slate-900
+                rounded-[1.75rem]
+                shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)]
+                w-11/12 max-w-2xl
+                max-h-[85vh] overflow-y-auto
+                p-7
+              "
               onClick={(e) => e.stopPropagation()}
             >
-{/* Header – elevated premium */}
-<div
-  className="
-    relative -mx-6 -mt-6 mb-5 px-6 py-4
-    rounded-t-2xl
-    overflow-hidden
-    bg-gradient-to-br
-    from-slate-900 via-slate-800 to-slate-900
-    dark:from-slate-950 dark:via-slate-900 dark:to-slate-950
-    text-white
-  "
->
-  {/* subtle top light */}
-  <div className="absolute inset-x-0 top-0 h-px bg-white/20" />
+              {/* Header */}
+              <div
+                className="
+                  -mx-7 -mt-7 mb-6
+                  px-7 py-5
+                  rounded-t-[1.75rem]
+                  bg-gradient-to-b from-slate-900 to-slate-800
+                  text-white
+                  flex items-center justify-between
+                "
+              >
+                <div>
+                  <h3 className="text-sm font-semibold tracking-wide">
+                    {language === "TE"
+                      ? "వచనాన్ని అందంగా షేర్ చేయండి"
+                      : "Share verse beautifully"}
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1">
+                    {language === "TE"
+                      ? "బ్యాక్‌గ్రౌండ్ స్టయిల్ ఎంచుకోండి"
+                      : "Choose a background style"}
+                  </p>
+                </div>
 
-  {/* soft bottom fade into content */}
-  <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/40 to-transparent" />
-
-  {/* inner glass sheen */}
-  <div className="absolute inset-0 bg-white/5 pointer-events-none" />
-
-  <div className="relative flex items-center justify-between">
-    <div>
-      <p
-        className={`text-sm font-semibold tracking-wide ${
-          language === "TE" ? "font-telugu" : ""
-        }`}
-      >
-        {language === "TE"
-          ? "వచనాన్ని అందంగా షేర్ చేయండి"
-          : "Share verse beautifully"}
-      </p>
-
-
-    </div>
-
-    <button
-      onClick={() => setIsBackgroundSelectorOpen(false)}
-      className="
-        w-8 h-8 rounded-full
-        flex items-center justify-center
-        text-white/80 hover:text-white
-        hover:bg-white/10
-        transition
-      "
-      aria-label="Close"
-    >
-      ✕
-    </button>
-  </div>
-</div>
-
-
-
-              {/* Background Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
-                {/* Option: No background (gradient) */}
                 <button
-  onClick={() => {
-    setSelectedBackground(null);
+                  onClick={() => setShareStep(null)}
+                  className="
+                    w-9 h-9 rounded-full
+                    bg-white/10 hover:bg-white/20
+                    flex items-center justify-center
+                    transition
+                  "
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
 
-    // 🔑 Auto-scroll to gradient colors
-    requestAnimationFrame(() => {
-      gradientSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  }}
-
-                  
+              {/* Background choices */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-6">
+                {/* Gradient option card */}
+                <button
+                  onClick={() => {
+                    setSelectedBackground(null);
+                    const first = GRADIENT_PRESETS[0];
+                    setSelectedGradient(first);
+                    // scroll to gradient picker section
+                    setTimeout(() => {
+                      if (gradientSectionRef.current) {
+                        gradientSectionRef.current.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      }
+                    }, 0);
+                  }}
                   className={`
                     relative aspect-square rounded-xl overflow-hidden border-2 transition-all
-                    ${selectedBackground === null 
-                      ? "border-blue-600 ring-2 ring-blue-300" 
-                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"}
+                    ${
+                      selectedBackground === null
+                        ? "border-blue-600 ring-2 ring-blue-300"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                    }
                   `}
                 >
-<div className="absolute inset-0 bg-gradient-to-br 
-  from-indigo-400 via-sky-300 to-blue-500
-  dark:from-indigo-600 dark:via-sky-500 dark:to-blue-700"
-/>
-
-{/* subtle light vignette */}
-<div className="absolute inset-0 bg-gradient-to-t 
-  from-black/25 via-transparent to-white/20"
-/>
-
-{/* noise overlay (fake texture) */}
-<div className="absolute inset-0 opacity-[0.08] 
-  bg-[url('/noise.png')]"
-/>
-
-
+                  <div
+                    className="
+                      absolute inset-0
+                      bg-gradient-to-br
+                      from-indigo-400 via-sky-300 to-blue-500
+                      dark:from-indigo-600 dark:via-sky-500 dark:to-blue-700
+                    "
+                  />
+                  <div
+                    className="
+                      absolute inset-0
+                      bg-gradient-to-t
+                      from-black/25 via-transparent to-white/20
+                    "
+                  />
+                  <div
+                    className="
+                      absolute inset-0
+                      opacity-[0.08]
+                      bg-[url('/noise.png')]
+                    "
+                  />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <i className="fas fa-palette text-2xl text-slate-400" />
+                    <i className="fas fa-palette text-2xl text-white/80" />
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
-                    {language === "TE" ? "Gradient" : "Gradient"}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm text-white text-xs py-1.5 text-center font-semibold tracking-wide">
+                    Gradient
                   </div>
                 </button>
 
-                {/* Nature backgrounds */}
+                {/* Image options */}
                 {NATURE_BACKGROUNDS.map((bg) => (
                   <button
                     key={bg.id}
                     onClick={() => {
                       setSelectedBackground(bg.url);
                       setSelectedGradient(null);
-                    
-                      // Scroll to share actions
-                      requestAnimationFrame(() => {
-                        shareActionsRef.current?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "end",
-                        });
-                      });
-                    
-                      // Highlight Share button
-                      setHighlightShareCTA(true);
-                      setTimeout(() => setHighlightShareCTA(false), 1400);
+                      setShareStep("content");
                     }}
-                    
-                    
-                    
-                    
-                    className={`
-                      relative aspect-square rounded-xl overflow-hidden border
-shadow-sm
-hover:shadow-md
-transition-all
- transition-all
- ${selectedBackground === bg.url
-  ? "ring-2 ring-blue-500/60 border-blue-500"
-  : "border-slate-200 dark:border-slate-700"}
-
-                    `}
+                    className="
+                      relative aspect-square rounded-2xl overflow-hidden
+                      border border-slate-200 dark:border-slate-700
+                      hover:scale-[1.03] hover:shadow-lg
+                      transition
+                    "
                   >
                     <img
                       src={bg.url}
-                      alt={bg.name}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback if image doesn't exist
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML = `
-                            <div class="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
-                              <i class="fas fa-image text-3xl text-blue-400"></i>
-                            </div>
-                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
-                              ${bg.name}
-                            </div>
-                          `;
-                        }
-                      }}
+                      alt={bg.name}
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center">
+                    <div className="absolute bottom-0 w-full bg-black/60 text-white text-[10px] py-1 text-center px-1 truncate">
                       {bg.name}
                     </div>
                   </button>
                 ))}
               </div>
-              {/* Gradient color presets – shown only for Gradient */}
-              {selectedBackground === null && (
-  <div ref={gradientSectionRef} className="mt-2 mb-4" >
 
-    <p
-      className={`text-xs font-semibold mb-2 text-slate-600 dark:text-slate-300 ${
-        language === "TE" ? "font-telugu" : ""
-      }`}
-    >
-      {language === "TE" ? "గ్రాడియెంట్ రంగులు" : "Gradient colors"}
-    </p>
+              {/* Gradient presets row (only when using gradient) */}
+              <div ref={gradientSectionRef} className="mt-2">
+                <p className="text-xs font-semibold mb-2 text-slate-600 dark:text-slate-300">
+                  {language === "TE"
+                    ? "గ్రాడియెంట్ రంగులు"
+                    : "Gradient colors"}
+                </p>
+                <div className="overflow-x-auto overflow-y-hidden pb-2">
+                  <div className="flex gap-3 flex-nowrap">
+                    {GRADIENT_PRESETS.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => {
+                          setSelectedBackground(null);
+                          setSelectedGradient({ from: g.from, to: g.to });
+                          setShareStep("content");
+                        }}
+                        className={`
+                          w-14 h-14
+                          rounded-xl
+                          flex-shrink-0
+                          border
+                          ${
+                            selectedGradient &&
+                            selectedGradient.from === g.from &&
+                            selectedGradient.to === g.to
+                              ? "border-blue-500 ring-2 ring-blue-400/60"
+                              : "border-slate-300 dark:border-slate-700"
+                          }
+                        `}
+                        style={{
+                          background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {GRADIENT_PRESETS.map((g) => {
-        const active =
-          selectedGradient?.from === g.from &&
-          selectedGradient?.to === g.to;
-
-        return (
-          <button
-            key={g.id}
-            onClick={() => setSelectedGradient({ from: g.from, to: g.to })}
-            className={`
-              w-14 h-14 rounded-xl flex-shrink-0
-              border-2 transition
-              ${
-                active
-                  ? "border-blue-600 ring-2 ring-blue-400"
-                  : "border-slate-200 dark:border-slate-700"
-              }
-            `}
-            style={{
-              background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-            }}
-            aria-label={`Gradient ${g.id}`}
-          />
-        );
-      })}
-    </div>
-  </div>
-)}
-
-{/* Optional Church Attribution */}
-<div className="mt-6 border-t border-slate-200 dark:border-white/10 pt-4">
-  <label className="flex items-start gap-2 text-sm">
-    <input
-      type="checkbox"
-      checked={includeChurchName}
-      onChange={(e) => setIncludeChurchName(e.target.checked)}
-      className="mt-1"
-    />
-    <span className={language === "TE" ? "font-telugu" : ""}>
-      {language === "TE"
-        ? "మీ చర్చ్ పేరును చిత్రంలో చూపించు (ఐచ్చికం)"
-        : "Include your church name on the image (optional)"}
-    </span>
-  </label>
-
-  {includeChurchName && (
-    <input
-      type="text"
-      value={churchName}
-      onChange={(e) => setChurchName(e.target.value.slice(0, 40))}
-      placeholder={
-        language === "TE"
-          ? "ఉదా: గ్రేస్ చర్చ్, హైదరాబాద్"
-          : "e.g. Grace Church, Hyderabad"
-      }
-      className={`
-        mt-2 w-full px-3 py-2 rounded-md
-        border border-slate-300 dark:border-white/20
-        bg-white dark:bg-slate-900
-        text-sm
-        focus:outline-none focus:ring-2 focus:ring-blue-500/30
-        ${language === "TE" ? "font-telugu" : ""}
-      `}
-    />
-  )}
-</div>
-
-              <div
-  ref={shareActionsRef}
-  className="flex items-center gap-2 mt-6"
->
-
-  {/* Cancel – least emphasis */}
-  <button
-    onClick={() => setIsBackgroundSelectorOpen(false)}
-    className={`
-      px-3 py-1.5 rounded-md
-      text-xs font-medium
-      text-slate-500 dark:text-slate-400
-      hover:bg-slate-100 dark:hover:bg-slate-800
-      ${language === "TE" ? "font-telugu" : ""}
-    `}
-  >
-    {language === "TE" ? "రద్దు" : "Cancel"}
-  </button>
-
-  {/* Copy link – secondary */}
-  <button
-    onClick={handleCopyShareText}
-    className={`
-      flex-1 px-3 py-1.5 rounded-md
-      text-xs font-medium
-      border border-slate-300 dark:border-white/20
-      text-slate-700 dark:text-slate-200
-      hover:bg-slate-100 dark:hover:bg-slate-800
-      ${language === "TE" ? "font-telugu" : ""}
-    `}
-  >
-    {language === "TE"
-      ? "లింక్ కాపీ చేయి"
-      : "Copy link"}
-  </button>
-
-  {/* Share image – primary */}
-  <button
-  onClick={() => handleShareAsImage(selectedBackground)}
-  className={`
-    flex-1 px-3 py-1.5 rounded-md
-    text-xs font-semibold
-    bg-blue-600 text-white
-    hover:bg-blue-700
-    transition-all
-
-    ${highlightShareCTA
-      ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 animate-pulse"
-      : ""
-    }
-  `}
->
-
-    {language === "TE"
-      ? "చిత్రంగా షేర్ చేయి"
-      : "Share Image"}
-  </button>
-</div>
-
-
-              
+              <button
+                onClick={() => setShareStep(null)}
+                className="
+                  mt-6 w-full
+                  py-3 rounded-xl
+                  text-sm font-semibold
+                  text-slate-700 dark:text-slate-200
+                  bg-slate-100 dark:bg-slate-800
+                  border border-slate-200 dark:border-slate-700
+                  hover:bg-slate-200 dark:hover:bg-slate-700
+                  transition
+                "
+              >
+                {language === "TE" ? "రద్దు" : "Cancel"}
+              </button>
             </div>
           </div>
         </ModalPortal>
       )}
+
+      {/* STEP 2 — Verse image preview / share */}
+      {shareStep === "content" && (
+        <ModalPortal>
+          <VerseImageShare
+            verseRef={verseRef}
+            verseText={displayVerseText}
+            language={language}
+            backgroundUrl={selectedBackground}
+            gradient={selectedGradient}
+            onClose={() => setShareStep(null)}
+            onBack={() => setShareStep("background")}
+          />
+        </ModalPortal>
+      )}
+
 
       {strongPopup && (
     <ModalPortal>
@@ -3761,12 +3597,6 @@ Transliteration
       </div>
     </ModalPortal>
   )}
-<ShareLinkSheet
-  open={shareSheetOpen}
-  text={shareSheetText}
-  onClose={() => setShareSheetOpen(false)}
-  onShareImage={handleNativeImageShare}
-/>
 
     </div>
   );
