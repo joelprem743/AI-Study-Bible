@@ -139,10 +139,17 @@ const App: React.FC = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [notesOpen, setNotesOpen] = useState(false);
-const [incomingVerse, setIncomingVerse] = useState<{
-  ref: { book: string; chapter: number; verse: number };
-  text: string;
-} | null>(null);
+  const [incomingVerse, setIncomingVerse] = useState<{
+    ref: {
+      book: string;
+      displayBook: string;
+      chapter: number;
+      verseStart: number;
+      verseEnd?: number;
+    };
+    text: string;
+  } | null>(null);
+  
   const verseToolsLanguage =
   studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1"
     ? "TE"
@@ -176,6 +183,17 @@ const [incomingVerse, setIncomingVerse] = useState<{
     setSelectedVerseRef({ book: selectedBook, chapter: selectedChapter, verse: v });
     setIsToolsModalOpen(false);
   }, [selectedBook, selectedChapter]);
+
+  const handleHighlightVerse = useCallback(
+    (verseNum: number, color: string | null) => {
+      if (!user) {
+        alert("Please sign in to highlight verses.");
+        return;
+      }
+      toggleHighlight(verseNum, color);
+    },
+    [user, toggleHighlight]
+  );
   
 
   const handleWelcomeDismiss = () => {
@@ -999,6 +1017,7 @@ backdrop-blur-xl
                       onScrollDirectionChange={handleScrollDirectionChange}
                       highlights={highlights}
                       readerSettings={readerSettings}
+                      onHighlightVerse={handleHighlightVerse}
                     />
                   </div>
                 </div>

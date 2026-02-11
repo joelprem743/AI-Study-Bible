@@ -31,6 +31,7 @@ interface ScriptureDisplayProps {
   onScrollDirectionChange?: (direction: "up" | "down") => void;
   highlights: { [verse: number]: string };
   readerSettings: ReaderSettings;
+  onHighlightVerse: (verseNum: number, color: string | null) => void;
 
 }
 
@@ -66,6 +67,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
 
   highlights,
   readerSettings,
+  onHighlightVerse, 
 }) => {
 
   const getVerseFontClass = () => {
@@ -144,8 +146,24 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     message: string;
     type: "error" | "success";
   } | null>(null);
+// Highlight dropdown state (copied from VerseTools)
+const highlightRef = useRef<HTMLDivElement | null>(null);
+const highlightButtonRef = useRef<HTMLButtonElement | null>(null);
+
+const [highlightOpen, setHighlightOpen] = useState(false);
+const [previewHighlight, setPreviewHighlight] =
+  useState<string | null>(null);
+
+// 🔥 LONG PRESS DRAG SUPPORT
+const longPressHighlightTimerRef = useRef<number | null>(null);
+const isLongPressActiveRef = useRef(false);
+const pendingHighlightRef = useRef<string | null>(null);
+
+
+
   
   
+  const touchStartYRef = useRef<Map<number, number>>(new Map());
 
   const gradientSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -212,11 +230,42 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
       .replace(/\s*\n+\s*/g, " ")
       .trim();
   }, []);
+  
 
   const isSingle = useMemo(() => studyMode === "single", [studyMode]);
 
-  // Auto-scroll to selected verse
 
+  const lockScroll = () => {
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+  };
+  
+  const unlockScroll = () => {
+    document.body.style.overflow = "";
+    document.body.style.touchAction = "";
+  };
+  
+  useEffect(() => {
+    if (!highlightOpen) return;
+  
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+  
+      if (highlightButtonRef.current?.contains(target)) return;
+      if (highlightRef.current?.contains(target)) return;
+  
+      setHighlightOpen(false);
+    };
+  
+    document.addEventListener("mousedown", handleOutside);
+  
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [highlightOpen]);
+  
+  
+  
 
   useEffect(() => {
     if (
@@ -429,12 +478,17 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   // Multi-select handlers
   const handleVerseLongPress = useCallback((verseNum: number) => {
     setIsSelectionMode(true);
+  
     setSelectedVerses((prev) => {
       const next = new Set(prev);
       next.add(verseNum);
       return next;
     });
+  
+    // Do NOT auto-open highlight.
   }, []);
+
+  
 
   const handleVerseClick = useCallback((verseNum: number, e: React.MouseEvent | React.TouchEvent) => {
     if (isSelectionMode) {
@@ -463,30 +517,55 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   }, []);
 
   const handleTouchStart = useCallback((verseNum: number, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartYRef.current.set(verseNum, touch.clientY);
     touchMovedRef.current.set(verseNum, false);
+  
     const timer = window.setTimeout(() => {
       if (!touchMovedRef.current.get(verseNum)) {
         handleVerseLongPress(verseNum);
       }
-    }, 500);
+    }, 350); // shorter = better UX
+  
     longPressTimerRef.current.set(verseNum, timer);
   }, [handleVerseLongPress]);
-
-  const handleTouchMove = useCallback((verseNum: number) => {
-    touchMovedRef.current.set(verseNum, true);
+  
+  
+  const handleTouchMove = useCallback((verseNum: number, e: React.TouchEvent) => {
+    const startY = touchStartYRef.current.get(verseNum);
+    if (!startY) return;
+  
+    const currentY = e.touches[0].clientY;
+  
+    // Only cancel if user scrolls more than 12px
+    if (Math.abs(currentY - startY) > 12) {
+      touchMovedRef.current.set(verseNum, true);
+    }
   }, []);
 
-  const handleTouchEnd = useCallback((verseNum: number, e: React.TouchEvent) => {
-    const timer = longPressTimerRef.current.get(verseNum);
-    if (timer) {
-      clearTimeout(timer);
-      longPressTimerRef.current.delete(verseNum);
-    }
-    if (!isSelectionMode && !touchMovedRef.current.get(verseNum)) {
-      handleVerseClick(verseNum, e);
-    }
-    touchMovedRef.current.delete(verseNum);
-  }, [isSelectionMode, handleVerseClick]);
+  
+  const handleTouchEnd = useCallback(
+    (verseNum: number, e: React.TouchEvent) => {
+      const timer = longPressTimerRef.current.get(verseNum);
+  
+      if (timer) {
+        clearTimeout(timer);
+        longPressTimerRef.current.delete(verseNum);
+      }
+  
+      const moved = touchMovedRef.current.get(verseNum);
+  
+      // Only treat as click if not long press and not moved
+      if (!isSelectionMode && !moved) {
+        handleVerseClick(verseNum, e);
+      }
+  
+      touchMovedRef.current.delete(verseNum);
+      touchStartYRef.current.delete(verseNum);
+    },
+    [isSelectionMode, handleVerseClick]
+  );
+  
 
   // Share as text
   const handleShareAsText = useCallback(async () => {
@@ -611,6 +690,18 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     resolveText,
   ]);
   
+  const handleMultiHighlight = useCallback(
+    (color: string | null) => {
+      selectedVerses.forEach((verseNum) => {
+        onHighlightVerse(verseNum, color);
+      });
+  
+      setPreviewHighlight(null);
+      setHighlightOpen(false);
+    },
+    [selectedVerses, onHighlightVerse]
+  );
+  
   
   // Add to notes
 const handleAddToNotes = useCallback(() => {
@@ -698,7 +789,13 @@ const handleAddToNotes = useCallback(() => {
 }}
 
   onWheel={stopOnManualScroll}      // ✅ mouse manual scroll stops
-  onTouchMove={stopOnManualScroll}  // ✅ touch manual scroll stops
+  onTouchMove={(e) => {
+    // Only stop auto-scroll if actually auto-scrolling
+    if (autoScrollDir !== null) {
+      stopOnManualScroll();
+    }
+  }}
+    // ✅ touch manual scroll stops
 >
 
 
@@ -826,7 +923,12 @@ opacity-70 hover:opacity-100
               selectedVerseRef?.chapter === chapterNum &&
               !isSelectionMode;
             const isMultiSelected = isSelectionMode && selectedVerses.has(v.verse);
-            const hl = highlights[v.verse];
+            const baseHighlight = highlights[v.verse];
+            const effectiveHighlight =
+              previewHighlight && selectedVerses.has(v.verse)
+                ? previewHighlight
+                : baseHighlight;
+            
 
             return (
               <div
@@ -834,7 +936,7 @@ opacity-70 hover:opacity-100
                 key={v.verse}
                 onClick={(e) => handleVerseClick(v.verse, e)}
                 onTouchStart={(e) => handleTouchStart(v.verse, e)}
-                onTouchMove={() => handleTouchMove(v.verse)}
+                onTouchMove={(e) => handleTouchMove(v.verse, e)}
                 onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
                   p-2 sm:p-3
@@ -849,7 +951,7 @@ opacity-70 hover:opacity-100
                       ? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/30"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
-                  ${getHighlightClass(hl)}
+                  ${getHighlightClass(effectiveHighlight)}
                 `}
                 
               >
@@ -905,7 +1007,12 @@ opacity-70 hover:opacity-100
               selectedVerseRef?.chapter === chapterNum &&
               !isSelectionMode;
             const isMultiSelected = isSelectionMode && selectedVerses.has(v.verse);
-            const hl = highlights[v.verse];
+            const baseHighlight = highlights[v.verse];
+            const effectiveHighlight =
+              previewHighlight && selectedVerses.has(v.verse)
+                ? previewHighlight
+                : baseHighlight;
+            
 
             return (
               <div
@@ -913,7 +1020,7 @@ opacity-70 hover:opacity-100
                 key={v.verse}
                 onClick={(e) => handleVerseClick(v.verse, e)}
                 onTouchStart={(e) => handleTouchStart(v.verse, e)}
-                onTouchMove={() => handleTouchMove(v.verse)}
+                onTouchMove={(e) => handleTouchMove(v.verse, e)}
                 onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
                   p-2 sm:p-3
@@ -928,7 +1035,7 @@ opacity-70 hover:opacity-100
                       ? "border-blue-500/50 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/40"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
-                  ${getHighlightClass(hl)}
+                  ${getHighlightClass(effectiveHighlight)}
                 `}
                 
               >
@@ -996,11 +1103,127 @@ opacity-70 hover:opacity-100
 <div className="fixed bottom-4 left-0 right-0 px-4 sm:hidden pointer-events-auto">
   <div className="max-w-md mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10 p-4">
 
-    <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
-      {selectedVerses.size} Verses Selected
-    </div>
+  <div className="flex justify-between items-center mb-3">
+  <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+    {selectedVerses.size} Verse{selectedVerses.size > 1 ? "s" : ""} Selected
+  </div>
 
-    <div className="flex gap-3">
+  <button
+    onClick={clearSelection}
+    className="text-xs font-semibold text-red-600 dark:text-red-400"
+  >
+    Clear
+  </button>
+</div>
+
+<div className="flex gap-3 items-center">
+
+    <div className="relative" ref={highlightRef}>
+    <button
+  ref={highlightButtonRef}
+  className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700"
+  onClick={(e) => {
+    if (isLongPressActiveRef.current) return;
+    e.stopPropagation();
+    setHighlightOpen((v) => !v);
+  }}
+
+  onTouchStart={() => {
+    longPressHighlightTimerRef.current = window.setTimeout(() => {
+      isLongPressActiveRef.current = true;
+      pendingHighlightRef.current = null;
+      setPreviewHighlight(null);
+      lockScroll();
+      setHighlightOpen(true);
+    }, 350);
+  }}
+
+  onTouchMove={(e) => {
+    if (!isLongPressActiveRef.current) return;
+
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(
+      touch.clientX,
+      touch.clientY
+    );
+
+    if (!(el instanceof HTMLElement)) return;
+
+    const color = el.dataset.highlightColor;
+    if (color) {
+      const resolved = color === "clear" ? null : color;
+      pendingHighlightRef.current = resolved;
+      setPreviewHighlight(resolved);
+    }
+  }}
+
+    onTouchEnd={() => {
+      if (longPressHighlightTimerRef.current) {
+        clearTimeout(longPressHighlightTimerRef.current);
+        longPressHighlightTimerRef.current = null;
+      }
+
+      if (isLongPressActiveRef.current) {
+        handleMultiHighlight(pendingHighlightRef.current);
+        unlockScroll();
+        setHighlightOpen(false);
+      }
+
+      isLongPressActiveRef.current = false;
+      pendingHighlightRef.current = null;
+      setPreviewHighlight(null);
+    }}
+
+  onTouchCancel={() => {
+    if (longPressHighlightTimerRef.current) {
+      clearTimeout(longPressHighlightTimerRef.current);
+    }
+
+    unlockScroll();
+    isLongPressActiveRef.current = false;
+    pendingHighlightRef.current = null;
+    setHighlightOpen(false);
+  }}
+>
+  <i className="fas fa-highlighter" />
+</button>
+
+
+  {highlightOpen && (
+    <div className="absolute bottom-12 left-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-3 z-[9999]">
+      <div className="flex gap-2">
+      {["yellow","green","pink","blue"].map((color) => (
+          <button
+            key={color}
+            data-highlight-color={color}
+            onMouseEnter={() => setPreviewHighlight(color)}
+            onMouseLeave={() => setPreviewHighlight(null)}
+            onClick={() => handleMultiHighlight(color)}
+            className={`w-7 h-7 rounded-full ${
+              color === "yellow"
+                ? "bg-yellow-300"
+                : color === "green"
+                ? "bg-green-300"
+                : color === "pink"
+                ? "bg-rose-300"
+                : "bg-sky-300"
+            }`}
+          />
+        ))}
+      </div>
+
+      <button
+  data-highlight-color="clear"
+  onMouseEnter={() => setPreviewHighlight(null)}
+  onClick={() => handleMultiHighlight(null)}
+  className="mt-3 w-full text-xs py-1 rounded-xl bg-slate-100 dark:bg-slate-800"
+>
+  Clear
+</button>
+
+    </div>
+  )}
+</div>
 
       <button
         onClick={handleShareAsText}
@@ -1041,6 +1264,55 @@ opacity-70 hover:opacity-100
           </button>
 
           <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
+          <div className="relative" ref={highlightRef}>
+  <button
+    ref={highlightButtonRef}
+    onClick={(e) => {
+  e.stopPropagation();
+  setHighlightOpen((v) => !v);
+}}
+
+    className="px-4 py-2 text-sm font-semibold bg-slate-200 dark:bg-slate-700 rounded-xl"
+  >
+    <i className="fas fa-highlighter mr-1" />
+    Highlight
+  </button>
+
+  {highlightOpen && (
+    <div className="absolute bottom-12 left-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-3 z-[9999]">
+      <div className="flex gap-2">
+        {["yellow","green","pink","blue"].map((color) => (
+          <button
+            key={color}
+            onMouseEnter={() => setPreviewHighlight(color)}
+            onMouseLeave={() => setPreviewHighlight(null)}
+            onClick={() => handleMultiHighlight(color)}
+            
+            className={`w-7 h-7 rounded-full ${
+              color === "yellow"
+                ? "bg-yellow-300"
+                : color === "green"
+                ? "bg-green-300"
+                : color === "pink"
+                ? "bg-rose-300"
+                : "bg-sky-300"
+            }`}
+          />
+        ))}
+      </div>
+
+      <button
+onMouseEnter={() => setPreviewHighlight(null)}
+onClick={() => handleMultiHighlight(null)}
+
+        className="mt-3 w-full text-xs py-1 rounded-xl bg-slate-100 dark:bg-slate-800"
+      >
+        Clear
+      </button>
+    </div>
+  )}
+</div>
+
 
           <button
             onClick={handleShareAsImage}
