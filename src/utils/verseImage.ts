@@ -120,29 +120,38 @@ function wrapText(text: string, fontPx: number) {
       ? `${fontPx}px Noto Serif Telugu, serif`
       : `italic ${fontPx}px Georgia, serif`;
 
-  const lh = language === "TE"
-    ? Math.round(fontPx * 1.7)
-    : Math.round(fontPx * 1.6);
+  const lineHeight =
+    language === "TE"
+      ? Math.round(fontPx * 1.7)
+      : Math.round(fontPx * 1.6);
 
+  const words = text.split(" ");
   const lines: string[] = [];
   let line = "";
 
-  for (const char of text) {
-    const test = line + char;
-  
-    if (ctx.measureText(test).width > columnWidth) {
-      lines.push(line.trim());
-      line = char;
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = line ? `${line} ${word}` : word;
+
+    if (ctx.measureText(testLine).width <= columnWidth) {
+      line = testLine;
     } else {
-      line = test;
+      if (line) {
+        lines.push(line);
+        line = word;
+      } else {
+        // fallback if single word longer than column
+        lines.push(word);
+        line = "";
+      }
     }
   }
-  
-  if (line.trim()) lines.push(line.trim());
-  
 
-  return { lines, lineHeight: lh };
+  if (line) lines.push(line);
+
+  return { lines, lineHeight };
 }
+
 
 /* 🔥 Auto scale loop */
 let wrapped = wrapText(verseText, fontSize);
