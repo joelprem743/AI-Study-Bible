@@ -163,7 +163,6 @@
         try {
           await (navigator as any).share({
             files: [file],
-            text: `${reference}\n\n${verseText}\n\n${resolvedVerseUrl}`,
           });
           
           onClose();

@@ -123,6 +123,9 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   const isAutoScrollingRef = useRef(false);
   const buttonsRef = useRef<HTMLDivElement | null>(null);
   const lastScroll = useRef(0);
+  const lastSelectedVerseRef = useRef<number | null>(null);
+  const mouseLongPressTimerRef = useRef<number | null>(null);
+  const isMouseLongPressRef = useRef(false);
   
   // Multi-select refs
   const longPressTimerRef = useRef<Map<number, number>>(new Map());
@@ -490,31 +493,101 @@ const pendingHighlightRef = useRef<string | null>(null);
 
   
 
-  const handleVerseClick = useCallback((verseNum: number, e: React.MouseEvent | React.TouchEvent) => {
-    if (isSelectionMode) {
+  const handleVerseClick = useCallback(
+    (verseNum: number, e: React.MouseEvent | React.TouchEvent) => {
+  
+      // 🔥 If long press triggered, swallow click completely
+      if (isMouseLongPressRef.current) {
+        isMouseLongPressRef.current = false;
+        return;
+      }
+  
+      if (!isSelectionMode) {
+        onVerseSelect(verseNum);
+        return;
+      }
+  
       e.preventDefault();
       e.stopPropagation();
-      setSelectedVerses((prev) => {
-        const next = new Set(prev);
-        if (next.has(verseNum)) {
-          next.delete(verseNum);
-        } else {
-          next.add(verseNum);
-        }
-        if (next.size === 0) {
-          setIsSelectionMode(false);
-        }
-        return next;
-      });
-    } else {
-      onVerseSelect(verseNum);
+  
+  
+      const mouseEvent = e as React.MouseEvent;
+  
+      // SHIFT range selection (desktop only)
+      if (
+        mouseEvent.shiftKey &&
+        lastSelectedVerseRef.current !== null
+      ) {
+        const start = Math.min(lastSelectedVerseRef.current, verseNum);
+        const end = Math.max(lastSelectedVerseRef.current, verseNum);
+  
+        setSelectedVerses((prev) => {
+          const next = new Set(prev);
+          for (let i = start; i <= end; i++) {
+            next.add(i);
+          }
+          return next;
+        });
+      } else {
+        setSelectedVerses((prev) => {
+          const next = new Set(prev);
+          if (next.has(verseNum)) {
+            next.delete(verseNum);
+          } else {
+            next.add(verseNum);
+          }
+          return next;
+        });
+      }
+  
+      lastSelectedVerseRef.current = verseNum;
+    },
+    [isSelectionMode, onVerseSelect]
+  );
+  
+  const handleMouseDown = useCallback((verseNum: number) => {
+    isMouseLongPressRef.current = false;
+  
+    mouseLongPressTimerRef.current = window.setTimeout(() => {
+      isMouseLongPressRef.current = true;
+      handleVerseLongPress(verseNum);
+    }, 350);
+  }, [handleVerseLongPress]);
+  
+  const handleMouseUp = useCallback(() => {
+    if (mouseLongPressTimerRef.current) {
+      clearTimeout(mouseLongPressTimerRef.current);
+      mouseLongPressTimerRef.current = null;
     }
-  }, [isSelectionMode, onVerseSelect]);
+  
+    // IMPORTANT: do NOT reset isMouseLongPressRef here
+  }, []);
+  
+  
+  const handleMouseLeave = useCallback(() => {
+    if (mouseLongPressTimerRef.current) {
+      clearTimeout(mouseLongPressTimerRef.current);
+      mouseLongPressTimerRef.current = null;
+    }
+  }, []);
+  
 
   const clearSelection = useCallback(() => {
     setSelectedVerses(new Set());
     setIsSelectionMode(false);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isSelectionMode) {
+        clearSelection();
+      }
+    };
+  
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSelectionMode, clearSelection]);
+  
 
   const handleTouchStart = useCallback((verseNum: number, e: React.TouchEvent) => {
     const touch = e.touches[0];
@@ -935,6 +1008,9 @@ opacity-70 hover:opacity-100
                 id={`verse-${v.verse}`}
                 key={v.verse}
                 onClick={(e) => handleVerseClick(v.verse, e)}
+                onMouseDown={() => handleMouseDown(v.verse)}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
                 onTouchStart={(e) => handleTouchStart(v.verse, e)}
                 onTouchMove={(e) => handleTouchMove(v.verse, e)}
                 onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
@@ -1018,6 +1094,9 @@ opacity-70 hover:opacity-100
               <div
                 id={`verse-${v.verse}`}
                 key={v.verse}
+                onMouseDown={() => handleMouseDown(v.verse)}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}                
                 onClick={(e) => handleVerseClick(v.verse, e)}
                 onTouchStart={(e) => handleTouchStart(v.verse, e)}
                 onTouchMove={(e) => handleTouchMove(v.verse, e)}

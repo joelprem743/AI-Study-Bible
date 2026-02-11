@@ -204,9 +204,13 @@ const book =
     ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
     : verseRef.book;
 
+    const isSequential = rangeEnd !== undefined && rangeEnd === verseRef.verse + 1;
+
     const referenceLabel = rangeEnd
-    ? `${book} ${verseRef.chapter}:${verseRef.verse}-${rangeEnd}`
-    : `${book} ${verseRef.chapter}:${verseRef.verse}`;
+      ? isSequential
+        ? `${book} ${verseRef.chapter}:${verseRef.verse}-${rangeEnd}`
+        : `${book} ${verseRef.chapter}:${verseRef.verse}, ${rangeEnd}`
+      : `${book} ${verseRef.chapter}:${verseRef.verse}`;
   
   ctx.fillText(referenceLabel, centerX, y);
   
