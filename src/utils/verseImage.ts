@@ -1,3 +1,4 @@
+//src/utils/verseImage.ts
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { VerseReference } from "..";
 
@@ -20,7 +21,8 @@ export async function generateVerseImage(
   language: "EN" | "TE",
   backgroundImageUrl?: string | null,
   gradient?: { from: string; to: string } | null,
-  churchName?: string
+  churchName?: string,
+  rangeEnd?: number
 ): Promise<Blob> {
   if (!verseText.trim()) throw new Error("Empty verse");
 
@@ -86,101 +88,129 @@ if (!bgBitmap) {
 }
 const isImageBackground = !!bgBitmap;
 
-/* ---------- TEXT (PREMIUM VERSE LAYOUT) ---------- */
-
-const columnWidth = Math.round(width * 0.64); // narrower = elegant
-const startX = Math.round((width - columnWidth) / 2);
-let y = Math.round(height * 0.30);
-
-
 ctx.textBaseline = "top";
 ctx.textAlign = "center";
 
 // Subtle dark overlay ONLY for photos
 if (bgBitmap) {
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
   const overlay = ctx.createLinearGradient(0, 0, 0, height);
-overlay.addColorStop(0, "rgba(0,0,0,0.45)");
-overlay.addColorStop(0.4, "rgba(0,0,0,0.25)");
-overlay.addColorStop(0.7, "rgba(0,0,0,0.05)");
-overlay.addColorStop(1, "rgba(0,0,0,0)");
-ctx.fillStyle = overlay;
-ctx.fillRect(0, 0, width, height);
-
+  overlay.addColorStop(0, "rgba(0,0,0,0.45)");
+  overlay.addColorStop(0.4, "rgba(0,0,0,0.25)");
+  overlay.addColorStop(0.7, "rgba(0,0,0,0.05)");
+  overlay.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = overlay;
+  ctx.fillRect(0, 0, width, height);
 }
 
-// Verse typography
+
+/* ---------- RESPONSIVE VERSE LAYOUT ---------- */
+
+const columnWidth = Math.round(width * 0.64);
+const centerX = width / 2;
+const topPadding = Math.round(height * 0.22);
+const bottomReserved = 260; // space for ref + footer
+const maxTextHeight = height - topPadding - bottomReserved;
+
+let baseFontSize = language === "TE" ? 38 : 36;
+let fontSize = baseFontSize;
+
+function wrapText(text: string, fontPx: number) {
+  ctx.font =
+    language === "TE"
+      ? `${fontPx}px Noto Serif Telugu, serif`
+      : `italic ${fontPx}px Georgia, serif`;
+
+  const lh = language === "TE"
+    ? Math.round(fontPx * 1.7)
+    : Math.round(fontPx * 1.6);
+
+  const lines: string[] = [];
+  let line = "";
+
+  for (const char of text) {
+    const test = line + char;
+  
+    if (ctx.measureText(test).width > columnWidth) {
+      lines.push(line.trim());
+      line = char;
+    } else {
+      line = test;
+    }
+  }
+  
+  if (line.trim()) lines.push(line.trim());
+  
+
+  return { lines, lineHeight: lh };
+}
+
+/* 🔥 Auto scale loop */
+let wrapped = wrapText(verseText, fontSize);
+let totalHeight = wrapped.lines.length * wrapped.lineHeight;
+
+while (totalHeight > maxTextHeight && fontSize > 22) {
+  fontSize -= 2;
+  wrapped = wrapText(verseText, fontSize);
+  totalHeight = wrapped.lines.length * wrapped.lineHeight;
+}
+
+/* Apply final font */
 ctx.font =
   language === "TE"
-    ? "38px Noto Serif Telugu, serif"
-    : "italic 36px Georgia, serif";
+    ? `${fontSize}px Noto Serif Telugu, serif`
+    : `italic ${fontSize}px Georgia, serif`;
 
-/* ---------------------------------
-   TEXT COLOR RULE (FINAL)
-   ---------------------------------
-   Image background  → WHITE text
-   Gradient background → BLACK text
----------------------------------- */
-
+/* Text color rules */
 if (bgBitmap) {
-  // 📸 Image background
   ctx.fillStyle = "#ffffff";
   ctx.shadowColor = "rgba(0,0,0,0.35)";
   ctx.shadowBlur = 4;
   ctx.shadowOffsetY = 2;
 } else {
-  // 🎨 Gradient background
-  ctx.fillStyle = "#0f172a"; // slate-900 (true black)
-  ctx.shadowColor = "transparent";
+  ctx.fillStyle = "#0f172a";
   ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
 }
 
+/* Draw text */
+let y = topPadding;
 
-
-const lineHeight = language === "TE" ? 64 : 58;
-
-// Word wrapping (centered)
-let line = "";
-for (const word of verseText.split(/\s+/)) {
-  const test = line + word + " ";
-  if (ctx.measureText(test).width > columnWidth) {
-    ctx.fillText(line.trim(), width / 2, y);
-    line = word + " ";
-    y += lineHeight;
-  } else {
-    line = test;
-  }
+for (const line of wrapped.lines) {
+  ctx.fillText(line, centerX, y);
+  y += wrapped.lineHeight;
 }
-if (line) {
-  ctx.fillText(line.trim(), width / 2, y);
-  y += lineHeight;
-}
+
 
 /* ---------- REFERENCE ---------- */
 
-y += 36;
+const referenceFontSize = Math.max(16, Math.round(fontSize * 0.55));
+y += Math.round(fontSize * 0.8);
 
 ctx.shadowBlur = 0;
-ctx.globalAlpha = isImageBackground ? 0.6 : 0.85;
-ctx.fillStyle = isImageBackground ? "#ffffff" : "#334155";
-ctx.shadowBlur = 0;
-ctx.font = "500 22px Inter, system-ui, sans-serif";
+ctx.globalAlpha = bgBitmap ? 0.6 : 0.85;
+ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
+ctx.font = `500 ${referenceFontSize}px Inter, system-ui, sans-serif`;
 
 const book =
   language === "TE"
     ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
     : verseRef.book;
 
-ctx.fillText(`${book} ${verseRef.chapter}:${verseRef.verse}`, width / 2, y);
+    const referenceLabel = rangeEnd
+    ? `${book} ${verseRef.chapter}:${verseRef.verse}-${rangeEnd}`
+    : `${book} ${verseRef.chapter}:${verseRef.verse}`;
+  
+  ctx.fillText(referenceLabel, centerX, y);
+  
+  
 
 ctx.globalAlpha = 1;
-ctx.textAlign = "left";
+
 
 
 /* ---------- FOOTER (ATTRIBUTION + BRANDING + URL) ---------- */
 
-const footerY = height - 140;
+const footerY = height - Math.max(110, Math.round(fontSize * 3));
+
 
 ctx.textAlign = "center";
 ctx.textBaseline = "top";

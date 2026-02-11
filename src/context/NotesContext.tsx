@@ -45,9 +45,16 @@ interface NotesContextValue {
   // ✅ NEW
   appendVerseToTopicalNote: (
     id: string,
-    verseRef: VerseKey,
+    verseRef: {
+      book: string;
+      chapter: number;
+      displayBook?: string;
+      verseStart: number;
+      verseEnd?: number;
+    },
     verseText: string
   ) => Promise<void>;
+  
 
   loading: boolean;
 }
@@ -194,24 +201,40 @@ export function NotesProvider({
   // ✅ APPEND VERSE TO TOPICAL NOTE
   // ------------------------------------------------------------
   const appendVerseToTopical = useCallback(
-    async (id: string, verseRef: VerseKey, verseText: string) => {
+    async (
+      id: string,
+      verseRef: {
+        book: string;
+        displayBook?: string;
+        chapter: number;
+        verseStart: number;
+        verseEnd?: number;
+      },
+      verseText: string
+    ) => {
       const note = topicalNotes[id];
       if (!note) return;
-
-      const refLine = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+  
+      const bookLabel = verseRef.displayBook || verseRef.book;
+  
+      const refLine = `${bookLabel} ${verseRef.chapter}:${verseRef.verseStart}${
+        verseRef.verseEnd ? `-${verseRef.verseEnd}` : ""
+      }`;
+  
       const block = `${refLine}\n${verseText}`;
-
+  
       const body = note.body
         ? `${note.body}\n\n${block}`
         : block;
-
+  
       const updated = await updateTopicalNote(id, note.title, body);
-
+  
       setTopicalNotes((prev) => ({ ...prev, [updated.id]: updated }));
     },
-    [topicalNotes]
+    [topicalNotes, updateTopicalNote]
   );
-
+  
+  
   // ------------------------------------------------------------
   // CONTEXT VALUE
   // ------------------------------------------------------------

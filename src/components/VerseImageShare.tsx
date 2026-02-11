@@ -1,3 +1,4 @@
+//src/VerseImageShare.tsx
 import React, { useEffect, useState } from "react";
 import { generateVerseImage } from "../utils/verseImage";
 import { VerseReference } from "..";
@@ -7,7 +8,6 @@ type Props = {
   verseText: string;
   language: "EN" | "TE";
 
-  // OPTIONAL — VerseTools does not use these
   meaning?: string;
   verseUrl?: string;
 
@@ -15,9 +15,12 @@ type Props = {
   gradient?: { from: string; to: string } | null;
   churchName?: string;
 
+  rangeEnd?: number;   // 🔥 ADD THIS
+
   onClose: () => void;
   onBack: () => void;
 };
+
 
 
   const GRADIENTS = [
@@ -30,14 +33,16 @@ type Props = {
   ];
   
   
-export default function VerseImageShare({
+  export default function VerseImageShare({
     verseRef,
     verseText,
-    meaning,          // ✅ REQUIRED
+    meaning,
     language,
     verseUrl,
     backgroundUrl,
     gradient: initialGradient,
+    churchName,
+    rangeEnd,   // 🔥 ADD
     onClose,
     onBack,
   }: Props) {  
@@ -47,7 +52,10 @@ export default function VerseImageShare({
   
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const reference = `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+  const reference = rangeEnd
+  ? `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}-${rangeEnd}`
+  : `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
+
 
   
   const [toast, setToast] = useState<{
@@ -55,25 +63,30 @@ export default function VerseImageShare({
     type: "success" | "error";
   } | null>(null);
   
+
+
   useEffect(() => {
     let cancelled = false;
-
+    let objectUrl: string | null = null;
+  
     const run = async () => {
       try {
         setLoading(true);
         setPreviewUrl(null);
-
+  
         const blob = await generateVerseImage(
-            verseRef,
-            verseText,
-            language,
-            backgroundUrl ?? null,
-            activeGradient ?? null,            
-          );
-          
-
+          verseRef,
+          verseText,
+          language,
+          backgroundUrl ?? null,
+          activeGradient ?? null,
+          churchName,
+          rangeEnd
+        );
+  
         if (!cancelled) {
-          setPreviewUrl(URL.createObjectURL(blob));
+          objectUrl = URL.createObjectURL(blob);
+          setPreviewUrl(objectUrl);
         }
       } catch (e) {
         console.error(e);
@@ -81,12 +94,18 @@ export default function VerseImageShare({
         if (!cancelled) setLoading(false);
       }
     };
-
+  
     run();
+  
     return () => {
       cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
-  }, [language, verseText, verseRef, meaning, backgroundUrl, activeGradient]);
+  }, [verseRef, verseText, language, backgroundUrl, activeGradient, churchName, rangeEnd]);
+  
+
 
 
   const resolvedVerseUrl =
@@ -95,14 +114,15 @@ export default function VerseImageShare({
 
 const handleCopyToClipboard = async () => {
   const textToCopy = `
-${reference}
-
-${meaning}
-
-📖 Bible Companion — read with context
-
-${resolvedVerseUrl}
-`.trim();
+  ${reference}
+  
+  ${verseText}
+  
+  📖 Bible Companion — read with context
+  
+  ${resolvedVerseUrl}
+  `.trim();
+  
 
 
   try {
@@ -143,8 +163,9 @@ ${resolvedVerseUrl}
       try {
         await (navigator as any).share({
           files: [file],
-          text: `${reference}\n\n${meaning}\n\n${verseUrl}`,
+          text: `${reference}\n\n${verseText}\n\n${resolvedVerseUrl}`,
         });
+        
         onClose();
         return;
       } catch {}

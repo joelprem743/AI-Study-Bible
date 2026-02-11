@@ -257,7 +257,7 @@ const labels = isTeluguMode
 
             return (
               <div key={testamentKey} className="mb-12">
-                <h2 className="text-3xl font-extrabold mb-6 text-blue-700 dark:text-blue-400">
+                <h2 className="text-2xl sm:text-3xl font-extrabold mb-6 text-slate-900 dark:text-white tracking-tight" >
                 {testamentKey === "oldTestament"
   ? labels.old
   : labels.new}

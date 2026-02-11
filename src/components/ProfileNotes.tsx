@@ -146,12 +146,14 @@ interface Props {
   incomingVerse?: {
     ref: {
       book: string;
-      displayBook?: string; // ✅ ADD
+      displayBook?: string;
       chapter: number;
-      verse: number;
+      verseStart: number;
+      verseEnd?: number;
     };
     text: string;
   };
+  
   
 }
 
@@ -428,7 +430,11 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     Select a note to add the Verse:
     <strong className="ml-1">
   {(incomingVerse.ref.displayBook || incomingVerse.ref.book)}{" "}
-  {incomingVerse.ref.chapter}:{incomingVerse.ref.verse}
+  {incomingVerse.ref.chapter}:{incomingVerse.ref.verseStart +
+  (incomingVerse.ref.verseEnd
+    ? `-${incomingVerse.ref.verseEnd}`
+    : "")
+}
 </strong>
 
   </div>
@@ -619,10 +625,18 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
   incomingVerse.ref.displayBook || incomingVerse.ref.book;
 
 setDraftTitle(
-  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}`
+  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verseStart +
+    (incomingVerse.ref.verseEnd
+      ? `-${incomingVerse.ref.verseEnd}`
+      : "")
+  }`
 );
 setDraftBody(
-  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verse}\n${incomingVerse.text}`
+  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verseStart +
+    (incomingVerse.ref.verseEnd
+      ? `-${incomingVerse.ref.verseEnd}`
+      : "")
+  }\n${incomingVerse.text}`
 );
 
     } else {

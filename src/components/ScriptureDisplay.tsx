@@ -1,8 +1,12 @@
 // src/components/ScriptureDisplay.tsx
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { Verse, VerseReference } from "..";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import type { ReaderSettings } from "../hooks/useReaderSettings";
+import { useNotes } from "../context/NotesContext";
+import { generateVerseImage } from "../utils/verseImage";
+import ModalPortal from "./ModalPortal";
+import VerseImageShare from "./VerseImageShare";
 
 const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
 
@@ -78,6 +82,16 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
         return "text-[0.98rem] sm:text-[1.05rem] md:text-[1.12rem]";
     }
   };
+
+  const GRADIENT_PRESETS = [
+    { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
+    { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
+    { id: "lavender", from: "#ede9fe", to: "#ddd6fe" },
+    { id: "mint", from: "#ecfeff", to: "#cffafe" },
+    { id: "sand", from: "#fffbeb", to: "#fef3c7" },
+    { id: "rose", from: "#fff1f2", to: "#ffe4e6" },
+  ];
+  
   
 
   const getHighlightClass = (c: string | undefined) => {
@@ -95,17 +109,111 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     }
   };
 
+  // ============================================
+  // ALL HOOKS MUST BE CALLED FIRST (Rules of Hooks)
+  // ============================================
+  
+  // Refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const scrollTimerRef = useRef<number | null>(null); // will store requestAnimationFrame id
+  const scrollTimerRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const accumulatedScrollRef = useRef(0);
-
   const isAutoScrollingRef = useRef(false);
   const buttonsRef = useRef<HTMLDivElement | null>(null);
+  const lastScroll = useRef(0);
+  
+  // Multi-select refs
+  const longPressTimerRef = useRef<Map<number, number>>(new Map());
+  const touchMovedRef = useRef<Map<number, boolean>>(new Map());
 
+  // State
   const [autoScrollDir, setAutoScrollDir] = useState<"up" | "down" | null>(null);
+  const [selectedVerses, setSelectedVerses] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [shareStep, setShareStep] = useState<"background" | "content" | null>(null);
+  const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
+  const [selectedGradient, setSelectedGradient] = useState<{ from: string; to: string } | null>(null);
+  const [shareVerseData, setShareVerseData] = useState<{
+    verseRef: VerseReference;
+    verseText: string;
+    language: "EN" | "TE";
+    rangeEnd?: number;
+  } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "error" | "success";
+  } | null>(null);
+  
   
 
+  const gradientSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const NATURE_BACKGROUNDS = [
+    { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
+    { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
+    { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
+    { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
+    { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
+    { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
+    { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
+    { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
+    { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
+    { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
+    { id: "11", name: "Bible Cross", url: "/verse-bg/bible-cross.png" },
+    { id: "12", name: "Blurry Grass", url: "/verse-bg/blurry-grass.png" },
+    { id: "13", name: "Blurry River", url: "/verse-bg/blurry-river.png" },
+    { id: "14", name: "Calm Horizon Light", url: "/verse-bg/calm-horizon-light.png" },
+    { id: "15", name: "Coastal View", url: "/verse-bg/coastal-view.png" },
+    { id: "16", name: "Desert Cross (Dark)", url: "/verse-bg/dark-desert-distant-cross.png" },
+    { id: "17", name: "Light Gradient Cross", url: "/verse-bg/light-gradient-negative-cross.png" },
+    { id: "18", name: "Old Bible", url: "/verse-bg/old-bible.png" },
+    { id: "19", name: "Open Bible (Top View)", url: "/verse-bg/openbible-top.png" },
+    { id: "20", name: "Soft Desert", url: "/verse-bg/soft-desert.png" },
+    { id: "21", name: "Soft Forest Light Rays", url: "/verse-bg/soft-forest-light-rays.png" },
+    { id: "22", name: "Implied Light Cross", url: "/verse-bg/soft-light-implied-cross.png" },
+    { id: "23", name: "Soft Sky Pastel Gradient", url: "/verse-bg/soft-sky-pastel-gradient.png" },
+  ];
+  
+  
+
+  // Context
+  const { saveNoteFor } = useNotes();
+
+  // Derived values (safe to compute after hooks)
+  const settings: ReaderSettings = readerSettings ?? {
+    fontSize: "md",
+    autoScrollSpeed: 1,
+    autoScrollIntervalMs: 60,
+    themeMode: "system",
+  };
+
+  const isTeluguVersion = useCallback((version?: string) =>
+    version === TELUGU_VERSION_KEY, []);
+
+  const getBookNameByVersion = useCallback((version?: string) => {
+    if (isTeluguVersion(version)) {
+      return TELUGU_BOOK_NAMES[bookName] || bookName;
+    }
+    return bookName;
+  }, [bookName, isTeluguVersion]);
+
+  const getParallelBookHeading = useCallback(() => {
+    const left = getBookNameByVersion(leftVersion);
+    const right = getBookNameByVersion(rightVersion);
+    return left === right ? left : `${left}–${right}`;
+  }, [leftVersion, rightVersion, getBookNameByVersion]);
+
+  const resolveText = useCallback((v: Verse, version?: string): string => {
+    if (!v?.text || !version) return "";
+    return (
+      v.text[version as keyof typeof v.text] ?? ""
+    )
+      .replace(/\s*\n+\s*/g, " ")
+      .trim();
+  }, []);
+
+  const isSingle = useMemo(() => studyMode === "single", [studyMode]);
 
   // Auto-scroll to selected verse
 
@@ -164,35 +272,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   // }, [bookName, chapterNum, englishVersion, leftVersion, studyMode]);
 
 
-  // Scroll detection → hide/show NavPane
-  // ---------- Version / language helpers ----------
-  const isTeluguVersion = (version?: string) =>
-    version === TELUGU_VERSION_KEY;
-  
-
-  const getBookNameByVersion = (version?: string) => {
-  if (isTeluguVersion(version)) {
-    return TELUGU_BOOK_NAMES[bookName] || bookName;
-  }
-  return bookName;
-};
-
-const settings: ReaderSettings = readerSettings ?? {
-  fontSize: "md",
-  autoScrollSpeed: 1,
-  autoScrollIntervalMs: 60,
-  themeMode: "system",
-};
-
-  const getParallelBookHeading = () => {
-    const left = getBookNameByVersion(leftVersion);
-    const right = getBookNameByVersion(rightVersion);
-
-    return left === right ? left : `${left}–${right}`;
-};
-
-
-  const lastScroll = useRef(0);
+  // Scroll handler
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       if (!onScrollDirectionChange) return;
@@ -345,6 +425,243 @@ const settings: ReaderSettings = readerSettings ?? {
   
 
   // Loading state
+
+  // Multi-select handlers
+  const handleVerseLongPress = useCallback((verseNum: number) => {
+    setIsSelectionMode(true);
+    setSelectedVerses((prev) => {
+      const next = new Set(prev);
+      next.add(verseNum);
+      return next;
+    });
+  }, []);
+
+  const handleVerseClick = useCallback((verseNum: number, e: React.MouseEvent | React.TouchEvent) => {
+    if (isSelectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSelectedVerses((prev) => {
+        const next = new Set(prev);
+        if (next.has(verseNum)) {
+          next.delete(verseNum);
+        } else {
+          next.add(verseNum);
+        }
+        if (next.size === 0) {
+          setIsSelectionMode(false);
+        }
+        return next;
+      });
+    } else {
+      onVerseSelect(verseNum);
+    }
+  }, [isSelectionMode, onVerseSelect]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedVerses(new Set());
+    setIsSelectionMode(false);
+  }, []);
+
+  const handleTouchStart = useCallback((verseNum: number, e: React.TouchEvent) => {
+    touchMovedRef.current.set(verseNum, false);
+    const timer = window.setTimeout(() => {
+      if (!touchMovedRef.current.get(verseNum)) {
+        handleVerseLongPress(verseNum);
+      }
+    }, 500);
+    longPressTimerRef.current.set(verseNum, timer);
+  }, [handleVerseLongPress]);
+
+  const handleTouchMove = useCallback((verseNum: number) => {
+    touchMovedRef.current.set(verseNum, true);
+  }, []);
+
+  const handleTouchEnd = useCallback((verseNum: number, e: React.TouchEvent) => {
+    const timer = longPressTimerRef.current.get(verseNum);
+    if (timer) {
+      clearTimeout(timer);
+      longPressTimerRef.current.delete(verseNum);
+    }
+    if (!isSelectionMode && !touchMovedRef.current.get(verseNum)) {
+      handleVerseClick(verseNum, e);
+    }
+    touchMovedRef.current.delete(verseNum);
+  }, [isSelectionMode, handleVerseClick]);
+
+  // Share as text
+  const handleShareAsText = useCallback(async () => {
+    if (selectedVerses.size === 0) return;
+
+    const sortedVerses = Array.from(selectedVerses).sort((a, b) => a - b);
+    const selectedVersesData = verses.filter((v) => sortedVerses.includes(v.verse));
+    
+    const bookDisplayName = isTeluguVersion(englishVersion)
+      ? TELUGU_BOOK_NAMES[bookName] || bookName
+      : bookName;
+
+    const refRange = sortedVerses.length === 1
+      ? `${bookDisplayName} ${chapterNum}:${sortedVerses[0]}`
+      : `${bookDisplayName} ${chapterNum}:${sortedVerses[0]}-${sortedVerses[sortedVerses.length - 1]}`;
+
+    const verseTexts = selectedVersesData
+      .map((v) => {
+        const text = resolveText(v, englishVersion);
+        return `${v.verse} ${text}`;
+      })
+      .join("\n\n");
+
+    const shareText = `${refRange}\n\n${verseTexts}\n\n📖 Bible Companion — read with context\n${window.location.origin}/#/${bookName}/${chapterNum}/${sortedVerses[0]}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText });
+        clearSelection();
+        return;
+      } catch (err) {
+        console.error("Native share failed:", err);
+      }
+    }
+
+    await navigator.clipboard.writeText(shareText);
+    clearSelection();
+  }, [selectedVerses, verses, bookName, chapterNum, englishVersion, isTeluguVersion, resolveText, clearSelection]);
+
+  // Share as image (for first selected verse only)
+  const MAX_IMAGE_VERSES = 2;
+  const MAX_IMAGE_CHARS = 550;
+  
+  const handleShareAsImage = useCallback(() => {
+    if (selectedVerses.size === 0) return;
+  
+    const sorted = Array.from(selectedVerses).sort((a, b) => a - b);
+  
+    // 🚫 Hard verse limit
+    if (sorted.length > MAX_IMAGE_VERSES) {
+      setToast({
+        message: "You can share only up to 2 verses as image.",
+        type: "error",
+      });
+    
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
+    
+  
+    const selectedVersesData = verses.filter((v) =>
+      sorted.includes(v.verse)
+    );
+  
+    const combinedText = selectedVersesData
+    .map((v) =>
+      resolveText(v, englishVersion)
+        .replace(/¸/g, "") // remove garbage encoding
+        .trim()
+    )
+    .join(" "); // single continuous flow
+  
+  
+    // 🚫 Character guard
+    if (combinedText.length > MAX_IMAGE_CHARS) {
+      setToast({
+        message: "Too much text for image. Please select shorter verses.",
+        type: "error",
+      });
+    
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
+    
+  
+    const language = isTeluguVersion(englishVersion) ? "TE" : "EN";
+  
+    const verseRef = {
+      book: bookName,
+      chapter: chapterNum,
+      verse: sorted[0], // anchor
+    };
+  
+    setShareVerseData({
+      verseRef,
+      verseText: combinedText,
+      language,
+      rangeEnd: sorted.length > 1 ? sorted[sorted.length - 1] : undefined,
+    });
+//     console.log("Selected verses data:", selectedVersesData);
+//     console.log("All verses array:", verses);
+//     console.log("Filtered selected:", selectedVersesData);
+//     console.log("Combined text raw:");
+// console.log(combinedText);
+// console.log(
+//   selectedVersesData.map(v => ({
+//     verse: v.verse,
+//     text: resolveText(v, englishVersion)
+//   }))
+// );
+
+    
+    setShareStep("background");
+    setShowActionsMenu(false);
+  }, [
+    selectedVerses,
+    verses,
+    bookName,
+    chapterNum,
+    englishVersion,
+    isTeluguVersion,
+    resolveText,
+  ]);
+  
+  
+  // Add to notes
+const handleAddToNotes = useCallback(() => {
+  if (selectedVerses.size === 0) return;
+
+  const sorted = Array.from(selectedVerses).sort((a, b) => a - b);
+  const selectedVersesData = verses.filter(v =>
+    sorted.includes(v.verse)
+  );
+
+  const languageIsTE = isTeluguVersion(englishVersion);
+
+  const displayBook =
+    languageIsTE
+      ? TELUGU_BOOK_NAMES[bookName] || bookName
+      : bookName;
+
+  const combinedText = selectedVersesData
+    .map(v => resolveText(v, englishVersion))
+    .join("\n\n");
+
+  window.dispatchEvent(
+    new CustomEvent("open-profile-notes", {
+      detail: {
+        ref: {
+          book: bookName,
+          displayBook,
+          chapter: chapterNum,
+          verseStart: sorted[0],
+          verseEnd: sorted.length > 1 ? sorted[sorted.length - 1] : undefined,
+        },
+        text: combinedText,
+      },
+    })
+  );
+
+  clearSelection();
+}, [
+  selectedVerses,
+  verses,
+  bookName,
+  chapterNum,
+  englishVersion,
+  isTeluguVersion,
+  resolveText,
+  clearSelection,
+]);
+
+  
+
+
   if (isLoading) {
     return (
 <div className="flex-grow overflow-y-auto p-4 bg-slate-50 dark:bg-[#0B0F14]">
@@ -363,26 +680,6 @@ const settings: ReaderSettings = readerSettings ?? {
       </div>
     );
   }
-
-  // resolve version safely
-  const resolveText = (v: Verse, version?: string): string => {
-    if (!v?.text || !version) return "";
-  
-    return (
-      v.text[version as keyof typeof v.text] ?? ""
-    )
-      .replace(/\s*\n+\s*/g, " ")
-      .trim();
-  };
-  
-
-  
-
-
-
-  const isSingle = studyMode === "single";
-
-
 
   return (
 <div
@@ -526,15 +823,19 @@ opacity-70 hover:opacity-100
           {verses.map((v) => {
             const isSel =
               selectedVerseRef?.verse === v.verse &&
-              selectedVerseRef?.chapter === chapterNum;
-
+              selectedVerseRef?.chapter === chapterNum &&
+              !isSelectionMode;
+            const isMultiSelected = isSelectionMode && selectedVerses.has(v.verse);
             const hl = highlights[v.verse];
 
             return (
               <div
                 id={`verse-${v.verse}`}
                 key={v.verse}
-                onClick={() => onVerseSelect(v.verse)}
+                onClick={(e) => handleVerseClick(v.verse, e)}
+                onTouchStart={(e) => handleTouchStart(v.verse, e)}
+                onTouchMove={() => handleTouchMove(v.verse)}
+                onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
                   p-2 sm:p-3
                   rounded-2xl
@@ -542,7 +843,9 @@ opacity-70 hover:opacity-100
                   transition-all duration-150
                   border
                   ${
-                    isSel
+                    isMultiSelected
+                      ? "border-blue-600 bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500"
+                      : isSel
                       ? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/30"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
@@ -599,15 +902,19 @@ opacity-70 hover:opacity-100
           {verses.map((v) => {
             const isSel =
               selectedVerseRef?.verse === v.verse &&
-              selectedVerseRef?.chapter === chapterNum;
-
+              selectedVerseRef?.chapter === chapterNum &&
+              !isSelectionMode;
+            const isMultiSelected = isSelectionMode && selectedVerses.has(v.verse);
             const hl = highlights[v.verse];
 
             return (
               <div
                 id={`verse-${v.verse}`}
                 key={v.verse}
-                onClick={() => onVerseSelect(v.verse)}
+                onClick={(e) => handleVerseClick(v.verse, e)}
+                onTouchStart={(e) => handleTouchStart(v.verse, e)}
+                onTouchMove={() => handleTouchMove(v.verse)}
+                onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
                   p-2 sm:p-3
                   rounded-2xl
@@ -615,7 +922,9 @@ opacity-70 hover:opacity-100
                   transition-all duration-150
                   border
                   ${
-                    isSel
+                    isMultiSelected
+                      ? "border-blue-600 bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500"
+                      : isSel
                       ? "border-blue-500/50 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/40"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
@@ -677,6 +986,371 @@ opacity-70 hover:opacity-100
           })}
         </div>
       )}
+
+{/* Multi-select action menu */}
+{isSelectionMode && selectedVerses.size > 0 && (
+  <ModalPortal>
+    <div className="fixed inset-0 z-[9998] pointer-events-none">
+
+{/* MOBILE ACTION BAR */}
+<div className="fixed bottom-4 left-0 right-0 px-4 sm:hidden pointer-events-auto">
+  <div className="max-w-md mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10 p-4">
+
+    <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
+      {selectedVerses.size} Verses Selected
+    </div>
+
+    <div className="flex gap-3">
+
+      <button
+        onClick={handleShareAsText}
+        className="flex-1 py-2 rounded-xl bg-blue-600 text-white font-medium"
+      >
+        Share
+      </button>
+
+      <button
+        onClick={handleAddToNotes}
+        className="flex-1 py-2 rounded-xl bg-blue-600 text-white font-medium"
+      >
+        Save
+      </button>
+
+      <button
+        onClick={() => setShowActionsMenu(true)}
+        className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-medium"
+      >
+        More
+      </button>
+
+    </div>
+
+  </div>
+</div>
+
+
+      {/* ================= DESKTOP ================= */}
+      <div className="hidden sm:block fixed bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-4 flex items-center gap-3">
+
+          <button
+            onClick={clearSelection}
+            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+          >
+            Cancel
+          </button>
+
+          <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
+
+          <button
+            onClick={handleShareAsImage}
+            className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+          >
+            Share as Image
+          </button>
+
+          <button
+            onClick={handleShareAsText}
+            className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+          >
+            Share as Text
+          </button>
+
+          <button
+            onClick={handleAddToNotes}
+            className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+          >
+            Add to Notes
+          </button>
+
+          <div className="px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            {selectedVerses.size} selected
+          </div>
+
+        </div>
+      </div>
+
+      {/* ================= MOBILE ACTION SHEET ================= */}
+      {showActionsMenu && (
+        <div className="fixed inset-0 z-[9999] pointer-events-auto">
+
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowActionsMenu(false)}
+          />
+
+          {/* Sheet */}
+          <div
+            className="
+              absolute bottom-0 left-0 right-0
+              bg-white dark:bg-slate-900
+              rounded-t-3xl
+              shadow-2xl
+              p-6
+              animate-slide-up
+            "
+          >
+            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-6" />
+
+            <div className="flex flex-col gap-3">
+
+              <button
+                onClick={() => {
+                  handleShareAsImage();
+                  setShowActionsMenu(false);
+                }}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Share as Image
+              </button>
+
+              <button
+                onClick={() => {
+                  handleShareAsText();
+                  setShowActionsMenu(false);
+                }}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Share as Text
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAddToNotes();
+                  setShowActionsMenu(false);
+                }}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Add to Notes
+              </button>
+
+              <button
+                onClick={() => {
+                  clearSelection();
+                  setShowActionsMenu(false);
+                }}
+                className="w-full py-3 rounded-xl bg-slate-200 dark:bg-slate-700 font-medium"
+              >
+                Cancel
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  </ModalPortal>
+)}
+
+{shareStep === "background" && (
+  <ModalPortal>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={() => setShareStep(null)}
+    >
+      <div
+        className="
+          bg-white dark:bg-slate-900
+          rounded-[1.75rem]
+          shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)]
+          w-11/12 max-w-2xl
+          max-h-[85vh] overflow-y-auto
+          p-7
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="
+            -mx-7 -mt-7 mb-6
+            px-7 py-5
+            rounded-t-[1.75rem]
+            bg-gradient-to-b from-slate-900 to-slate-800
+            text-white
+            flex items-center justify-between
+          "
+        >
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide">
+              Share verse beautifully
+            </h3>
+            <p className="text-xs text-slate-300 mt-1">
+              Choose a background style
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShareStep(null)}
+            className="
+              w-9 h-9 rounded-full
+              bg-white/10 hover:bg-white/20
+              flex items-center justify-center
+              transition
+            "
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Background choices */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-6">
+
+          {/* Gradient option card */}
+          <button
+            onClick={() => {
+              setSelectedBackground(null);
+              const first = GRADIENT_PRESETS[0];
+              setSelectedGradient(first);
+
+              setTimeout(() => {
+                if (gradientSectionRef.current) {
+                  gradientSectionRef.current.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }
+              }, 0);
+            }}
+            className={`
+              relative aspect-square rounded-xl overflow-hidden border-2 transition-all
+              ${
+                selectedBackground === null
+                  ? "border-blue-600 ring-2 ring-blue-300"
+                  : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+              }
+            `}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 via-sky-300 to-blue-500" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <i className="fas fa-palette text-2xl text-white/80" />
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1.5 text-center font-semibold">
+              Gradient
+            </div>
+          </button>
+
+          {/* Image options */}
+          {NATURE_BACKGROUNDS.map((bg) => (
+            <button
+              key={bg.id}
+              onClick={() => {
+                setSelectedBackground(bg.url);
+                setSelectedGradient(null);
+                setShareStep("content");
+              }}
+              className="
+                relative aspect-square rounded-2xl overflow-hidden
+                border border-slate-200 dark:border-slate-700
+                hover:scale-[1.03] hover:shadow-lg
+                transition
+              "
+            >
+              <img
+                src={bg.url}
+                className="w-full h-full object-cover"
+                alt={bg.name}
+              />
+              <div className="absolute bottom-0 w-full bg-black/60 text-white text-[10px] py-1 text-center truncate">
+                {bg.name}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Gradient presets */}
+        <div ref={gradientSectionRef}>
+          <p className="text-xs font-semibold mb-2 text-slate-600 dark:text-slate-300">
+            Gradient colors
+          </p>
+          <div className="overflow-x-auto pb-2">
+            <div className="flex gap-3 flex-nowrap">
+              {GRADIENT_PRESETS.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    setSelectedBackground(null);
+                    setSelectedGradient({ from: g.from, to: g.to });
+                    setShareStep("content");
+                  }}
+                  className={`
+                    w-14 h-14 rounded-xl flex-shrink-0 border
+                    ${
+                      selectedGradient &&
+                      selectedGradient.from === g.from &&
+                      selectedGradient.to === g.to
+                        ? "border-blue-500 ring-2 ring-blue-400/60"
+                        : "border-slate-300 dark:border-slate-700"
+                    }
+                  `}
+                  style={{
+                    background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShareStep(null)}
+          className="
+            mt-6 w-full
+            py-3 rounded-xl
+            text-sm font-semibold
+            bg-slate-100 dark:bg-slate-800
+            border border-slate-200 dark:border-slate-700
+            hover:bg-slate-200 dark:hover:bg-slate-700
+            transition
+          "
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </ModalPortal>
+)}
+
+{shareStep === "content" && shareVerseData && (
+  <ModalPortal>
+    <VerseImageShare
+      verseRef={shareVerseData.verseRef}
+      verseText={shareVerseData.verseText}
+      language={shareVerseData.language}
+      backgroundUrl={selectedBackground}
+      gradient={selectedGradient}
+      rangeEnd={shareVerseData.rangeEnd}
+      onClose={() => {
+        setShareStep(null);
+        setShareVerseData(null);
+        clearSelection();
+      }}
+      onBack={() => setShareStep("background")}
+    />
+  </ModalPortal>
+)}
+
+{toast && (
+  <div
+    className={`
+      fixed bottom-6 left-1/2 -translate-x-1/2
+      px-5 py-3 rounded-2xl shadow-xl
+      text-sm font-semibold
+      z-[10000]
+      transition
+      ${
+        toast.type === "error"
+          ? "bg-red-600 text-white"
+          : "bg-green-600 text-white"
+      }
+    `}
+  >
+    {toast.message}
+  </div>
+)}
+
+
     </div>
   );
 };
