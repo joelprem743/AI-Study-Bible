@@ -115,7 +115,7 @@ User-controlled reading preferences:
 - Supabase (Auth + Database)
 
 ### AI
-- Gemini-based service integration (AI devotional + chatbot)
+- Gemini and llama-based service integration (AI devotional + chatbot)
 
 ### Export
 - `docx` + `file-saver` for topical note downloads
@@ -157,8 +157,10 @@ src/
     dailyVerseService.ts
     bibleVersesService.ts
 
+---
 
-🚀 Getting Started
+
+## 🚀 Getting Started
 1) Clone the repository
 git clone https://github.com/joelprem743/AI-Study-Bible.git
 cd AI-Study-Bible
