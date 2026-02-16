@@ -1,0 +1,20 @@
+{
+  "redirects": [
+    {
+      "source": "/((?!.*\\.).*)",
+      "destination": "/index.html",
+      "statusCode": 200
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.biblecompanions.in"
+        }
+      ],
+      "destination": "https://biblecompanions.in",
+      "permanent": true
+    }
+  ]
+}
