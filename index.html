@@ -3,33 +3,100 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+  
+    <!-- Primary SEO Title (VERY IMPORTANT) -->
+    <title>AI Bible Companion – Free Bible Study App with AI Explanations</title>
+  
+    <!-- SEO Meta Description -->
+    <meta name="description"
+      content="AI Bible Companion is a free Bible study app to read scripture, get AI-powered explanations, commentary, daily verses, and deeper insights. Study the Bible smarter.">
+  
+    <!-- Keywords (lower impact but still useful) -->
+    <meta name="keywords"
+      content="Bible companion, AI Bible companion, Bible study app, study Bible online, free Bible study tool, Bible AI">
+  
+    <!-- Tell Google to index -->
+    <meta name="robots" content="index, follow">
+  
+    <!-- Mobile optimization -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bible Companion</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://biblecompanions.in" />
+  
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  
+    <!-- OpenGraph (for Google + social trust) -->
+    <meta property="og:title" content="AI Bible Companion – Free Bible Study Tool">
+    <meta property="og:description"
+      content="Study the Bible with AI explanations, commentary, and daily verses.">
+    <meta property="og:url" content="https://biblecompanions.in">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://biblecompanions.in/favicon.png">
+  
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AI Bible Companion">
+    <meta name="twitter:description"
+      content="Free AI-powered Bible study companion.">
+  
+    <!-- Structured Data (EXTREMELY IMPORTANT) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AI Bible Companion",
+      "url": "https://biblecompanions.in",
+      "description": "AI powered Bible study application with explanations, commentary, and daily verses.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web"
+    }
+    </script>
+  
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;500;600&display=swap"
+      rel="stylesheet" />
+  
+    <!-- FontAwesome -->
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+    <!-- Import map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
+      }
+    }
+    </script>
+  
+  </head>
+  <body>
 
-<link
-  href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;500;600&display=swap"
-  rel="stylesheet"
-/>
-
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
-  }
-}
-</script>
-
-</head>
-  <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <noscript>
+      <h1>AI Bible Companion – Free Bible Study Tool</h1>
+  
+      <p>
+        AI Bible Companion is a free Bible study app designed to help users read scripture,
+        get AI-powered explanations, and explore deeper meanings of Bible verses.
+      </p>
+  
+      <p>
+        Features include verse explanations, daily Bible verses, commentary, and study tools.
+      </p>
+    </noscript>
+  
     <div id="modal-root"></div>
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script> 
+  
+    <script type="module" src="/src/index.tsx"></script>
+  
   </body>
 </html>
