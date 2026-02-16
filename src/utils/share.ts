@@ -1,7 +1,4 @@
-const SITE_ORIGIN =
-  typeof window !== "undefined"
-    ? window.location.origin
-    : "https://biblecompanions.in";
+const SITE_ORIGIN = "https://biblecompanions.in";
 
 export function buildVerseShareUrl(
   book: string,

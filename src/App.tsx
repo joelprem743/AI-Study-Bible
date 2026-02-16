@@ -777,14 +777,13 @@ useEffect(() => {
 
             {/* Left: Logo + Title (single source of truth) */}
 <div className="flex items-center gap-2">
-  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-6 h-6">
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M12 8v8" />
-      <path d="M10 10h4" />
-    </svg>
-  </div>
-
+<div className="w-10 h-10 shrink-0">
+  <img
+    src="/logo.png"
+    alt="Bible Companion Logo"
+    className="w-full h-full object-contain"
+  />
+</div>
   <div className="flex items-center gap-1 whitespace-nowrap">
   <span className="text-base md:text-2xl font-bold text-white leading-none">
 
