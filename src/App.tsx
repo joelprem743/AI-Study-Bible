@@ -339,6 +339,51 @@ const App: React.FC = () => {
     isSearchView,
   ]);
   
+  useEffect(() => {
+    const title = `${selectedBook} ${selectedChapter} – Bible Companion`;
+  
+    document.title = title;
+  
+    const description = `Read ${selectedBook} chapter ${selectedChapter} in Bible Companion. Free AI-powered Bible study tool.`;
+  
+    let meta = document.querySelector("meta[name='description']");
+  
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+  
+    meta.setAttribute("content", description);
+  
+  }, [selectedBook, selectedChapter]);
+
+  useEffect(() => {
+
+    const scriptId = "structured-data-script";
+    const existing = document.getElementById(scriptId);
+    if (existing) existing.remove();
+  
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.type = "application/ld+json";
+  
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": `${selectedBook} ${selectedChapter} | Bible Companion`,
+      "url": `https://biblecompanions.in/#/${selectedBook}/${selectedChapter}`,
+      "description": `Read ${selectedBook} chapter ${selectedChapter} online.`,
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "Bible Companion",
+        "url": "https://biblecompanions.in"
+      }
+    });
+  
+    document.head.appendChild(script);
+  
+  }, [selectedBook, selectedChapter]);
   
   // Navigation helpers
   const handleBookChange = useCallback((book: string) => {
@@ -952,6 +997,22 @@ backdrop-blur-xl
 
           {/* MAIN */}
           <main className="flex-grow flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0B0F14]">
+
+{/* SEO CONTENT BLOCK — Google reads this */}
+<section className="sr-only">
+  <h1>
+    {selectedBook} Chapter {selectedChapter} – Bible Companion
+  </h1>
+
+  <p>
+    Read {selectedBook} chapter {selectedChapter} online in Bible Companion.
+    Explore verses, understand scripture, and study the Bible with AI-powered explanations.
+  </p>
+
+  <p>
+    Access all Bible books including Genesis, Exodus, Psalms, Matthew, John, and Revelation.
+  </p>
+</section>
             {isSearchView ? (
               <SearchResultDisplay
               groupedResults={groupedSearchResults ?? { oldTestament: {}, newTestament: {} }}
@@ -1235,6 +1296,12 @@ setGroupedSearchResults(
   text-slate-600 dark:text-slate-400
   border-t border-slate-200 dark:border-white/10
 ">
+  <div className="sr-only">
+  <a href="/#/Genesis/1">Genesis 1</a>
+  <a href="/#/John/3">John 3</a>
+  <a href="/#/Psalm/23">Psalm 23</a>
+  <a href="/#/Matthew/5">Matthew 5</a>
+</div>
 
             Contact: joelpremtej@gmail.com
           </footer>

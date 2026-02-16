@@ -31,7 +31,7 @@ import {
 import { AVAILABLE_VERSIONS } from "../App";
 import ShareLinkSheet from "./ShareLinkSheet";
 import VerseImageShare from "./VerseImageShare";
-
+import { buildVerseShareCaption, buildVerseShareUrl } from "../utils/share";
 
 
 
@@ -734,10 +734,6 @@ const STRONG_REF_REGEX =
     },
   } as const;
 
-  const SHARE_CAPTION =
-  "📖 Bible Companion — read with context\n" +
-  "https://ai-study-bible.vercel.app";
-
   const lockScroll = () => {
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
@@ -1298,40 +1294,23 @@ const handleWordSelect = (idx: number) => {
   };
 
   const handleShareVerse = async () => {
-    const chapterData = await fetchChapter(
+    const caption = buildVerseShareCaption(
       verseRef.book,
       verseRef.chapter,
-      language === "TE" ? "TELUGU_COMMUNITY_V1" : bibleVersion
+      verseRef.verse
     );
   
-    const actual = chapterData.find(v => v.verse === verseRef.verse);
-  
-    const verseText =
-      language === "TE"
-        ? actual?.text.TELUGU_COMMUNITY_V1 || actual?.text.KJV || ""
-        : actual?.text[bibleVersion] || actual?.text.KJV || "";
-  
-    const bookName =
-      language === "TE"
-        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-        : verseRef.book;
-  
-    const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
-  
-    const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
-  
-    // 🔑 URL MUST BE ON ITS OWN LINE
-    const message =
-  `${ref}
-  "${verseText}"
-  
-  📖 Bible Companion — read with context
-  ${verseUrl}`;
+    const url = buildVerseShareUrl(
+      verseRef.book,
+      verseRef.chapter,
+      verseRef.verse
+    );
   
     if (navigator.share) {
       try {
         await navigator.share({
-          text: message,
+          text: caption,
+          url,
         });
         return;
       } catch (err) {
@@ -1339,7 +1318,7 @@ const handleWordSelect = (idx: number) => {
       }
     }
   
-    await navigator.clipboard.writeText(message);
+    await navigator.clipboard.writeText(caption);
   };
   
 
@@ -1356,23 +1335,13 @@ const handleWordSelect = (idx: number) => {
   // Generate and share image with selected background
 
   const handleCopyShareText = () => {
-    const bookName =
-      language === "TE"
-        ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
-        : verseRef.book;
+    const caption = buildVerseShareCaption(
+      verseRef.book,
+      verseRef.chapter,
+      verseRef.verse
+    );
   
-    const ref = `${bookName} ${verseRef.chapter}:${verseRef.verse}`;
-  
-    const verseUrl = `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
-  
-    const text =
-  `${ref}
-  "${displayVerseText}"
-  
-  📖 Bible Companion — read with context
-  ${verseUrl}`;
-  
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(caption);
   };
   
 

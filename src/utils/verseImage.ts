@@ -3,7 +3,10 @@ import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { VerseReference } from "..";
 
 const MAX_CANVAS = 2048;
-const SITE_URL = "ai-study-bible.vercel.app";
+const SITE_URL =
+  typeof window !== "undefined"
+    ? window.location.origin.replace(/^https?:\/\//, "")
+    : "biblecompanions.in";
 
 async function loadBitmap(url: string): Promise<ImageBitmap> {
   const res = await fetch(url, { cache: "no-store" });
@@ -250,7 +253,6 @@ ctx.fillText(
   width / 2,
   footerY + (churchName ? 22 : 0)
 );
-
 /* URL */
 ctx.globalAlpha = 0.45;
 ctx.font = "400 14px Inter, system-ui, sans-serif";

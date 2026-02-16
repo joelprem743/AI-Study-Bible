@@ -7,7 +7,7 @@ import { useNotes } from "../context/NotesContext";
 import { generateVerseImage } from "../utils/verseImage";
 import ModalPortal from "./ModalPortal";
 import VerseImageShare from "./VerseImageShare";
-
+import { buildVerseShareCaption, buildVerseShareUrl } from "../utils/share";
 const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
 
 interface ScriptureDisplayProps {
@@ -662,11 +662,24 @@ const pendingHighlightRef = useRef<string | null>(null);
       })
       .join("\n\n");
 
-    const shareText = `${refRange}\n\n${verseTexts}\n\n📖 Bible Companion — read with context\n${window.location.origin}/#/${bookName}/${chapterNum}/${sortedVerses[0]}`;
-
+      const caption = buildVerseShareCaption(
+        bookName,
+        chapterNum,
+        sortedVerses[0]
+      );
+      
+      const shareText =
+        `${refRange}\n\n${verseTexts}\n\n${caption}`;
     if (navigator.share) {
       try {
-        await navigator.share({ text: shareText });
+        await navigator.share({
+          text: shareText,
+          url: buildVerseShareUrl(
+            bookName,
+            chapterNum,
+            sortedVerses[0]
+          ),
+        });
         clearSelection();
         return;
       } catch (err) {
