@@ -3,10 +3,7 @@ import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { VerseReference } from "..";
 
 const MAX_CANVAS = 2048;
-const SITE_URL =
-  typeof window !== "undefined"
-    ? window.location.origin.replace(/^https?:\/\//, "")
-    : "biblecompanions.in";
+const SITE_URL = "biblecompanions.in";
 
 async function loadBitmap(url: string): Promise<ImageBitmap> {
   const res = await fetch(url, { cache: "no-store" });
@@ -244,22 +241,25 @@ if (churchName && churchName.trim()) {
 
   ctx.fillText(attributionText, width / 2, footerY);
 }
-
+ctx.shadowColor = "rgba(0,0,0,0.4)";
+ctx.shadowBlur = 3;
+ctx.shadowOffsetY = 1;
 /* App Name */
 ctx.globalAlpha = 0.6;
-ctx.font = "600 22px Inter, system-ui, sans-serif";
+ctx.font = "600 26px Inter, system-ui, sans-serif";
 ctx.fillText(
   "Bible Companion",
   width / 2,
-  footerY + (churchName ? 22 : 0)
+  footerY + (churchName ? 28 : 6)
 );
 /* URL */
-ctx.globalAlpha = 0.45;
-ctx.font = "400 14px Inter, system-ui, sans-serif";
+ctx.globalAlpha = isImageBackground ? 0.6 : 0.65;
+ctx.font = "500 18px Inter, system-ui, sans-serif";
+
 ctx.fillText(
   SITE_URL,
   width / 2,
-  footerY + (churchName ? 44 : 22)
+  footerY + (churchName ? 58 : 32)
 );
 
 ctx.globalAlpha = 1;

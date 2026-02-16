@@ -118,7 +118,7 @@
     
     ${verseText}
     
-    📖 Bible Companion — read with context
+    Discover more in Bible Companion
     
     ${resolvedVerseUrl}
     `.trim();
