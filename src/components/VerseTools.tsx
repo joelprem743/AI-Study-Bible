@@ -813,6 +813,8 @@ export const VerseTools: React.FC<{
   bibleVersion: string;
   onClose?: () => void;
   currentHighlight?: string;
+  demoTriggerShare?: boolean;
+  demoTriggerHighlight?: boolean;
   onHighlightChange?: (color: string | null) => void;
 }> = ({
   verseRef,
@@ -822,6 +824,8 @@ export const VerseTools: React.FC<{
   onClose,
   currentHighlight,
   onHighlightChange,
+  demoTriggerShare,
+  demoTriggerHighlight,
 }) => {
 
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
@@ -835,7 +839,7 @@ export const VerseTools: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareSheetText, setShareSheetText] = useState("");
-
+  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [selectedGradient, setSelectedGradient] = useState<{
     from: string;
     to: string;
@@ -853,6 +857,23 @@ export const VerseTools: React.FC<{
   type ShareStep = "background" | "content" | null;
 
 const [shareStep, setShareStep] = useState<ShareStep>(null);
+
+useEffect(() => {
+  if (!demoTriggerShare) return;
+
+  // Automatically select first background
+  const firstBg = NATURE_BACKGROUNDS?.[0];
+
+  if (firstBg) {
+    setSelectedBackground(firstBg.url);
+  }
+
+  // Skip background picker completely
+  setShareStep("content");
+
+}, [demoTriggerShare]);
+
+
 
   // Optional church attribution (VerseTools only)
 const [includeChurchName, setIncludeChurchName] = useState(false);
@@ -1326,6 +1347,18 @@ const handleWordSelect = (idx: number) => {
 
   // Open background selector first
   const handleShareAsImageClick = () => {
+
+    // During demo, skip background selection
+    if (demoTriggerShare) {
+      const firstBg = NATURE_BACKGROUNDS?.[0];
+      if (firstBg) {
+        setSelectedBackground(firstBg.url);
+      }
+  
+      setShareStep("content");
+      return;
+    }
+  
     setShareStep("background");
   };
   
@@ -1747,6 +1780,50 @@ const handleWordSelect = (idx: number) => {
   /* -------------------------
     Effects
   ---------------------------*/
+  useEffect(() => {
+    if (!demoTriggerHighlight) return;
+  
+    setPreviewHighlight("yellow");
+    onHighlightChange?.("yellow");
+    setHighlightOpen(true);
+  
+    const t = setTimeout(() => {
+      setHighlightOpen(false);
+    }, 1500);
+  
+    return () => clearTimeout(t);
+  
+  }, [demoTriggerHighlight, onHighlightChange]);
+  
+  
+  
+  useEffect(() => {
+    const handleDemoStepChange = () => {
+      // Close share preview when demo moves to next step
+      setShareStep(null);
+    };
+  
+    window.addEventListener("demo-next-step", handleDemoStepChange);
+  
+    return () => {
+      window.removeEventListener("demo-next-step", handleDemoStepChange);
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (shareStep === "content") {
+      window.dispatchEvent(
+        new CustomEvent("demo-behind-modal", { detail: true })
+      );
+    }
+  
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent("demo-behind-modal", { detail: false })
+      );
+    };
+  }, [shareStep]);
+  
 
   useEffect(() => {
     return () => {
@@ -3240,7 +3317,7 @@ className="
       {isPreviewOpen && (
         <ModalPortal>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9000]"
             onClick={() => setIsPreviewOpen(false)}
             style={{ pointerEvents: "auto" }}
           >
@@ -3284,7 +3361,7 @@ className="
       {shareStep === "background" && (
         <ModalPortal>
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9000]"
             onClick={() => setShareStep(null)}
           >
             <div
@@ -3482,24 +3559,40 @@ className="
 
       {/* STEP 2 — Verse image preview / share */}
       {shareStep === "content" && (
-        <ModalPortal>
-          <VerseImageShare
-            verseRef={verseRef}
-            verseText={displayVerseText}
-            language={language}
-            backgroundUrl={selectedBackground}
-            gradient={selectedGradient}
-            onClose={() => setShareStep(null)}
-            onBack={() => setShareStep("background")}
-          />
-        </ModalPortal>
-      )}
-
+  <ModalPortal>
+    <div
+      className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center"
+      onClick={() => {
+        setShareStep(null);
+        window.dispatchEvent(
+          new CustomEvent("demo-behind-modal", { detail: false })
+        );
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()}>
+        <VerseImageShare
+          verseRef={verseRef}
+          verseText={displayVerseText}
+          language={language}
+          backgroundUrl={selectedBackground}
+          gradient={selectedGradient}
+          onClose={() => {
+            setShareStep(null);
+            window.dispatchEvent(
+              new CustomEvent("demo-behind-modal", { detail: false })
+            );
+          }}
+          onBack={() => setShareStep("background")}
+        />
+      </div>
+    </div>
+  </ModalPortal>
+)}
 
       {strongPopup && (
     <ModalPortal>
       <div
-        className="fixed inset-0 bg-black/50 flex items-end z-[9999]"
+        className="fixed inset-0 bg-black/50 flex items-end z-[9000]"
         onClick={() => {
           setStrongPopup(null);
           setShowFullLexicon(false);

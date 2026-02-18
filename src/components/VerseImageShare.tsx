@@ -178,125 +178,140 @@
       document.body.removeChild(a);
     };
     
-
     return (
-      <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl w-11/12 max-w-md p-4">
+      <>
+        {/* Modal card */}
+        <div
+          className="
+            bg-white dark:bg-slate-900
+            rounded-2xl
+            w-[92vw] max-w-md
+            max-h-[90vh]
+            overflow-hidden
+            shadow-2xl
+            border border-slate-200 dark:border-white/10
+            relative
+          "
+          onClick={(e) => e.stopPropagation()}
+        >
     
-  {/* Header */}
-  <div
-    className="
-      -mx-4 -mt-4 mb-4
-      px-5 py-4
-      rounded-t-2xl
-      bg-gradient-to-b from-slate-900 to-slate-800
-      text-white
-      flex items-center justify-between
-    "
-  >
-    <div>
-      <h3 className="text-sm font-semibold tracking-wide">
-        {language === "TE"
-          ? "వాక్యాన్ని షేర్ చేయండి"
-          : "Share verse"}
-      </h3>
-      <p className="text-xs text-slate-300 mt-0.5">
-        {language === "TE"
-          ? "చిత్రం లేదా వచనం కాపీ చేయండి"
-          : "Copy text or share image"}
-      </p>
-    </div>
-
-    <button
-      onClick={onClose}
-      className="
-        w-9 h-9 rounded-full
-        bg-white/10 hover:bg-white/20
-        flex items-center justify-center
-        transition
-      "
-      aria-label="Close"
-    >
-      ✕
-    </button>
-  </div>
-
+          {/* Header */}
+          <div
+            className="
+              px-5 py-4
+              rounded-t-2xl
+              bg-gradient-to-b from-slate-900 to-slate-800
+              text-white
+              flex items-center justify-between
+            "
+          >
+            <div>
+              <h3 className="text-sm font-semibold tracking-wide">
+                {language === "TE" ? "వాక్యాన్ని షేర్ చేయండి" : "Share verse"}
+              </h3>
     
-          {/* Preview */}
-          <div className="aspect-square bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
-            {loading ? (
-              <span className="text-xs text-slate-500">Generating…</span>
-            ) : previewUrl ? (
-              <img src={previewUrl} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xs text-red-500">Failed</span>
-            )}
+              <p className="text-xs text-slate-300 mt-0.5">
+                {language === "TE"
+                  ? "చిత్రం లేదా వచనం కాపీ చేయండి"
+                  : "Copy text or share image"}
+              </p>
+            </div>
+    
+            <button
+              onClick={onClose}
+              className="
+                w-9 h-9 rounded-full
+                bg-white/10 hover:bg-white/20
+                flex items-center justify-center
+              "
+            >
+              ✕
+            </button>
           </div>
-  {/* Action Row */}
-  <div className="flex items-center justify-between gap-3 mt-4">
     
-    {/* Back */}
-    <button
-      onClick={onBack}
-      className="text-sm text-slate-500 hover:underline"
-    >
-      ← {language === "TE" ? "వెనక్కి" : "Back"}
-    </button>
-
-    <div className="flex gap-2 ml-auto">
-      
-      {/* Copy */}
-      <button
-        disabled={!previewUrl}
-        onClick={handleCopyToClipboard}
-        className="
-          px-4 py-2 rounded-lg
-          border border-slate-300 dark:border-slate-700
-          text-sm font-semibold
-          hover:bg-slate-100 dark:hover:bg-slate-800
-          disabled:opacity-50
-        "
-      >
-        {language === "TE" ? "కాపీ" : "Copy"}
-      </button>
-
-      {/* Share */}
-      <button
-        disabled={!previewUrl}
-        onClick={handleShare}
-        className="
-          px-5 py-2 rounded-lg
-          bg-blue-600 text-white
-          text-sm font-semibold
-          hover:bg-blue-700
-          disabled:opacity-50
-        "
-      >
-        {language === "TE" ? "షేర్" : "Share"}
-      </button>
-
-    </div>
-  </div>
-
+    
+          {/* Content wrapper (THIS FIXES ALL PADDING) */}
+          <div className="p-4 pt-3">
+    
+            {/* Preview */}
+            <div className="aspect-square bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+              {loading ? (
+                <span className="text-xs text-slate-500">Generating…</span>
+              ) : previewUrl ? (
+                <img
+                  src={previewUrl}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <span className="text-xs text-red-500">Failed</span>
+              )}
+            </div>
+    
+    
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-3 mt-4">
+    
+              <button
+                onClick={onBack}
+                className="text-sm text-slate-500 hover:underline"
+              >
+                ← {language === "TE" ? "వెనక్కి" : "Back"}
+              </button>
+    
+              <div className="flex gap-2 ml-auto">
+    
+                <button
+                  disabled={!previewUrl}
+                  onClick={handleCopyToClipboard}
+                  className="
+                    px-4 py-2 rounded-lg
+                    border border-slate-300 dark:border-slate-700
+                    text-sm font-semibold
+                    hover:bg-slate-100 dark:hover:bg-slate-800
+                    disabled:opacity-50
+                  "
+                >
+                  {language === "TE" ? "కాపీ" : "Copy"}
+                </button>
+    
+                <button
+                  disabled={!previewUrl}
+                  onClick={handleShare}
+                  className="
+                    px-5 py-2 rounded-lg
+                    bg-blue-600 text-white
+                    text-sm font-semibold
+                    hover:bg-blue-700
+                    disabled:opacity-50
+                  "
+                >
+                  {language === "TE" ? "షేర్" : "Share"}
+                </button>
+    
+              </div>
+    
+            </div>
+    
+          </div>
+    
         </div>
+    
+    
+        {/* Toast */}
         {toast && (
-    <div
-      className={`
-        fixed bottom-6 left-1/2 -translate-x-1/2
-        px-4 py-2 rounded-xl shadow-lg
-        text-sm font-semibold
-        transition
-        ${
-          toast.type === "success"
-            ? "bg-green-600 text-white"
-            : "bg-red-600 text-white"
-        }
-      `}
-    >
-      {toast.message}
-    </div>
-  )}
-
-      </div>
+          <div
+            className="
+              fixed bottom-6 left-1/2 -translate-x-1/2
+              px-4 py-2 rounded-xl shadow-lg
+              text-sm font-semibold
+              bg-green-600 text-white
+            "
+          >
+            {toast.message}
+          </div>
+        )}
+    
+      </>
     );
-  }  
+    
+  }    

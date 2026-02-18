@@ -12,6 +12,8 @@ import ProfileNotes from "./components/ProfileNotes";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useHighlights } from "./hooks/useHighlights";
 import { useThemeMode } from "./hooks/useThemeMode";
+import DemoTourOverlay from "./components/DemoTourOverlay";
+import { DEMO_STEPS } from "./demo/demoSteps";
 
 
 import {
@@ -66,6 +68,7 @@ const App: React.FC = () => {
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null);
   const [chatInitialLanguage, setChatInitialLanguage] = useState<"EN" | "TE" | null>(null);
+  const [demoTriggerHighlight, setDemoTriggerHighlight] = useState(false);
 
   // Core state
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -160,6 +163,30 @@ const App: React.FC = () => {
   const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
+// Demo Tour State
+const [isDemoOpen, setIsDemoOpen] = useState(false);
+const [demoStepIndex, setDemoStepIndex] = useState(0);
+const [demoTriggerShare, setDemoTriggerShare] = useState(false);
+const [demoBehindModal, setDemoBehindModal] = useState(false);
+
+
+// CENTRALIZED DEMO CLEANUP
+const closeAllDemoPopups = useCallback(() => {
+
+  setIsChatOpen(false);
+
+  setIsToolsModalOpen(false);
+
+  setNotesOpen(false);
+
+  setSearchOpen(false);
+
+  setDemoTriggerShare(false);
+
+}, []);
+
+
+
   const isOriginalVersion = (v?: string) =>
     v === "HEBREW_OT" || v === "GREEK_NT";
   
@@ -299,7 +326,18 @@ const App: React.FC = () => {
 
   // Load verses
 
+  useEffect(() => {
 
+    const handler = (e: any) => {
+      setDemoBehindModal(e.detail === true);
+    };
+  
+    window.addEventListener("demo-behind-modal", handler);
+  
+    return () => window.removeEventListener("demo-behind-modal", handler);
+  
+  }, []);
+  
   useEffect(() => {
     if (isSearchView) return;
   
@@ -477,6 +515,60 @@ const App: React.FC = () => {
     setIsHomePage(false);
   
   };
+  
+  const handleStartDemo = () => {
+
+    closeAllDemoPopups();
+  
+    setStudyMode("single");
+  
+    navigateTo("Genesis", 1);
+  
+    setDemoStepIndex(0);
+  
+    setIsDemoOpen(true);
+  
+  };
+  
+  
+  
+  const handleNextDemoStep = () => {
+
+    closeAllDemoPopups();
+  
+    const next = demoStepIndex + 1;
+  
+    if (next >= DEMO_STEPS.length) {
+  
+      setIsDemoOpen(false);
+  
+      setStudyMode("single");
+  
+      navigateTo("Genesis", 1);
+  
+      localStorage.setItem("demo_completed", "true");
+  
+      return;
+    }
+  
+    setDemoStepIndex(next);
+  
+  };
+  
+  
+  const handleSkipDemo = () => {
+
+    closeAllDemoPopups();
+  
+    setIsDemoOpen(false);
+  
+    setStudyMode("single");
+  
+    navigateTo("Genesis", 1);
+  
+  };
+  
+  
 
   const getEnglishVersionForLogic = () => {
     if (studyMode === "single") {
@@ -743,7 +835,13 @@ const App: React.FC = () => {
   }, []);
   
   
-  const navigateTo = useCallback((book: string, chap: number, verse?: number) => {
+  const navigateTo = useCallback((
+    book: string,
+    chap: number,
+    verse?: number,
+    options?: { openTools?: boolean }
+  ) => {
+  
     setIsSearchView(false);
     setSearchError(null);
   
@@ -753,8 +851,12 @@ const App: React.FC = () => {
     if (verse !== undefined) {
       setSelectedVerse(verse);
       setSelectedVerseRef({ book, chapter: chap, verse });
-      if (window.innerWidth < 768) setIsToolsModalOpen(true);
-    } else {
+    
+      if (options?.openTools === true) {
+        setIsToolsModalOpen(true);
+      }
+    }
+     else {
       setSelectedVerse(1);
       setSelectedVerseRef(null);
       setIsToolsModalOpen(false);
@@ -771,7 +873,102 @@ const App: React.FC = () => {
     window.addEventListener("open-profile-notes", handler);
     return () => window.removeEventListener("open-profile-notes", handler);
   }, []);
+
+
+  useEffect(() => {
+
+    if (!isDemoOpen) return;
   
+    closeAllDemoPopups();
+  
+
+  
+    // Ensure homepage exits when demo starts
+    if (isHomePage) {
+      setIsHomePage(false);
+    }
+  
+    const step = DEMO_STEPS[demoStepIndex];
+  
+
+    switch (step.index) {
+
+      case 1:
+        navigateTo("John", 3, 16, { openTools: false });
+        break;
+    
+      case 2:
+        setStudyMode("parallel");
+        navigateTo("John", 3, 16, { openTools: false });
+        break;
+    
+      case 3:
+        setStudyMode("single");
+        navigateTo("John", 3, 16, { openTools: false });
+        setIsChatOpen(true);
+        setChatInitialMessage("Explain John 3:16");
+        break;
+    
+        case 4:
+          navigateTo("John", 3, 16, { openTools: true });
+        
+          setTimeout(() => {
+            setDemoTriggerHighlight(true);
+        
+            setTimeout(() => {
+              setDemoTriggerHighlight(false);
+            }, 800);
+        
+          }, 500);
+        
+          break;
+        
+    
+        case 5:
+          navigateTo("John", 3, 16, { openTools: true });
+        
+          setTimeout(() => {
+            setDemoTriggerShare(true);
+        
+            // auto reset so it doesn't retrigger
+            setTimeout(() => {
+              setDemoTriggerShare(false);
+            }, 1000);
+        
+          }, 600);
+        
+          break;
+        
+    
+      case 6:
+        navigateTo("John", 3, 16, { openTools: false });
+        window.dispatchEvent(new CustomEvent("open-profile-notes", {
+          detail: {
+            ref: {
+              book: "John",
+              displayBook: "John",
+              chapter: 3,
+              verseStart: 16,
+            },
+            text: "For God so loved the world...",
+          },
+        }));
+        break;
+    
+      case 7:
+        setSearchOpen(true);
+        break;
+    
+    }
+  }, [
+    demoStepIndex,
+    isDemoOpen,
+    navigateTo,
+    setStudyMode,
+    closeAllDemoPopups,
+  ]);
+  
+
 
   // Desktop-only: close search on click outside
 useEffect(() => {
@@ -849,7 +1046,7 @@ useEffect(() => {
 
             {/* Left: Logo + Title (single source of truth) */}
 <div className="flex items-center gap-2">
-<div className="w-10 h-10 shrink-0">
+<div className="w-8 h-8 shrink-0">
   <img
     src="/logo.png"
     alt="Bible Companion Logo"
@@ -1101,32 +1298,107 @@ backdrop-blur-xl
 </section>
 {isHomePage ? (
 
-<div className="flex flex-col items-center justify-center flex-grow text-center px-6">
+<div className="flex flex-col items-center justify-center flex-grow text-center px-6 relative overflow-hidden">
 
+{/* Background glow */}
+<div className="absolute inset-0 pointer-events-none">
+  <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-500/20 blur-[120px] rounded-full"></div>
+</div>
+
+{/* Logo */}
+<div className="relative">
   <img
     src="/logo.png"
-    className="w-20 h-20 mb-6"
+    className="w-20 h-20 mb-6 drop-shadow-lg"
     alt="Bible Companion"
   />
+</div>
 
-  <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-white">
-    Bible Companion
-  </h1>
+{/* Headline */}
+<h1 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
+  Study the Bible with
+  <span className="block text-blue-600 dark:text-blue-400">
+    Intelligence & Clarity
+  </span>
+</h1>
 
-  <p className="text-lg text-slate-600 dark:text-slate-300 mb-6 max-w-xl">
-    Read, explore, and study the Bible with powerful tools.
-    Access multiple Bible versions, search verses instantly,
-    and deepen your understanding of Scripture.
-  </p>
+{/* Subtext */}
+<p className="text-lg text-slate-600 dark:text-slate-300 mb-8 max-w-xl">
+  Read in Telugu & English, get AI explanations, highlight verses,
+  create shareable verse images, and deepen your understanding.
+</p>
+
+{/* CTA buttons */}
+<div className="flex flex-col sm:flex-row gap-4 mb-10">
 
   <button
     onClick={handleStartReading}
-    className="px-6 py-3 bg-blue-600 text-white rounded-xl text-lg hover:bg-blue-700 transition"
+    className="
+      px-8 py-4
+      bg-gradient-to-r from-blue-600 to-indigo-600
+      text-white
+      rounded-xl
+      text-lg
+      font-semibold
+      shadow-lg
+      hover:shadow-blue-500/40
+      hover:scale-[1.03]
+      transition-all duration-200
+    "
   >
     Start Reading
   </button>
 
+  <button
+    onClick={handleStartDemo}
+    className="
+      px-8 py-4
+      bg-white/70 dark:bg-slate-800/70
+      backdrop-blur-xl
+      border border-slate-300 dark:border-white/10
+      text-slate-800 dark:text-white
+      rounded-xl
+      text-lg
+      font-semibold
+      hover:bg-white dark:hover:bg-slate-800
+      hover:scale-[1.03]
+      transition-all duration-200
+      flex items-center gap-2 justify-center
+    "
+  >
+    <i className="fas fa-play-circle text-blue-500"></i>
+    Interactive Demo
+  </button>
+
 </div>
+
+{/* Feature highlights */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl text-sm">
+
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
+    <div className="font-semibold">AI Explanation</div>
+    <div className="text-slate-500 text-xs">Understand instantly</div>
+  </div>
+
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
+    <div className="font-semibold">Telugu + English</div>
+    <div className="text-slate-500 text-xs">Side-by-side study</div>
+  </div>
+
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
+    <div className="font-semibold">Share Verse Images</div>
+    <div className="text-slate-500 text-xs">Beautiful & ready</div>
+  </div>
+
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
+    <div className="font-semibold">Smart Search</div>
+    <div className="text-slate-500 text-xs">Find anything fast</div>
+  </div>
+
+</div>
+
+</div>
+
 
 ) : isSearchView ? (
               <SearchResultDisplay
@@ -1208,6 +1480,8 @@ backdrop-blur-xl
 
                   {selectedVerseRef && selectedVerseData ? (
                     <VerseTools
+                    demoTriggerHighlight={demoTriggerHighlight}
+                    demoTriggerShare={demoTriggerShare}
                     verseRef={selectedVerseRef}
                     verseData={selectedVerseData}
                     uiLanguage={verseToolsLanguage}
@@ -1240,6 +1514,8 @@ backdrop-blur-xl
             <div className="fixed inset-0 z-[1000] md:hidden bg-black/60" onClick={() => setIsToolsModalOpen(false)}>
               <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-900 rounded-t-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
                 <VerseTools
+                  demoTriggerHighlight={demoTriggerHighlight}
+                  demoTriggerShare={demoTriggerShare}
                   verseRef={selectedVerseRef}
                   verseData={selectedVerseData}
                   uiLanguage={verseToolsLanguage}
@@ -1405,6 +1681,7 @@ setGroupedSearchResults(
 
 
 
+
 <footer className="
   bg-slate-100 dark:bg-slate-950
   text-center p-2 text-xs
@@ -1418,8 +1695,20 @@ setGroupedSearchResults(
   <a href="/#/Matthew/5">Matthew 5</a>
 </div>
 
-            Contact: joelpremtej@gmail.com
+© 2026 Bible Companion
           </footer>
+
+          {isDemoOpen && (
+            <DemoTourOverlay
+  step={DEMO_STEPS[demoStepIndex]}
+  totalSteps={DEMO_STEPS.length}
+  onNext={handleNextDemoStep}
+  onSkip={handleSkipDemo}
+  behindModal={demoBehindModal}
+/>
+
+)}
+
 
           <Chatbot
   selectedBook={selectedBook}
