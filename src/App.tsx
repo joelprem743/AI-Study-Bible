@@ -206,9 +206,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isSearchView || isLoadingVerses) return;
-
+  
     const current = window.location.hash;
-
+  
+    // CRITICAL FIX: do NOT auto-set hash if homepage
+    if (!current || current === "#") return;
+  
     if (
       current.startsWith("#access_token") ||
       current.includes("access_token=") ||
@@ -216,8 +219,9 @@ const App: React.FC = () => {
     ) {
       return;
     }
-
+  
     let hash = `#/${encodeURIComponent(selectedBook)}/${selectedChapter}`;
+  
     if (
       selectedVerseRef &&
       selectedVerseRef.book === selectedBook &&
@@ -225,12 +229,19 @@ const App: React.FC = () => {
     ) {
       hash += `/${selectedVerseRef.verse}`;
     }
-
+  
     if (hash !== current) {
       suppressHash.current = true;
       window.location.hash = hash;
     }
-  }, [isSearchView, isLoadingVerses, selectedBook, selectedChapter, selectedVerseRef]);
+  
+  }, [
+    isSearchView,
+    isLoadingVerses,
+    selectedBook,
+    selectedChapter,
+    selectedVerseRef,
+  ]);
 
   useEffect(() => {
     const parseHash = (hash: string) => {
@@ -340,11 +351,32 @@ const App: React.FC = () => {
   ]);
   
   useEffect(() => {
-    const title = `${selectedBook} ${selectedChapter} – Bible Companion`;
+
+    const isHome =
+      !window.location.hash ||
+      window.location.hash === "#" ||
+      window.location.hash === "#/";
+  
+    let title;
+    let description;
+  
+    if (isHome) {
+  
+      title = "Bible Companion – Free Bible Study App";
+  
+      description =
+        "Bible Companion is a free Bible study app to read scripture, explore verses, and study the Bible online.";
+  
+    } else {
+  
+      title = `${selectedBook} ${selectedChapter} – Bible Companion`;
+  
+      description =
+        `Read ${selectedBook} chapter ${selectedChapter} in Bible Companion. Free Bible study tool.`;
+  
+    }
   
     document.title = title;
-  
-    const description = `Read ${selectedBook} chapter ${selectedChapter} in Bible Companion. Free AI-powered Bible study tool.`;
   
     let meta = document.querySelector("meta[name='description']");
   
@@ -364,21 +396,33 @@ const App: React.FC = () => {
     const existing = document.getElementById(scriptId);
     if (existing) existing.remove();
   
+    const isHome =
+      !window.location.hash ||
+      window.location.hash === "#" ||
+      window.location.hash === "#/";
+  
     const script = document.createElement("script");
     script.id = scriptId;
     script.type = "application/ld+json";
   
     script.text = JSON.stringify({
+  
       "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": `${selectedBook} ${selectedChapter} | Bible Companion`,
-      "url": `https://biblecompanions.in/#/${selectedBook}/${selectedChapter}`,
-      "description": `Read ${selectedBook} chapter ${selectedChapter} online.`,
-      "isPartOf": {
-        "@type": "WebSite",
-        "name": "Bible Companion",
-        "url": "https://biblecompanions.in"
-      }
+  
+      "@type": isHome ? "WebSite" : "WebPage",
+  
+      "name": isHome
+        ? "Bible Companion"
+        : `${selectedBook} ${selectedChapter} | Bible Companion`,
+  
+      "url": isHome
+        ? "https://biblecompanions.in"
+        : `https://biblecompanions.in/#/${selectedBook}/${selectedChapter}`,
+  
+      "description": isHome
+        ? "Free Bible study application."
+        : `Read ${selectedBook} chapter ${selectedChapter}.`
+  
     });
   
     document.head.appendChild(script);
