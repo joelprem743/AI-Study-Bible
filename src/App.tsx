@@ -62,7 +62,7 @@ const App: React.FC = () => {
     chapterTo?: number;
   };
   
-  
+  const [isHomePage, setIsHomePage] = useState(true);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null);
   const [chatInitialLanguage, setChatInitialLanguage] = useState<"EN" | "TE" | null>(null);
@@ -428,6 +428,27 @@ const App: React.FC = () => {
     document.head.appendChild(script);
   
   }, [selectedBook, selectedChapter]);
+  useEffect(() => {
+
+    const checkHome = () => {
+  
+      const hash = window.location.hash;
+  
+      if (!hash || hash === "#" || hash === "#/") {
+        setIsHomePage(true);
+      } else {
+        setIsHomePage(false);
+      }
+  
+    };
+  
+    checkHome();
+  
+    window.addEventListener("hashchange", checkHome);
+  
+    return () => window.removeEventListener("hashchange", checkHome);
+  
+  }, []);
   
   // Navigation helpers
   const handleBookChange = useCallback((book: string) => {
@@ -449,6 +470,13 @@ const App: React.FC = () => {
     setIsToolsModalOpen(false);
   }, [setSelectedChapter, setSelectedVerse]);
   
+  const handleStartReading = () => {
+
+    window.location.hash = "#/Genesis/1";
+  
+    setIsHomePage(false);
+  
+  };
 
   const getEnglishVersionForLogic = () => {
     if (studyMode === "single") {
@@ -1043,20 +1071,64 @@ backdrop-blur-xl
 
 {/* SEO CONTENT BLOCK — Google reads this */}
 <section className="sr-only">
-  <h1>
-    {selectedBook} Chapter {selectedChapter} – Bible Companion
+
+  {isHomePage ? (
+    <>
+      <h1>Bible Companion – Free Bible Study App</h1>
+
+      <p>
+        Read and study the Holy Bible online. Access Genesis, Psalms,
+        Matthew, John, Revelation, and more.
+      </p>
+
+      <p>
+        Bible Companion provides fast search, multiple versions,
+        verse highlighting, and powerful Bible study tools.
+      </p>
+    </>
+  ) : (
+    <>
+      <h1>
+        {selectedBook} Chapter {selectedChapter} – Bible Companion
+      </h1>
+
+      <p>
+        Read {selectedBook} chapter {selectedChapter} online in Bible Companion.
+      </p>
+    </>
+  )}
+
+</section>
+{isHomePage ? (
+
+<div className="flex flex-col items-center justify-center flex-grow text-center px-6">
+
+  <img
+    src="/logo.png"
+    className="w-20 h-20 mb-6"
+    alt="Bible Companion"
+  />
+
+  <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-white">
+    Bible Companion
   </h1>
 
-  <p>
-    Read {selectedBook} chapter {selectedChapter} online in Bible Companion.
-    Explore verses, understand scripture, and study the Bible with AI-powered explanations.
+  <p className="text-lg text-slate-600 dark:text-slate-300 mb-6 max-w-xl">
+    Read, explore, and study the Bible with powerful tools.
+    Access multiple Bible versions, search verses instantly,
+    and deepen your understanding of Scripture.
   </p>
 
-  <p>
-    Access all Bible books including Genesis, Exodus, Psalms, Matthew, John, and Revelation.
-  </p>
-</section>
-            {isSearchView ? (
+  <button
+    onClick={handleStartReading}
+    className="px-6 py-3 bg-blue-600 text-white rounded-xl text-lg hover:bg-blue-700 transition"
+  >
+    Start Reading
+  </button>
+
+</div>
+
+) : isSearchView ? (
               <SearchResultDisplay
               groupedResults={groupedSearchResults ?? { oldTestament: {}, newTestament: {} }}
               isLoading={isSearching}
