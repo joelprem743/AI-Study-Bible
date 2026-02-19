@@ -1004,7 +1004,8 @@ useEffect(() => {
       {loading ? (
         <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
       ) : (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col min-h-screen">
+
 
 {showWelcome && (
   <WelcomeScreen
