@@ -238,16 +238,15 @@ const unifiedLabel =
   const currentVerseCount = getVerseCount(tempBook, tempChapter);
   
   return (
-    <div
-    className="
+<div
+  className="
     flex items-center gap-3 sticky top-14 z-30
     px-3 md:px-4 py-2
-    bg-white/70 dark:bg-slate-900/35
-    backdrop-blur-xl
-    border-b border-slate-200/70 dark:border-white/10
+    bg-slate-50 dark:bg-slate-900
+    border-b border-slate-200 dark:border-slate-700
   "
-  
-    >
+>
+
       {/* <div
         className="
           flex items-center gap-3
@@ -262,23 +261,42 @@ const unifiedLabel =
 
       {/* UNIFIED BOOK+CHAPTER BUTTON */}
       <div
-  className="
-    group flex-1 min-w-0
-    flex items-center
-    rounded-full
-    bg-white/70 dark:bg-white/5
-    border border-slate-200/60 dark:border-white/10
-    shadow-sm
-    h-10 px-2
-    overflow-hidden
-    transform-gpu transition-all duration-150 ease-out
-    hover:bg-white/90 dark:hover:bg-white/10
-    hover:border-slate-300/70 dark:hover:border-white/15
-    hover:shadow-[0_0_10px_rgba(59,130,246,0.28)]
-  "
+  className={`
+    group flex-1 min-w-0 flex items-center rounded-full
+    border ring-1 ring-inset
+    h-10 px-2 overflow-hidden
+    transition-all duration-150
+
+    ${
+      isBookModal
+        ? `
+          bg-gradient-to-b
+          from-slate-400 via-slate-300 to-slate-400
+          dark:from-slate-700 dark:via-slate-600 dark:to-slate-700
+
+          border-slate-400 dark:border-slate-500
+
+          ring-slate-300/60 dark:ring-slate-400/20
+
+          shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]
+        `
+        : `
+          bg-gradient-to-b
+          from-slate-300 via-slate-200 to-slate-300
+          dark:from-slate-800 dark:via-slate-700 dark:to-slate-800
+
+          border-slate-200 dark:border-slate-600
+
+          ring-white/40 dark:ring-white/5
+
+          shadow-[0_2px_4px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.06)]
+
+          hover:from-slate-350 hover:to-slate-250
+          dark:hover:from-slate-700 dark:hover:to-slate-600
+        `
+    }
+  `}
 >
-
-
 
         <button
           disabled={isFirstChapterOfBible}
@@ -286,8 +304,9 @@ const unifiedLabel =
           className="
   w-9 h-9 flex items-center justify-center
   rounded-xl
-  text-slate-600 dark:text-white/70
-  hover:bg-white/70 dark:hover:bg-white/10
+text-slate-500 dark:text-slate-400
+hover:bg-slate-100 dark:hover:bg-slate-700
+hover:text-slate-900 dark:hover:text-white
   transition-all duration-150
   disabled:opacity-30 disabled:hover:bg-transparent
 "
@@ -339,8 +358,9 @@ const unifiedLabel =
           className="
   w-9 h-9 flex items-center justify-center
   rounded-xl
-  text-slate-600 dark:text-white/70
-  hover:bg-white/70 dark:hover:bg-white/10
+text-slate-500 dark:text-slate-400
+hover:bg-slate-100 dark:hover:bg-slate-700
+hover:text-slate-900 dark:hover:text-white
   transition-all duration-150
   disabled:opacity-30 disabled:hover:bg-transparent
 "
@@ -357,13 +377,23 @@ const unifiedLabel =
   className="
     shrink-0
     w-10 h-10 flex items-center justify-center
-    rounded-2xl
-    bg-white/60 dark:bg-white/5
-    border border-slate-200/60 dark:border-white/10
-    text-slate-700 dark:text-white/80
-    shadow-sm
-    hover:bg-white/80 dark:hover:bg-white/10
-    hover:border-slate-300/70 dark:hover:border-white/15
+    rounded-xl
+
+    bg-gradient-to-b
+    from-slate-300 via-slate-200 to-slate-300
+    dark:from-slate-800 dark:via-slate-700 dark:to-slate-800
+
+    border border-slate-300 dark:border-slate-600
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    shadow-[0_2px_4px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.06)]
+
+    text-slate-700 dark:text-slate-200
+
+    hover:from-slate-350 hover:to-slate-250
+    dark:hover:from-slate-700 dark:hover:to-slate-600
+
     transition-all duration-150
   "
   aria-label="Open version picker"
@@ -381,24 +411,40 @@ const unifiedLabel =
           >
 <div
   className="
-    bg-white dark:bg-gray-900
-    rounded-xl shadow-xl
+    rounded-2xl
     w-[92%] max-w-2xl
     max-h-[85vh]
     flex flex-col
     overflow-hidden
-    border border-gray-200 dark:border-[#2A2F35]
+
+    bg-gradient-to-b
+    from-white via-slate-50 to-slate-100
+    dark:from-slate-900 dark:via-slate-800 dark:to-slate-900
+
+    border border-slate-200 dark:border-slate-700
+
+    ring-1 ring-inset ring-white/50 dark:ring-white/5
+
+    shadow-[0_20px_50px_rgba(0,0,0,0.35),0_8px_20px_rgba(0,0,0,0.20)]
   "
   onClick={(e) => e.stopPropagation()}
 >
 <div
   className="
-    flex-shrink-0
-    px-4 py-3
-    border-b border-slate-200 dark:border-white/10
-    bg-white dark:bg-gray-900
+    flex-shrink-0 px-4 py-3
+
+    bg-gradient-to-b
+    from-slate-200 via-slate-100 to-white
+    dark:from-slate-800 dark:via-slate-900 dark:to-slate-900
+
+    border-b border-slate-300/70 dark:border-slate-700
+
+    shadow-[inset_0_-1px_0_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.08)]
+
+    z-10
   "
 >
+
   <div className="flex items-center justify-between">
     <div className="min-w-0">
       <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">
@@ -430,7 +476,11 @@ const unifiedLabel =
   </div>
 </div>
 
-<div className="flex-grow overflow-y-auto px-4 py-4">
+<div className="
+  flex-grow overflow-y-auto px-4 py-4
+  bg-transparent
+">
+
 
 
 
@@ -448,15 +498,29 @@ const unifiedLabel =
           key={b.name}
           onClick={() => handleBookSelect(b.name)}
           className="
-  p-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-blue-600 hover:text-white
-  hover:border-blue-500/40
-  transition-all duration-150
-"
-
+          p-2 rounded-xl
+        
+          bg-gradient-to-b
+          from-white to-slate-100
+          dark:from-slate-800 dark:to-slate-700
+        
+          text-slate-900 dark:text-white/90
+        
+          border border-slate-200 dark:border-slate-600
+        
+          ring-1 ring-inset ring-white/40 dark:ring-white/5
+        
+          shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+        
+          hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
+          hover:-translate-y-[1px]
+        
+          active:translate-y-[1px]
+          active:shadow-[0_1px_2px_rgba(0,0,0,0.20)]
+        
+          transition-all duration-150
+        "
+        
         >
 {isTrueParallel ? (
   <>
@@ -500,15 +564,29 @@ const unifiedLabel =
           key={b.name}
           onClick={() => handleBookSelect(b.name)}
           className="
-  p-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-blue-600 hover:text-white
-  hover:border-blue-500/40
-  transition-all duration-150
-"
-
+          p-2 rounded-xl
+        
+          bg-gradient-to-b
+          from-white to-slate-100
+          dark:from-slate-800 dark:to-slate-700
+        
+          text-slate-900 dark:text-white/90
+        
+          border border-slate-200 dark:border-slate-600
+        
+          ring-1 ring-inset ring-white/40 dark:ring-white/5
+        
+          shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+        
+          hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
+          hover:-translate-y-[1px]
+        
+          active:translate-y-[1px]
+          active:shadow-[0_1px_2px_rgba(0,0,0,0.20)]
+        
+          transition-all duration-150
+        "
+        
         >
 {isTrueParallel ? (
   <>
@@ -555,53 +633,114 @@ const unifiedLabel =
           key={ch}
           onClick={() => handleChapterSelect(ch)}
           className="
-  p-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-blue-600 hover:text-white
-  hover:border-blue-500/40
-  transition-all duration-150
-"
-
+          h-10 px-2
+        
+          flex items-center justify-center
+        
+          rounded-xl
+        
+          bg-gradient-to-b
+          from-white to-slate-100
+          dark:from-slate-800 dark:to-slate-700
+        
+          text-slate-900 dark:text-white/90
+        
+          border border-slate-200 dark:border-slate-600
+        
+          ring-1 ring-inset ring-white/40 dark:ring-white/5
+        
+          shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+        
+          overflow-hidden
+          whitespace-nowrap
+          text-ellipsis
+        
+          hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
+          hover:-translate-y-[1px]
+        
+          active:translate-y-[1px]
+        
+          transition-all duration-150
+        "
+        
+        
         >
-          {ch}
+          <span className="truncate block w-full text-center">
+  {ch}
+</span>
+
         </button>
       ))}
     </div>
 
     {/* ✅ Back + Close buttons */}
-    <div className="mt-4 flex justify-between">
-      <button
-        onClick={() => setSelectionStep("BOOK")}
-        className="
-  px-4 py-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-white/90 dark:hover:bg-white/10
-  transition-all duration-150
-"
+    <div className="mt-5 flex justify-between items-center">
+  
+  {/* BACK BUTTON */}
+  <button
+    onClick={() => setSelectionStep("BOOK")}
+    className="
+      px-4 py-2
 
-      >
-        {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
-      </button>
+      rounded-xl
 
-      <button
-        onClick={() => setIsBookModal(false)}
-        className="
-  px-4 py-2 rounded-xl
-      bg-gradient-to-r from-blue-600 to-indigo-600
-      text-white
-      shadow-md
-      hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
+      bg-gradient-to-b
+      from-white to-slate-100
+      dark:from-slate-800 dark:to-slate-700
+
+      border border-slate-200 dark:border-slate-600
+
+      ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+      text-sm font-medium
+      text-slate-700 dark:text-slate-300
+
+      shadow-sm
+
+      hover:from-slate-100 hover:to-slate-200
+      dark:hover:from-slate-700 dark:hover:to-slate-600
+
+      hover:text-slate-900 dark:hover:text-white
+
+      active:translate-y-[1px]
+
       transition-all duration-150
-"
+    "
+  >
+    {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
+  </button>
 
-      >
-        {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
-      </button>
-    </div>
+
+  {/* CLOSE BUTTON */}
+  <button
+    onClick={() => setIsBookModal(false)}
+    className="
+      px-5 py-2
+
+      rounded-xl
+
+      bg-gradient-to-b
+      from-slate-700 to-slate-800
+      dark:from-slate-600 dark:to-slate-700
+
+      border border-slate-600 dark:border-slate-500
+
+      text-sm font-medium text-white
+
+      shadow-md
+
+      hover:from-slate-600 hover:to-slate-700
+
+      active:translate-y-[1px]
+
+      transition-all duration-150
+    "
+  >
+    {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
+  </button>
+
+</div>
+
   </>
 )}
 
@@ -614,53 +753,113 @@ const unifiedLabel =
       <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
         {Array.from({ length: currentVerseCount }, (_, i) => i + 1).map((v) => (
           <button
-            key={v}
-            onClick={() => handleVerseSelect(v)}
-            className="
-  p-2 rounded-xl
-  bg-white/70 dark:bg-white/5
-  border border-slate-200/60 dark:border-white/10
-  text-slate-900 dark:text-white/80
-  hover:bg-blue-600 hover:text-white
-  hover:border-blue-500/40
-  transition-all duration-150
-"
+  key={v}
+  onClick={() => handleVerseSelect(v)}
+  className="
+    h-10 px-2
 
-          >
-            {v}
-          </button>
+    flex items-center justify-center
+
+    rounded-xl
+
+    bg-gradient-to-b
+    from-white to-slate-100
+    dark:from-slate-800 dark:to-slate-700
+
+    text-slate-900 dark:text-white/90
+
+    border border-slate-200 dark:border-slate-600
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+
+    overflow-hidden
+    whitespace-nowrap
+    text-ellipsis
+
+    hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
+    hover:-translate-y-[1px]
+
+    active:translate-y-[1px]
+
+    transition-all duration-150
+  "
+>
+  <span className="truncate block w-full text-center">
+    {v}
+  </span>
+</button>
+
         ))}
       </div>
     </div>
 
-    <div className="mt-4 flex justify-between gap-3">
-  <button
-    onClick={() => setSelectionStep("CHAPTER")}
-    className="
-      px-4 py-2 rounded-xl
-      bg-white/70 dark:bg-white/5
-      border border-slate-200/60 dark:border-white/10
-      text-slate-900 dark:text-white/80
-      hover:bg-white/90 dark:hover:bg-white/10
-      transition-all duration-150
-    "
-  >
-    {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
-  </button>
+    <div className="mt-5 flex justify-between items-center">
 
-  <button
-    onClick={() => setIsBookModal(false)}
-    className="
-      px-4 py-2 rounded-xl
-      bg-gradient-to-r from-blue-600 to-indigo-600
-      text-white
-      shadow-md
-      hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
-      transition-all duration-150
-    "
-  >
-    {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
-  </button>
+{/* BACK BUTTON */}
+<button
+  onClick={() => setSelectionStep("CHAPTER")}
+  className="
+    px-4 py-2
+
+    rounded-xl
+
+    bg-gradient-to-b
+    from-white to-slate-100
+    dark:from-slate-800 dark:to-slate-700
+
+    border border-slate-200 dark:border-slate-600
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    text-sm font-medium
+    text-slate-700 dark:text-slate-300
+
+    shadow-sm
+
+    hover:from-slate-100 hover:to-slate-200
+    dark:hover:from-slate-700 dark:hover:to-slate-600
+
+    hover:text-slate-900 dark:hover:text-white
+
+    active:translate-y-[1px]
+
+    transition-all duration-150
+  "
+>
+  {isTeluguVersion(singleVersion) ? "వెనక్కి" : "Back"}
+</button>
+
+
+{/* CLOSE BUTTON */}
+<button
+  onClick={() => setIsBookModal(false)}
+  className="
+    px-5 py-2
+
+    rounded-xl
+
+    bg-gradient-to-b
+    from-slate-700 to-slate-800
+    dark:from-slate-600 dark:to-slate-700
+
+    border border-slate-600 dark:border-slate-500
+
+    text-sm font-medium text-white
+
+    shadow-md
+
+    hover:from-slate-600 hover:to-slate-700
+
+    active:translate-y-[1px]
+
+    transition-all duration-150
+  "
+>
+  {isTeluguVersion(singleVersion) ? "మూసివేయి" : "Close"}
+</button>
+
 </div>
 
   </>
@@ -683,12 +882,44 @@ const unifiedLabel =
             className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
             onClick={() => setIsPickerOpen(false)}
           >
-            <div
-              className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-xl shadow-xl p-4 border border-gray-200 dark:border-[#2A2F35]"
-              onClick={(e) => e.stopPropagation()}
-            >
+<div
+  className="
+    w-[92%] max-w-2xl max-h-[85vh]
+    flex flex-col overflow-hidden
+
+    rounded-2xl
+
+    bg-gradient-to-b
+    from-white via-slate-50 to-slate-100
+    dark:from-slate-900 dark:via-slate-800 dark:to-slate-900
+
+    border border-slate-200 dark:border-slate-700
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    shadow-[0_25px_50px_rgba(0,0,0,0.35),0_10px_20px_rgba(0,0,0,0.25)]
+  "
+  onClick={(e) => e.stopPropagation()}
+>
+
               {/* Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div
+  className="
+    flex-shrink-0 px-4 py-3
+
+    bg-gradient-to-b
+    from-slate-100 via-slate-50 to-white
+    dark:from-slate-800 dark:via-slate-900 dark:to-slate-900
+
+    border-b border-slate-300/60 dark:border-white/10
+
+    ring-1 ring-inset ring-white/60 dark:ring-white/5
+
+    shadow-[0_1px_0_rgba(255,255,255,0.7),inset_0_-1px_0_rgba(0,0,0,0.06)]
+  "
+>
+
+
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Versions</h3>
                 <button onClick={() => setIsPickerOpen(false)} className="p-2 text-gray-500">
                   <i className="fas fa-times" />
@@ -761,7 +992,24 @@ setIsPickerOpen(false); // ⬅️ critical for mobile
                         onSetLeftVersion(v);
                       }}
                       
-                      className="w-full p-2 rounded bg-gray-100 dark:bg-gray-800"
+                      className="
+  w-full px-3 py-2 rounded-xl
+
+  bg-gradient-to-b
+  from-slate-100 to-slate-200
+  dark:from-slate-800 dark:to-slate-700
+
+  border border-slate-300 dark:border-slate-600
+
+  ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+  text-slate-900 dark:text-white
+
+  shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+
+  focus:outline-none focus:ring-2 focus:ring-blue-500/40
+"
+
                     >
                       {versions.map((v) => (
   <option key={v} value={v}>
@@ -782,7 +1030,24 @@ setIsPickerOpen(false); // ⬅️ critical for mobile
                         }
                         onSetRightVersion(v);
                       }}                      
-                      className="w-full p-2 rounded bg-gray-100 dark:bg-gray-800"
+                      className="
+  w-full px-3 py-2 rounded-xl
+
+  bg-gradient-to-b
+  from-slate-100 to-slate-200
+  dark:from-slate-800 dark:to-slate-700
+
+  border border-slate-300 dark:border-slate-600
+
+  ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+  text-slate-900 dark:text-white
+
+  shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+
+  focus:outline-none focus:ring-2 focus:ring-blue-500/40
+"
+
                     >
                       {versions.map((v) => (
   <option key={v} value={v}>

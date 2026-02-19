@@ -1041,7 +1041,7 @@ useEffect(() => {
       {loading ? (
         <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
       ) : (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col h-screen">
 
 
 {showWelcome && (
@@ -1322,7 +1322,9 @@ backdrop-blur-xl
           </header>
 
           {/* MAIN */}
-          <main className="flex-grow flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0B0F14]">
+          <main className="flex-1 flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0B0F14] min-h-0">
+
+
 
 {/* SEO CONTENT BLOCK — Google reads this */}
 <section className="sr-only">
@@ -1356,7 +1358,8 @@ backdrop-blur-xl
 </section>
 {isHomePage ? (
 
-<div className="flex flex-col items-center justify-center flex-grow text-center px-6 relative overflow-hidden">
+<div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-10 relative">
+
 
 {/* Background glow */}
 <div className="absolute inset-0 pointer-events-none">
@@ -1528,8 +1531,7 @@ backdrop-blur-xl
             ) : (
               <>
                 {/* LEFT: Navigation (fixed/sticky) + Scripture (scrollable) */}
-                <div className="w-full md:w-2/3 flex flex-col min-h-0">
-
+                <div className="w-full md:w-2/3 flex flex-col flex-1 min-h-0">
                   {/* NavigationPane remains visible (sticky) and outside the scripture scroll area */}
                   <div className="mt-0">
                   <NavigationPane
@@ -1558,7 +1560,7 @@ backdrop-blur-xl
                   </div>
 
                   {/* ScriptureDisplay should be the only scrollable area inside the left column */}
-                  <div className="flex-grow min-h-0 overflow-hidden">
+                  <div className="flex-1 min-h-0 overflow-hidden">
                     <ScriptureDisplay
                       bookName={selectedBook}
                       chapterNum={selectedChapter}

@@ -119,6 +119,7 @@ export default function ProfileHighlights({
     >
       <div
         className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700
+                   text-slate-900 dark:text-slate-100
                    w-full max-w-2xl max-h-[85vh] rounded-xl shadow-2xl
                    overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
@@ -260,8 +261,9 @@ function HighlightItem({
     <button
       onClick={goToVerse}
       className="w-full text-left px-3 py-2 rounded-lg
-                 bg-white dark:bg-slate-800
-                 border border-gray-200 dark:border-slate-700
+bg-white dark:bg-slate-800
+border border-gray-200 dark:border-slate-700
+text-slate-900 dark:text-slate-100  
                  hover:shadow transition"
     >
       <div className="flex items-center gap-2 mb-1">
@@ -276,7 +278,7 @@ function HighlightItem({
         </span>
       </div>
 
-      <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+      <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
         {text}
       </p>
     </button>

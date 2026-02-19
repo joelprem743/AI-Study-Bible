@@ -246,7 +246,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     >
       <div
   className="
-    bg-white dark:bg-slate-900
+bg-white dark:bg-slate-900
+text-slate-900 dark:text-slate-100
     border border-gray-200 dark:border-slate-700
     w-[92vw] sm:w-[90vw] md:w-full
     max-w-md md:max-w-2xl
@@ -343,9 +344,10 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
       key={note.id}
       className="
         rounded-xl
-        border border-gray-200 dark:border-slate-700
         p-3 mt-2
-        bg-white dark:bg-slate-800
+bg-white dark:bg-slate-800
+border border-gray-200 dark:border-slate-700
+text-slate-900 dark:text-slate-100
         shadow-sm
         hover:shadow-md
         transition
@@ -454,7 +456,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     key={note.id}
     className="
       w-full p-3 rounded-lg border
-      hover:bg-gray-100 dark:hover:bg-slate-800
+hover:bg-gray-100 dark:hover:bg-slate-800
+text-slate-900 dark:text-slate-100
     "
   >
 <div className="flex items-start gap-3 w-full">

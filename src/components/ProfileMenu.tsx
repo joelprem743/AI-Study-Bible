@@ -362,11 +362,20 @@ export default function ProfileMenu({
 
 {isReaderSettingsOpen && (
   <div
-    className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+  className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center"
     onClick={() => setIsReaderSettingsOpen(false)}
   >
     <div
-      className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-5 shadow-2xl"
+      className="
+      w-full max-w-sm rounded-2xl
+      bg-gradient-to-b
+      from-white via-slate-50 to-slate-100
+      dark:from-slate-900 dark:via-slate-800 dark:to-slate-900
+      border border-slate-200 dark:border-slate-700
+      ring-1 ring-inset ring-white/40 dark:ring-white/5
+      shadow-[0_10px_25px_rgba(0,0,0,0.25),0_4px_10px_rgba(0,0,0,0.15)]
+      p-5
+      "      
       onClick={(e) => e.stopPropagation()}
     >
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -379,13 +388,34 @@ export default function ProfileMenu({
   </label>
 
   <select
-    value={settings.themeMode}
-    onChange={(e) => {
-      const mode = e.target.value as "system" | "light" | "dark";
-      updateSettings({ themeMode: mode });
-    }}
-    className="w-full p-2 rounded border dark:bg-gray-800 dark:border-slate-700"
-  >
+  value={settings.themeMode}
+  onChange={(e) => {
+    const mode = e.target.value as "system" | "light" | "dark";
+    updateSettings({ themeMode: mode });
+  }}
+  style={{ colorScheme: "light dark" }}
+  className="
+    w-full px-3 py-2 rounded-xl
+
+    appearance-none
+
+    bg-gradient-to-b
+    from-slate-100 to-slate-200
+    dark:from-slate-800 dark:to-slate-700
+
+    text-gray-900 dark:text-gray-100
+
+    border border-slate-300 dark:border-slate-600
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    shadow-[0_1px_2px_rgba(0,0,0,0.10)]
+
+    focus:outline-none
+    focus:ring-2 focus:ring-blue-500/40
+  "
+>
+
     <option value="system">System</option>
     <option value="light">Light</option>
     <option value="dark">Dark</option>
@@ -398,15 +428,35 @@ export default function ProfileMenu({
         <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
           Font Size
         </label>
-
         <select
-  value={settings.fontSize}
+  value={settings.themeMode}
   onChange={(e) => {
-    const value = e.target.value as FontSize;
-    updateSettings({ fontSize: value });
+    const mode = e.target.value as "system" | "light" | "dark";
+    updateSettings({ themeMode: mode });
   }}
-  className="w-full p-2 rounded border dark:bg-gray-800 dark:border-slate-700"
+  style={{ colorScheme: "light dark" }}
+  className="
+    w-full px-3 py-2 rounded-xl
+
+    appearance-none
+
+    bg-gradient-to-b
+    from-slate-100 to-slate-200
+    dark:from-slate-800 dark:to-slate-700
+
+    text-gray-900 dark:text-gray-100
+
+    border border-slate-300 dark:border-slate-600
+
+    ring-1 ring-inset ring-white/40 dark:ring-white/5
+
+    shadow-[0_1px_2px_rgba(0,0,0,0.10)]
+
+    focus:outline-none
+    focus:ring-2 focus:ring-blue-500/40
+  "
 >
+
 
           <option value="sm">Small</option>
           <option value="md">Medium</option>
@@ -430,7 +480,14 @@ export default function ProfileMenu({
     const speed = Number(e.target.value);
     updateSettings({ autoScrollSpeed: speed });
   }}
-  className="w-full"
+  className="
+w-full
+accent-blue-600
+dark:accent-blue-500
+bg-slate-200 dark:bg-slate-700
+rounded-lg
+"
+
 />
 
 
@@ -449,7 +506,18 @@ export default function ProfileMenu({
       themeMode: "system",
     });
   }}
-  className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 text-sm"
+  className="
+px-3 py-2 rounded-xl text-sm
+bg-gradient-to-b
+from-slate-200 to-slate-300
+dark:from-slate-700 dark:to-slate-600
+border border-slate-300 dark:border-slate-600
+ring-1 ring-inset ring-white/40 dark:ring-white/5
+shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+hover:from-slate-300 hover:to-slate-400
+dark:hover:from-slate-600 dark:hover:to-slate-500
+transition-all
+"
 >
   Reset
 </button>
@@ -457,7 +525,17 @@ export default function ProfileMenu({
 
         <button
           onClick={() => setIsReaderSettingsOpen(false)}
-          className="px-3 py-2 rounded bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm"
+          className="
+px-4 py-2 rounded-xl text-sm text-white font-medium
+bg-gradient-to-b
+from-blue-600 to-blue-700
+border border-blue-500/40
+ring-1 ring-inset ring-white/20
+shadow-[0_2px_6px_rgba(37,99,235,0.5)]
+hover:from-blue-500 hover:to-blue-600
+transition-all
+"
+
         >
           Done
         </button>

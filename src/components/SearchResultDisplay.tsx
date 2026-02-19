@@ -51,8 +51,9 @@ function highlight(text: string, query: string) {
   const safe = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return text.replace(
     new RegExp(`(${safe})`, "giu"),
-    "<mark>$1</mark>"
+    `<mark class="bg-yellow-300 text-black dark:bg-yellow-500/60 dark:text-white px-0.5 rounded">$1</mark>`
   );
+  
 }
 
 
@@ -163,12 +164,14 @@ const labels = isTeluguMode
     
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-[#0B0F14]">
+<div className="w-full h-full flex flex-col bg-slate-50 dark:bg-[#0B0F14] text-slate-900 dark:text-slate-100">
+
 
       {/* HEADER */}
       <header className="
   p-3
-  bg-white/90 dark:bg-slate-950/80
+  bg-white/90 dark:bg-slate-900/80
+  text-slate-900 dark:text-slate-100
   backdrop-blur-xl
   border-b border-slate-200 dark:border-white/10
   shadow-sm
@@ -191,8 +194,9 @@ const labels = isTeluguMode
             onClick={onOpenFilters}
             className="
   px-3 py-2 text-sm font-medium rounded-xl
-  bg-slate-100 hover:bg-slate-200
-  dark:bg-slate-900 dark:hover:bg-slate-800
+bg-slate-100 hover:bg-slate-200
+dark:bg-slate-800 dark:hover:bg-slate-700
+text-slate-800 dark:text-slate-100
   border border-slate-200 dark:border-white/10
   text-slate-700 dark:text-slate-200
   transition
@@ -290,8 +294,9 @@ const labels = isTeluguMode
     key={`${v.book}-${v.chapter}-${v.verse}`}
     className="
   p-4 rounded-2xl
-  bg-white dark:bg-slate-900
-  border border-slate-200 dark:border-white/10
+bg-white dark:bg-slate-800
+border border-slate-200 dark:border-slate-700
+text-slate-900 dark:text-slate-100
   shadow-sm
   hover:bg-slate-50 dark:hover:bg-slate-800/50
   hover:shadow-md
