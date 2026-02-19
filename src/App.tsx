@@ -14,6 +14,7 @@ import { useHighlights } from "./hooks/useHighlights";
 import { useThemeMode } from "./hooks/useThemeMode";
 import DemoTourOverlay from "./components/DemoTourOverlay";
 import { DEMO_STEPS } from "./demo/demoSteps";
+import toast, { Toaster } from "react-hot-toast";
 
 
 import {
@@ -213,12 +214,14 @@ const closeAllDemoPopups = useCallback(() => {
 
   const handleHighlightVerse = useCallback(
     (verseNum: number, color: string | null) => {
-      if (!user) {
-        alert("Please sign in to highlight verses.");
+  
+      if (!user && !demoTriggerHighlight) {
+        toast.error("Please sign in to highlight verses");
         return;
       }
       toggleHighlight(verseNum, color);
-    },
+  
+    },  
     [user, toggleHighlight]
   );
   
@@ -1000,7 +1003,21 @@ useEffect(() => {
   
   // Render
   return (
-    <LanguageProvider>
+<LanguageProvider>
+
+<Toaster
+  position="bottom-center"
+  toastOptions={{
+    duration: 3000,
+    style: {
+      background: "#0f172a",
+      color: "#fff",
+      borderRadius: "10px",
+      padding: "12px 16px",
+      fontSize: "14px",
+    },
+  }}
+/>
       {loading ? (
         <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
       ) : (
@@ -1493,12 +1510,17 @@ backdrop-blur-xl
                     }
                       currentHighlight={highlights[selectedVerseRef.verse] || null}
                       onHighlightChange={(color) => {
-                        if (!user) {
-                          alert("Please sign in to highlight verses.");
+
+                        // Ignore demo trigger
+                        if (!user && !demoTriggerHighlight) {
+                          toast.error("Please sign in to highlight verses");
                           return;
                         }
+                      
                         toggleHighlight(selectedVerseRef.verse, color);
+                      
                       }}
+                      
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
@@ -1527,12 +1549,17 @@ backdrop-blur-xl
                   }
                   currentHighlight={highlights[selectedVerseRef.verse] || null}
                   onHighlightChange={(color) => {
-                    if (!user) {
-                      alert("Please sign in to highlight verses.");
+
+                    // Ignore demo trigger
+                    if (!user && !demoTriggerHighlight) {
+                      toast.error("Please sign in to highlight verses");
                       return;
                     }
+                  
                     toggleHighlight(selectedVerseRef.verse, color);
+                  
                   }}
+                  
                   onClose={() => setIsToolsModalOpen(false)}
                 />
               </div>
