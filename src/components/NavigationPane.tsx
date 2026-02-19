@@ -902,163 +902,254 @@ hover:text-slate-900 dark:hover:text-white
   onClick={(e) => e.stopPropagation()}
 >
 
-              {/* Header */}
-              <div
+{/* Header */}
+<div
   className="
     flex-shrink-0 px-4 py-3
-
     bg-gradient-to-b
-    from-slate-100 via-slate-50 to-white
+    from-slate-200 via-slate-100 to-white
     dark:from-slate-800 dark:via-slate-900 dark:to-slate-900
-
-    border-b border-slate-300/60 dark:border-white/10
-
-    ring-1 ring-inset ring-white/60 dark:ring-white/5
-
-    shadow-[0_1px_0_rgba(255,255,255,0.7),inset_0_-1px_0_rgba(0,0,0,0.06)]
+    border-b border-slate-300/70 dark:border-slate-700
+    shadow-[inset_0_-1px_0_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.08)]
   "
 >
+  <div className="flex items-center justify-between">
+    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+      Versions
+    </h3>
+
+    <button
+      onClick={() => setIsPickerOpen(false)}
+      className="
+        w-9 h-9 flex items-center justify-center
+        rounded-xl
+        text-slate-500 dark:text-white/70
+        hover:bg-slate-100 dark:hover:bg-white/10
+        transition
+      "
+    >
+      <i className="fas fa-times" />
+    </button>
+  </div>
+</div>
 
 
-                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Versions</h3>
-                <button onClick={() => setIsPickerOpen(false)} className="p-2 text-gray-500">
-                  <i className="fas fa-times" />
-                </button>
-              </div>
+{/* BODY */}
+<div className="flex flex-col gap-4 px-4 py-4">
 
-              {/* Mode toggle */}
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={() => onSetStudyMode("single")}
-                  className={`flex-1 py-2 rounded ${  studyMode === "single" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-slate-700 dark:text-slate-200"}`}
-                >
-                  Single
-                </button>
-                <button
-  onClick={() => {
-    onSetStudyMode("parallel");
+  {/* Mode Toggle */}
+  <div className="flex gap-2">
+    <button
+      onClick={() => onSetStudyMode("single")}
+      className={`
+        flex-1 py-2 rounded-xl font-medium transition-all duration-150
+        ${
+          studyMode === "single"
+            ? "bg-blue-600 text-white shadow-md"
+            : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+        }
+      `}
+    >
+      Single
+    </button>
 
-    // FORCE sane defaults
-    onSetLeftVersion("ESV");
-    onSetRightVersion("TELUGU_COMMUNITY_V1");
+    <button
+      onClick={() => {
+        onSetStudyMode("parallel");
+        onSetLeftVersion("ESV");
+        onSetRightVersion("TELUGU_COMMUNITY_V1");
+      }}
+      className={`
+        flex-1 py-2 rounded-xl font-medium transition-all duration-150
+        ${
+          studyMode === "parallel"
+            ? "bg-blue-600 text-white shadow-md"
+            : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+        }
+      `}
+    >
+      Parallel
+    </button>
+  </div>
+
+
+  {/* Version selectors */}
+  {studyMode === "single" ? (
+
+<div className="relative">
+
+<select
+  value={singleVersion}
+  onChange={(e) => {
+    const v = e.target.value;
+
+    if (!isValidOriginalForBook(selectedBook, v)) {
+      alert("This original language is not available for this book.");
+      return;
+    }
+
+    onSetSingleVersion(v);
+    setIsPickerOpen(false);
   }}
-  className={`flex-1 py-2 rounded ${
-    studyMode === "parallel"
-      ? "bg-blue-600 text-white"
-      : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-  }`}
+  className="
+    w-full px-3 py-2 pr-9 rounded-xl
+
+    appearance-none
+
+    bg-gradient-to-b
+    from-white to-slate-100
+    dark:from-slate-800 dark:to-slate-700
+
+    border border-slate-300 dark:border-slate-600
+
+    text-slate-900 dark:text-white
+
+    shadow-sm
+
+    focus:outline-none focus:ring-2 focus:ring-blue-500/40
+  "
 >
-  Parallel
-</button>
+  {versions.map((v) => (
+    <option key={v} value={v}>
+      {getVersionLabel(v)}
+    </option>
+  ))}
+</select>
 
-              </div>
+<div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+  <div className="
+    w-0 h-0
+    border-l-[4px] border-l-transparent
+    border-r-[4px] border-r-transparent
+    border-t-[5px]
+    border-t-slate-500 dark:border-t-slate-400
+    opacity-70
+  " />
+</div>
 
-              {/* Version pickers */}
-              {studyMode === "single" ? (
-                <select
-                value={singleVersion}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!isValidOriginalForBook(selectedBook, v)) {
-                    alert("This original language is not available for this book.");
-                    return;
-                  }
-                  onSetSingleVersion(v);
-setIsPickerOpen(false); // ⬅️ critical for mobile
 
-                }}
-                className="w-full min-w-[260px] p-2 rounded bg-gray-100 dark:bg-gray-800 text-sm"
-              >
-              
-              
-              {versions.map((v) => (
-  <option key={v} value={v}>
-    {getVersionLabel(v)}
-  </option>
-))}
+</div>
 
-                </select>
-              ) : (
-                <>
-                  <div className="mb-3">
-                    <select
-                      value={leftVersion}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!isValidOriginalForBook(selectedBook, v)) {
-                          alert("This original language is not available for this book.");
-                          return;
-                        }
-                        onSetLeftVersion(v);
-                      }}
-                      
-                      className="
-  w-full px-3 py-2 rounded-xl
 
-  bg-gradient-to-b
-  from-slate-100 to-slate-200
-  dark:from-slate-800 dark:to-slate-700
+  ) : (
 
-  border border-slate-300 dark:border-slate-600
+<div className="flex flex-col gap-3">
 
-  ring-1 ring-inset ring-white/40 dark:ring-white/5
+{/* LEFT VERSION */}
+<div className="relative">
 
-  text-slate-900 dark:text-white
+  <select
+    value={leftVersion}
+    onChange={(e) => {
+      const v = e.target.value;
 
-  shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+      if (!isValidOriginalForBook(selectedBook, v)) {
+        alert("This original language is not available for this book.");
+        return;
+      }
 
-  focus:outline-none focus:ring-2 focus:ring-blue-500/40
-"
+      onSetLeftVersion(v);
+    }}
+    className="
+      w-full px-3 py-2 pr-9 rounded-xl
 
-                    >
-                      {versions.map((v) => (
-  <option key={v} value={v}>
-    {getVersionLabel(v)}
-  </option>
-))}
+      appearance-none
 
-                    </select>
-                  </div>
-                  <div>
-                    <select
-                      value={rightVersion}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!isValidOriginalForBook(selectedBook, v)) {
-                          alert("This original language is not available for this book.");
-                          return;
-                        }
-                        onSetRightVersion(v);
-                      }}                      
-                      className="
-  w-full px-3 py-2 rounded-xl
+      bg-gradient-to-b
+      from-white to-slate-100
+      dark:from-slate-800 dark:to-slate-700
 
-  bg-gradient-to-b
-  from-slate-100 to-slate-200
-  dark:from-slate-800 dark:to-slate-700
+      border border-slate-300 dark:border-slate-600
 
-  border border-slate-300 dark:border-slate-600
+      text-slate-900 dark:text-white
 
-  ring-1 ring-inset ring-white/40 dark:ring-white/5
+      shadow-sm
 
-  text-slate-900 dark:text-white
+      focus:outline-none focus:ring-2 focus:ring-blue-500/40
+    "
+  >
+    {versions.map((v) => (
+      <option key={v} value={v}>
+        {getVersionLabel(v)}
+      </option>
+    ))}
+  </select>
 
-  shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+  <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+    <div className="
+      w-0 h-0
+      border-l-[4px] border-l-transparent
+      border-r-[4px] border-r-transparent
+      border-t-[5px]
+      border-t-slate-500 dark:border-t-slate-400
+      opacity-70
+    " />
+  </div>
 
-  focus:outline-none focus:ring-2 focus:ring-blue-500/40
-"
+</div>
 
-                    >
-                      {versions.map((v) => (
-  <option key={v} value={v}>
-    {getVersionLabel(v)}
-  </option>
-))}
 
-                    </select>
-                  </div>
-                </>
-              )}
+{/* RIGHT VERSION */}
+<div className="relative">
+
+  <select
+    value={rightVersion}
+    onChange={(e) => {
+      const v = e.target.value;
+
+      if (!isValidOriginalForBook(selectedBook, v)) {
+        alert("This original language is not available for this book.");
+        return;
+      }
+
+      onSetRightVersion(v);
+    }}
+    className="
+      w-full px-3 py-2 pr-9 rounded-xl
+
+      appearance-none
+
+      bg-gradient-to-b
+      from-white to-slate-100
+      dark:from-slate-800 dark:to-slate-700
+
+      border border-slate-300 dark:border-slate-600
+
+      text-slate-900 dark:text-white
+
+      shadow-sm
+
+      focus:outline-none focus:ring-2 focus:ring-blue-500/40
+    "
+  >
+    {versions.map((v) => (
+      <option key={v} value={v}>
+        {getVersionLabel(v)}
+      </option>
+    ))}
+  </select>
+
+  <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+    <div className="
+      w-0 h-0
+      border-l-[4px] border-l-transparent
+      border-r-[4px] border-r-transparent
+      border-t-[5px]
+      border-t-slate-500 dark:border-t-slate-400
+      opacity-70
+    " />
+  </div>
+
+</div>
+
+</div>
+
+
+  )}
+
+</div>
+
+
             </div>
           </div>
         </ModalPortal>
