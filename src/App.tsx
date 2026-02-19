@@ -76,8 +76,8 @@ const App: React.FC = () => {
   const [isLoadingVerses, setIsLoadingVerses] = useState(true);
   const [verseError, setVerseError] = useState<string | null>(null);
 
-  const [selectedBook, setSelectedBook] = useLocalStorage("selectedBook", "Genesis");
-  const [selectedChapter, setSelectedChapter] = useLocalStorage("selectedChapter", 1);
+  const [selectedBook, setSelectedBook] = useLocalStorage("selectedBook", "");
+  const [selectedChapter, setSelectedChapter] = useLocalStorage("selectedChapter", 0);  
   const [selectedVerseRef, setSelectedVerseRef] = useState<VerseReference | null>(null);
   const [selectedVerse, setSelectedVerse] = useLocalStorage("selectedVerse", 1);
 
@@ -342,8 +342,7 @@ const closeAllDemoPopups = useCallback(() => {
   }, []);
   
   useEffect(() => {
-    if (isSearchView) return;
-  
+    if (isSearchView || isHomePage || !selectedBook || !selectedChapter) return;  
     const load = async () => {
       setIsLoadingVerses(true);
       setVerseError(null);
