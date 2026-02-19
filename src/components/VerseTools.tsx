@@ -2804,12 +2804,14 @@ window.dispatchEvent(
   `}
 >
 
-  <p
-    className={`
-      italic text-sm leading-relaxed
-      ${isTeluguUI ? "font-telugu font-medium" : ""}
-    `}
-  >
+<p
+  className={`
+    italic text-sm leading-relaxed
+    text-slate-800 dark:text-slate-100
+    ${isTeluguUI ? "font-telugu font-medium" : ""}
+  `}
+>
+
     {displayVerseText ? `"${displayVerseText}"` : ""}
   </p>
 
@@ -2986,7 +2988,7 @@ window.dispatchEvent(
       {compareVerses.map(({ version, text }) => (
         <div
           key={version}
-          className="rounded-lg border border-gray-300 dark:border-gray-700 p-3"
+          className="rounded-lg border border-slate-200 dark:border-white/10 p-3 bg-white dark:bg-slate-900"
         >
           <div className="flex items-center gap-2 mb-1">
   <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
@@ -3004,11 +3006,12 @@ window.dispatchEvent(
 </div>
 
 
-          <p
-            className={`text-sm leading-relaxed ${
-              version === "TELUGU_COMMUNITY_V1"? "font-telugu" : ""
-            }`}
-          >
+<p
+  className={`text-sm leading-relaxed text-slate-800 dark:text-slate-200 ${
+    version === "TELUGU_COMMUNITY_V1"? "font-telugu" : ""
+  }`}
+>
+
             {text}
           </p>
         </div>
@@ -3016,11 +3019,15 @@ window.dispatchEvent(
     </div>
   )
 ) : (
-  <div
-  className={`prose prose-sm dark:prose-invert max-w-none font-sans ${
-    isTeluguUI ? "font-telugu" : ""
-  }`}
+<div
+  className={`
+    prose prose-sm max-w-none font-sans
+    text-slate-800 dark:text-slate-200
+    dark:prose-invert
+    ${isTeluguUI ? "font-telugu" : ""}
+  `}
 >
+
 
     {errorMsg ? (
       <p className="text-red-500 whitespace-pre-wrap">{errorMsg}</p>
@@ -3043,7 +3050,7 @@ shadow-sm
             "
           >
           
-              <p className="text-xs uppercase tracking-wide text-gray-500">
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Original Text
               </p>
     
@@ -3141,10 +3148,10 @@ return (
 
               {translitVerse && (
                 <>
-                  <p className="text-xs uppercase tracking-wide text-gray-500 mt-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-2">
                     Transliteration
                   </p>
-                  <p className="text-sm italic text-gray-600 dark:text-gray-400">
+                  <p className="text-sm italic text-slate-600 dark:text-slate-300">
                     {translitVerse}
                   </p>
                 </>
@@ -3213,17 +3220,17 @@ activeWordIndex === idx
 </div>
 
 {/* LEMMA — QUIET */}
-<div className="text-sm font-serif text-gray-500 dark:text-gray-400">
+<div className="text-sm font-serif text-slate-500 dark:text-slate-400">
 {effectiveLemma || "—"}
 </div>
 
 {/* MEANING — PRIMARY CONTENT */}
-<div className="mt-2 text-sm text-gray-900 dark:text-gray-100">
+<div className="mt-2 text-sm text-slate-800 dark:text-slate-200">
 {effectiveMeaning || "—"}
 </div>
 
 {/* SECONDARY META ROW */}
-<div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+<div className="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
 {effectiveTranslit && (
 <span className="italic">{effectiveTranslit}</span>
 )}
@@ -3233,9 +3240,9 @@ activeWordIndex === idx
 onClick={() => openStrong(row)}
 className="
   px-2 py-0.5 rounded
-  border border-gray-300 dark:border-gray-600
-  hover:bg-gray-100 dark:hover:bg-gray-800
-  text-gray-700 dark:text-gray-300
+  border border-slate-300 dark:border-white/10
+  hover:bg-slate-100 dark:hover:bg-slate-800
+  text-slate-700 dark:text-slate-300
 "
 >
 {row.strong}
@@ -3321,25 +3328,27 @@ className="
             onClick={() => setIsPreviewOpen(false)}
             style={{ pointerEvents: "auto" }}
           >
-            <div
-              className="
-                bg-white dark:bg-slate-900
-                p-5 rounded-2xl shadow-2xl
-                border border-slate-200 dark:border-white/10
+<div
+  className="
+    bg-white dark:bg-slate-900
+    text-slate-900 dark:text-slate-200
+    p-5 rounded-2xl shadow-2xl
+    border border-slate-200 dark:border-white/10
 
-                w-11/12 max-w-md 
-                max-h-[75vh] 
-                overflow-y-auto 
-                overscroll-contain
-              "
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={`text-lg font-bold mb-2 ${teluguClass}`}>
+    w-11/12 max-w-md 
+    max-h-[75vh] 
+    overflow-y-auto 
+    overscroll-contain
+  "
+  onClick={(e) => e.stopPropagation()}
+>
+
+              <h3 className={`text-lg font-bold mb-2 text-slate-900 dark:text-white ${teluguClass}`}>
                 {displayPreviewRef}
               </h3>
 
               <p
-                className={`text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words ${
+                className={`text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words ${
                   isTeluguUI ? "font-telugu" : ""
                 }`}
               >
@@ -3347,7 +3356,13 @@ className="
               </p>
 
               <button
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+                className="
+                mt-4 px-4 py-2 
+                bg-blue-600 hover:bg-blue-500
+                text-white 
+                rounded-lg
+                transition
+                "                
                 onClick={() => setIsPreviewOpen(false)}
               >
                 Close
@@ -3599,7 +3614,7 @@ className="
         }}
       >
         <div
-          className="bg-white dark:bg-gray-900 w-full rounded-t-xl p-4 max-h-[70vh] overflow-y-auto"
+          className="bg-white dark:bg-slate-900 w-full rounded-t-xl p-4 max-h-[70vh] overflow-y-auto text-slate-800 dark:text-slate-200"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="text-lg font-bold">
@@ -3624,7 +3639,7 @@ Transliteration
   <p className="mt-3 text-xs uppercase tracking-wide text-gray-500">
     Meaning
   </p>
-  <p className="text-sm text-gray-800 dark:text-gray-200">
+  <p className="text-sm text-slate-800 dark:text-slate-200">
     {strongPopup.lexicon.coreMeaning || "See detailed lexicon"}
   </p>
 </>
@@ -3637,7 +3652,7 @@ Transliteration
     <p className="text-xs uppercase tracking-wide text-gray-500">
       {sec.title}
     </p>
-    <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300">
+    <ul className="list-disc ml-5 text-sm text-slate-700 dark:text-slate-300">
       {sec.bullets.map((b, j) => (
         <li key={j}>{renderStrongDefinition(b)}</li>
       ))}

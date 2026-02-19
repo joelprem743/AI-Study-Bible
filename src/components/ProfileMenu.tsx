@@ -11,6 +11,7 @@ type AuthMode = "signin" | "signup";
 type ProfileMenuProps = {
   readerSettings: ReaderSettings;
   setReaderSettings: (next: ReaderSettings) => void;
+  onGoHome: () => void;
 };
 
 
@@ -18,6 +19,7 @@ type ProfileMenuProps = {
 export default function ProfileMenu({
   readerSettings,
   setReaderSettings,
+  onGoHome,
 }: ProfileMenuProps) {
 
   const { user, signIn, signUp, signOut, signInWithGoogle, language, setLanguage,  bibleVersion, } = useAuth();
@@ -212,97 +214,135 @@ export default function ProfileMenu({
 
 
 
-      {/* Dropdown Menu */}
-      {isDropdownOpen && (
-        <div
-        className="
-        absolute right-0 mt-2 w-52 rounded-2xl shadow-xl z-50
-        bg-white/95 dark:bg-slate-900
-        border border-slate-200/60 dark:border-white/10
-        backdrop-blur-xl
-        overflow-hidden
-        divide-y divide-slate-200/60 dark:divide-white/10
+{/* Dropdown Menu */}
+{isDropdownOpen && (
+  <div
+    className="
+      absolute right-0 mt-2 w-56
+      rounded-2xl shadow-xl z-50
+      bg-white/95 dark:bg-slate-900
+      border border-slate-200/60 dark:border-white/10
+      backdrop-blur-xl
+      overflow-hidden
+      divide-y divide-slate-200/60 dark:divide-white/10
+    "
+  >
+
+    {/* HOME */}
+    <button
+      onClick={() => {
+        setIsDropdownOpen(false);
+        onGoHome();
+      }}
+      className="
+        w-full flex items-center gap-3
+        px-4 py-2.5 text-sm
+        text-slate-700 dark:text-white/85
+        hover:bg-slate-100/70 dark:hover:bg-white/5
+        transition-colors
       "
-      
-        >
-          <button
-            onClick={() => {
-              setIsHighlightsOpen(true);
-              setIsDropdownOpen(false);
-            }}
-            className="
-  w-full text-left px-4 py-2.5 text-sm
-  text-slate-700 dark:text-white/85
-  hover:bg-slate-100/70 dark:hover:bg-white/5
-  transition-colors
-"
-
-          >
-            My Highlights
-          </button>
-
-          <button
-            onClick={() => {
-              setIsNotesOpen(true);
-              setIsDropdownOpen(false);
-            }}
-            className="
-  w-full text-left px-4 py-2.5 text-sm
-  text-slate-700 dark:text-white/85
-  hover:bg-slate-100/70 dark:hover:bg-white/5
-  transition-colors
-"
-
-          >
-            My Notes
-          </button>
-
-          <button
-  onClick={() => setLanguage(language === "EN" ? "TE" : "EN")}
-  className="
-  w-full text-left px-4 py-2.5 text-sm
-  text-slate-700 dark:text-white/85
-  hover:bg-slate-100/70 dark:hover:bg-white/5
-  transition-colors
-    flex items-center justify-between
-  "
->
-  <span>Language</span>
-  <span className="font-semibold">{language}</span>
-</button>
+    >
+      <i className="fas fa-home w-4 text-slate-500 dark:text-white/60"></i>
+      <span>Home</span>
+    </button>
 
 
-            
-<button
-  onClick={() => {
-    setIsDropdownOpen(false);
-    setIsReaderSettingsOpen(true);
-  }}
-  className="
-    w-full text-left px-4 py-2 text-sm
-    text-gray-700 dark:text-gray-200
-    hover:bg-gray-100 dark:hover:bg-slate-800
-  "
->
-  Reader Settings
-</button>
+    {/* HIGHLIGHTS */}
+    <button
+      onClick={() => {
+        setIsHighlightsOpen(true);
+        setIsDropdownOpen(false);
+      }}
+      className="
+        w-full flex items-center gap-3
+        px-4 py-2.5 text-sm
+        text-slate-700 dark:text-white/85
+        hover:bg-slate-100/70 dark:hover:bg-white/5
+        transition-colors
+      "
+    >
+      <i className="fas fa-highlighter w-4 text-slate-500 dark:text-white/60"></i>
+      <span>My Highlights</span>
+    </button>
 
 
+    {/* NOTES */}
+    <button
+      onClick={() => {
+        setIsNotesOpen(true);
+        setIsDropdownOpen(false);
+      }}
+      className="
+        w-full flex items-center gap-3
+        px-4 py-2.5 text-sm
+        text-slate-700 dark:text-white/85
+        hover:bg-slate-100/70 dark:hover:bg-white/5
+        transition-colors
+      "
+    >
+      <i className="fas fa-book-open w-4 text-slate-500 dark:text-white/60"></i>
+      <span>My Notes</span>
+    </button>
 
 
-          <button
-            onClick={handleLogout}
-            className="
-              w-full text-left px-4 py-2 text-sm
-              text-red-600 dark:text-red-400
-              hover:bg-red-50 dark:hover:bg-red-900/20
-            "
-          >
-            Logout
-          </button>
+    {/* LANGUAGE */}
+    <button
+      onClick={() => setLanguage(language === "EN" ? "TE" : "EN")}
+      className="
+        w-full flex items-center justify-between
+        px-4 py-2.5 text-sm
+        text-slate-700 dark:text-white/85
+        hover:bg-slate-100/70 dark:hover:bg-white/5
+        transition-colors
+      "
+    >
+      <div className="flex items-center gap-3">
+        <i className="fas fa-language w-4 text-slate-500 dark:text-white/60"></i>
+        <span>Language</span>
+      </div>
 
-        </div>
-      )}
+      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+        {language}
+      </span>
+    </button>
+
+
+    {/* READER SETTINGS */}
+    <button
+      onClick={() => {
+        setIsDropdownOpen(false);
+        setIsReaderSettingsOpen(true);
+      }}
+      className="
+        w-full flex items-center gap-3
+        px-4 py-2.5 text-sm
+        text-slate-700 dark:text-white/85
+        hover:bg-slate-100/70 dark:hover:bg-white/5
+        transition-colors
+      "
+    >
+      <i className="fas fa-sliders-h w-4 text-slate-500 dark:text-white/60"></i>
+      <span>Reader Settings</span>
+    </button>
+
+
+    {/* LOGOUT */}
+    <button
+      onClick={handleLogout}
+      className="
+        w-full flex items-center gap-3
+        px-4 py-2.5 text-sm
+        text-red-600 dark:text-red-400
+        hover:bg-red-50 dark:hover:bg-red-900/20
+        transition-colors
+      "
+    >
+      <i className="fas fa-sign-out-alt w-4"></i>
+      <span>Logout</span>
+    </button>
+
+  </div>
+)}
 
       {/* Highlights Modal */}
       {isHighlightsOpen && (

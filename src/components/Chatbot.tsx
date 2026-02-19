@@ -1292,7 +1292,9 @@ ${getFormattingRules(answerDepth)}
     fixed bottom-24 right-5
     w-[92vw] sm:w-[420px] md:w-[480px]
     h-[75vh] md:h-[78vh]
-    bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl border overflow-hidden
+bg-white dark:bg-slate-900
+text-slate-900 dark:text-slate-200
+ rounded-[2.5rem] shadow-2xl border overflow-hidden
     border-gray-200 dark:border-gray-700 flex flex-col z-[9998]
     transition-shadow duration-200
     hover:shadow-[0_0_12px_3px_rgba(59,130,246,0.45)]
@@ -1411,11 +1413,18 @@ ${getFormattingRules(answerDepth)}
 
 
           {/* MESSAGES */}
-          <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-950">
             {messages.length === 0 && (
               <div className="flex flex-col gap-4 mb-4">
                 {/* WELCOME MESSAGE */}
-                <div className="p-4 bg-blue-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm leading-relaxed">
+<div className="
+p-4
+bg-blue-50 dark:bg-slate-800
+text-slate-900 dark:text-slate-200
+border border-blue-200 dark:border-slate-700
+rounded-lg text-sm leading-relaxed
+">
+
                   <strong>{language === "TE" ? UI_TEXT.welcome_te : UI_TEXT.welcome_en}</strong>
                   <br />
                   {language === "TE"
@@ -1500,7 +1509,15 @@ ${getFormattingRules(answerDepth)}
   <button
     key={i}
     onClick={() => handleSuggestionClick(q)}
-    className="w-full text-left p-3 text-sm rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 transition-shadow duration-150 hover:shadow-[0_0_6px_rgba(0,0,0,0.06)]"
+    className="
+    w-full text-left p-3 text-sm
+    rounded-xl
+    bg-white dark:bg-slate-800
+    border border-slate-200 dark:border-slate-700
+    hover:bg-slate-50 dark:hover:bg-slate-700
+    transition
+    "
+    
   >
     <div className="prose prose-sm dark:prose-invert max-w-none">
     <p className="text-sm">{q}</p>
@@ -1553,28 +1570,34 @@ ${getFormattingRules(answerDepth)}
 {isPreviewOpen && (
   <ModalPortal>
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+      className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       onMouseDown={() => setIsPreviewOpen(false)}
     >
-      <div
-        className="
-          bg-white dark:bg-gray-800
-          rounded-2xl w-full max-w-md
-          shadow-xl
-          flex flex-col
-          max-h-[85vh]
-        "
+<div
+  className="
+    bg-white dark:bg-slate-950
+    text-slate-900 dark:text-slate-200
+    rounded-2xl w-full max-w-md
+    shadow-2xl
+    flex flex-col
+    max-h-[85vh]
+    border border-slate-200 dark:border-slate-700
+  "
+
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header (fixed) */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-          <h3 className="text-base font-bold">{previewRef}</h3>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">
+  {previewRef}
+</h3>
+
         </div>
 
         {/* Scrollable content */}
         <div className="p-4 overflow-y-auto flex-1 overscroll-contain">
-        <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+        <p className="text-sm whitespace-pre-wrap leading-relaxed break-words text-slate-700 dark:text-slate-200">
             {previewText || "Verse not found."}
           </p>
         </div>

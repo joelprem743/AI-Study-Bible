@@ -518,6 +518,26 @@ const closeAllDemoPopups = useCallback(() => {
     setIsHomePage(false);
   
   };
+
+  const handleGoHome = useCallback(() => {
+
+    setIsDemoOpen(false);
+  
+    setIsChatOpen(false);
+    setIsToolsModalOpen(false);
+    setNotesOpen(false);
+    setSearchOpen(false);
+  
+    setSelectedVerseRef(null);
+  
+    // OPTIONAL but recommended
+    setIsSearchView(false);
+  
+    window.location.hash = "";
+  
+  }, []);
+  
+  
   
   const handleStartDemo = () => {
 
@@ -1063,29 +1083,47 @@ useEffect(() => {
 ">
 
             {/* Left: Logo + Title (single source of truth) */}
-<div className="flex items-center gap-2">
-<div className="w-8 h-8 shrink-0">
-  <img
-    src="/logo.png"
-    alt="Bible Companion Logo"
-    className="w-full h-full object-contain"
-  />
-</div>
+            <button
+  onClick={handleGoHome}
+  type="button"
+  className="
+    flex items-center gap-2
+    cursor-pointer select-none
+    rounded-lg
+    px-1 py-1
+    transition-all duration-200
+
+    hover:bg-white/5
+    active:scale-[0.98]
+  "
+>
+  <div className="w-8 h-8 shrink-0">
+    <img
+      src="/logo.png"
+      alt="Bible Companion Logo"
+      className="w-full h-full object-contain"
+    />
+  </div>
+
   <div className="flex items-center gap-1 whitespace-nowrap">
-  <span className="text-base md:text-2xl font-bold text-white leading-none">
 
-  Bible Companion
-</span>
+    <span className="
+      text-base md:text-2xl font-bold text-white leading-none
+      hover:text-blue-400 transition-colors
+    ">
+      Bible Companion
+    </span>
 
-<span className="hidden sm:inline text-xs md:text-sm text-slate-300">
+    <span className="hidden sm:inline text-xs md:text-sm text-slate-300">
+      by Joel Prem
+    </span>
 
-  by Joel Prem
-</span>
-
-</div>
+  </div>
+</button>
 
 
-</div>
+
+
 
 
             {/* MOBILE title (still shown in mobile header) */}
@@ -1274,7 +1312,9 @@ backdrop-blur-xl
               <ProfileMenu
   readerSettings={readerSettings}
   setReaderSettings={(next) => setReaderSettings(next)}
+  onGoHome={handleGoHome}
 />
+
 
 
               </div>
@@ -1393,27 +1433,80 @@ backdrop-blur-xl
 {/* Feature highlights */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl text-sm">
 
-  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
-    <div className="font-semibold">AI Explanation</div>
-    <div className="text-slate-500 text-xs">Understand instantly</div>
+  {/* Box 1 */}
+  <div className="
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  ">
+    <div className="font-semibold text-slate-900 dark:text-white">
+      AI Explanation
+    </div>
+    <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+      Understand instantly
+    </div>
   </div>
 
-  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
-    <div className="font-semibold">Telugu + English</div>
-    <div className="text-slate-500 text-xs">Side-by-side study</div>
+  {/* Box 2 */}
+  <div className="
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  ">
+    <div className="font-semibold text-slate-900 dark:text-white">
+      Telugu + English
+    </div>
+    <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+      Side-by-side study
+    </div>
   </div>
 
-  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
-    <div className="font-semibold">Share Verse Images</div>
-    <div className="text-slate-500 text-xs">Beautiful & ready</div>
+  {/* Box 3 */}
+  <div className="
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  ">
+    <div className="font-semibold text-slate-900 dark:text-white">
+      Share Verse Images
+    </div>
+    <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+      Beautiful & ready
+    </div>
   </div>
 
-  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg p-3">
-    <div className="font-semibold">Smart Search</div>
-    <div className="text-slate-500 text-xs">Find anything fast</div>
+  {/* Box 4 */}
+  <div className="
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  ">
+    <div className="font-semibold text-slate-900 dark:text-white">
+      Smart Search
+    </div>
+    <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+      Find anything fast
+    </div>
   </div>
 
 </div>
+
 
 </div>
 
