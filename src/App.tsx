@@ -65,7 +65,10 @@ const App: React.FC = () => {
     chapterTo?: number;
   };
   
-  const [isHomePage, setIsHomePage] = useState(true);
+  const [isHomePage, setIsHomePage] = useState(() => {
+    const hash = window.location.hash;
+    return !hash || hash === "#" || hash === "#/";
+  });
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null);
   const [chatInitialLanguage, setChatInitialLanguage] = useState<"EN" | "TE" | null>(null);
@@ -128,7 +131,21 @@ const App: React.FC = () => {
   studyMode === "single" ? singleVersion : null;
 
 
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(() => {
+
+    const hash = window.location.hash;
+    const isHome = !hash || hash === "#" || hash === "#/";
+  
+    const alreadyShown = sessionStorage.getItem("welcome_shown");
+  
+    if (isHome && !alreadyShown) {
+      sessionStorage.setItem("welcome_shown", "true");
+      return true;
+    }
+  
+    return false;
+  
+  });
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -484,6 +501,20 @@ const closeAllDemoPopups = useCallback(() => {
   
   }, []);
   
+  useEffect(() => {
+
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem("welcome_shown");
+    };
+  
+    window.addEventListener("beforeunload", handleBeforeUnload);
+  
+    return () =>
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+  
+  }, []);
+
+  
   // Navigation helpers
   const handleBookChange = useCallback((book: string) => {
     setSelectedBook(book);
@@ -507,8 +538,7 @@ const closeAllDemoPopups = useCallback(() => {
   const handleStartReading = () => {
 
     window.location.hash = "#/Genesis/1";
-  
-    setIsHomePage(false);
+
   
   };
 
@@ -527,6 +557,7 @@ const closeAllDemoPopups = useCallback(() => {
     setIsSearchView(false);
   
     window.location.hash = "";
+setIsHomePage(true);
   
   }, []);
   

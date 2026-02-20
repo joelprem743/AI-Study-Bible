@@ -384,25 +384,22 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
     
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-
 <div className="
+relative
 bg-gradient-to-br
-from-white via-slate-50 to-slate-100
+from-white/80 via-slate-50/70 to-slate-100/60
 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950
-
 backdrop-blur-2xl
-
 rounded-[2.5rem]
-
 shadow-[0_35px_100px_-20px_rgba(0,0,0,0.6)]
 dark:shadow-[0_50px_140px_-20px_rgba(0,0,0,0.95)]
-
-border border-gray dark:border-gray/10
-
+border border-white/40 dark:border-gray/10
 flex flex-col
 max-w-2xl w-full h-[90vh]
 overflow-hidden
 ">
+
+<div className="absolute inset-0 opacity-[0.04] bg-[url('/noise.png')] pointer-events-none" />
           
           {/* ✅ Header (theme match only) */}
 {/* ✅ Header */}
@@ -494,15 +491,20 @@ overflow-hidden
 
           {/* ✅ Body scroll area */}
           <div className="
-  flex-1 min-h-0
-  p-4 sm:p-5
-  pb-6
-  overflow-y-auto
-bg-white/40 dark:bg-white/[0.02]
-backdrop-blur-md
-  space-y-4
-">
+relative
+flex-1 min-h-0
+p-4 sm:p-5
+pb-6
+overflow-y-auto
 
+bg-gradient-to-br
+from-white/30 via-slate-100/20 to-slate-200/30
+dark:bg-white/[0.02]
+
+backdrop-blur-xl
+space-y-4
+">
+  
             
 {/* Verse Card */}
 <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.6)]">
@@ -587,17 +589,18 @@ backdrop-blur-md
             {/* Meaning */}
             <div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
 
-/* LIGHT MODE — solid elevated card */
-bg-white
-border border-slate-200
-shadow-sm
+/* GLASS STYLE — LIGHT MODE */
+bg-white/40
+backdrop-blur-xl
+border border-white/70
+shadow-[0_10px_40px_-12px_rgba(0,0,0,0.25)]
 
-/* DARK MODE — glass card */
+/* GLASS STYLE — DARK MODE */
 dark:bg-white/[0.06]
 dark:border-white/10
 dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
 
-transition-colors duration-300">
+transition-all duration-300">
 
   <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
             <h3
@@ -634,17 +637,18 @@ transition-colors duration-300">
 {/* Application */}
 <div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
 
-/* LIGHT MODE — clean elevated card */
-bg-white
-border border-slate-200
-shadow-sm
+/* GLASS STYLE — LIGHT MODE */
+bg-white/60
+backdrop-blur-xl
+border border-white/70
+shadow-[0_10px_40px_-12px_rgba(0,0,0,0.25)]
 
-/* DARK MODE — premium glass */
+/* GLASS STYLE — DARK MODE */
 dark:bg-white/[0.06]
 dark:border-white/10
 dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
 
-transition-colors duration-300">
+transition-all duration-300">
 
   <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
