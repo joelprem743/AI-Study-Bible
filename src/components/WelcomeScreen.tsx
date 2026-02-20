@@ -52,6 +52,32 @@ const classifyVerseTone = (
   return "COMFORT";
 };
 
+// Dynamic verse background resolver
+const VERSE_BACKGROUNDS = [
+  "/verse-bg/mountain-sunrise.png",
+  "/verse-bg/ocean-waves.png",
+  "/verse-bg/forest-path.png",
+  "/verse-bg/desert-dunes.png",
+  "/verse-bg/mountain-lake.png",
+  "/verse-bg/sunset-fields.png",
+  "/verse-bg/coastal-cliffs.png",
+  "/verse-bg/autumn-forest.png",
+  "/verse-bg/mountain-peak.png",
+  "/verse-bg/peaceful-meadow.png",
+];
+
+function getDynamicVerseBackground(
+  book: string,
+  chapter: number,
+  verse: number
+) {
+  const hash =
+    book.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) +
+    chapter * 31 +
+    verse * 17;
+
+  return VERSE_BACKGROUNDS[Math.abs(hash) % VERSE_BACKGROUNDS.length];
+}
   const buildVerseUrl = (book: string, chapter: number, verse: number) =>
     `${window.location.origin}/#/${book}/${chapter}/${verse}`;
   
@@ -359,19 +385,40 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
 
-        <div className="
-  bg-white dark:bg-gray-800
-  rounded-[2.5rem] shadow-2xl
-  max-w-2xl w-full
-  h-[90vh]
-  overflow-hidden
-  border border-slate-700 dark:border-slate-700
-  flex flex-col
+<div className="
+bg-gradient-to-br
+from-white via-slate-50 to-slate-100
+dark:from-slate-900 dark:via-slate-900 dark:to-slate-950
+
+backdrop-blur-2xl
+
+rounded-[2.5rem]
+
+shadow-[0_35px_100px_-20px_rgba(0,0,0,0.6)]
+dark:shadow-[0_50px_140px_-20px_rgba(0,0,0,0.95)]
+
+border border-gray dark:border-gray/10
+
+flex flex-col
+max-w-2xl w-full h-[90vh]
+overflow-hidden
 ">
           
           {/* ✅ Header (theme match only) */}
 {/* ✅ Header */}
-<div className="px-5 sm:px-6 py-4 sm:py-5 bg-slate-900 dark:bg-slate-950 text-white">
+<div className="
+  px-5 sm:px-6 py-4 sm:py-5
+
+  bg-gradient-to-r
+  from-slate-900 via-slate-800 to-slate-900
+  dark:from-black dark:via-slate-900 dark:to-black
+
+  text-white
+
+  border-b border-white/10
+
+  shadow-sm
+">
 
   {/* ✅ Row 1 (relative container for controls) */}
   <div className="relative flex items-center">
@@ -404,7 +451,20 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 
       <button
         onClick={onDismiss}
-        className="w-10 h-10 rounded-full hover:bg-white/10 transition flex items-center justify-center"
+        className="
+  w-10 h-10
+  rounded-full
+
+  bg-white/10
+  hover:bg-white/20
+
+  border border-white/10
+
+  text-white/70 hover:text-white
+
+  transition
+  flex items-center justify-center
+"
         aria-label="Close"
         title="Close"
       >
@@ -438,75 +498,100 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
   p-4 sm:p-5
   pb-6
   overflow-y-auto
-  bg-slate-50/50 dark:bg-slate-900/40
+bg-white/40 dark:bg-white/[0.02]
+backdrop-blur-md
   space-y-4
 ">
 
             
-            {/* Verse Card */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-              {loadingVerse ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {language === "TE" ? "లోడ్ అవుతోంది..." : "Loading..."}
-                </p>
-              ) : verseRow ? (
-                <>
-                  <p
-  className={`
-    text-lg md:text-xl
-    text-slate-900 dark:text-white
-    leading-relaxed
-    ${teluguUiClass}
-    ${isTeluguUI ? "font-medium tracking-[0.2px] leading-[1.85]" : "font-semibold"}
-  `}
->
-  “{verseRow.text}”
-</p>
+{/* Verse Card */}
+<div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.6)]">
 
-    
-<div className="mt-4 flex items-center justify-between gap-3">
-  <p
-    className={`
-      text-sm text-slate-600 dark:text-slate-300
-      ${teluguUiClass}
-      ${isTeluguUI ? "font-medium tracking-[0.2px]" : "font-semibold"}
-    `}
-  >
-    {getDisplayBookName(verseRow.book, language)} {verseRow.chapter}:{verseRow.verse}
-  </p>
+  {/* Background image */}
+  <div
+    className="absolute inset-0 bg-cover bg-center scale-105 transition-transform duration-[3000ms]"
+    style={{
+      backgroundImage: verseRow
+        ? `url(${getDynamicVerseBackground(
+            verseRow.book,
+            verseRow.chapter,
+            verseRow.verse
+          )})`
+        : "none",
+    }}
+  />
 
-  <div className="flex items-center gap-2">
-  <button
-  onClick={() => {
-    setBgMode("none");                // 🔑 reset mode
-    setSelectedGradient(null);        // 🔑 reset gradient
-    setSelectedBackground(null);      // 🔑 reset image
-    setShareStep("background");       // open modal
-  }}
-  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
->
-  {language === "TE" ? "షేర్ చేయి" : "Share"}
-</button>
+  {/* cinematic dark overlay */}
+  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/55 to-black/75" />
 
+  {/* lighting layer */}
+  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-70" />
 
-    <span className="text-[10px] px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 font-bold tracking-widest">
-      {language === "TE" ? "రోజు వాక్యం" : "DAILY VERSE"}
-    </span>
+  {/* glow layer */}
+  <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10 backdrop-blur-[1px]" />
+
+  {/* content */}
+  <div className="relative z-10 p-5 sm:p-6">
+
+    {loadingVerse ? (
+      <p className="text-white/70 text-sm">Loading...</p>
+    ) : verseRow ? (
+      <>
+        <p
+          className={`
+            text-lg md:text-xl
+            text-white
+            leading-relaxed
+            drop-shadow-[0_4px_15px_rgba(0,0,0,0.8)]
+            ${teluguUiClass}
+            ${isTeluguUI ? "font-medium tracking-[0.2px] leading-[1.9]" : "font-semibold"}
+          `}
+        >
+          “{verseRow.text}”
+        </p>
+
+        <div className="mt-5 flex justify-between items-center">
+
+          <p className="text-white/85 text-sm font-semibold drop-shadow-md">
+            {getDisplayBookName(verseRow.book, language)}{" "}
+            {verseRow.chapter}:{verseRow.verse}
+          </p>
+
+          <div className="flex items-center gap-2">
+
+            <button
+              onClick={() => {
+                setBgMode("none");
+                setSelectedGradient(null);
+                setSelectedBackground(null);
+                setShareStep("background");
+              }}
+              className="text-blue-300 hover:text-blue-200 text-xs font-semibold transition"
+            >
+              Share
+            </button>
+
+            <span className="px-3 py-1 text-[10px] rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white font-bold tracking-widest">
+              DAILY VERSE
+            </span>
+
+          </div>
+        </div>
+      </>
+    ) : (
+      <p className="text-red-300 text-sm">Verse unavailable</p>
+    )}
+
   </div>
 </div>
-
-                </>
-              ) : (
-                <p className="text-sm text-red-500">
-                  {language === "TE"
-                    ? "వాక్యం అందుబాటులో లేదు."
-                    : "Verse not available."}
-                </p>
-              )}
-            </div>
-    
             {/* Meaning */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
+bg-gradient-to-br from-white/70 via-white/50 to-white/40
+dark:from-white/[0.08] dark:via-white/[0.05] dark:to-white/[0.03]
+backdrop-blur-xl border border-white/40 dark:border-white/10
+shadow-[0_12px_45px_-12px_rgba(0,0,0,0.35)]">
+
+  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
             <h3
   className={`
     text-xs font-bold uppercase tracking-widest
@@ -535,10 +620,17 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
 </p>
 
               )}
+              
             </div>
     
 {/* Application */}
-<div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+<div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
+bg-gradient-to-br from-white/70 via-white/50 to-white/40
+dark:from-white/[0.08] dark:via-white/[0.05] dark:to-white/[0.03]
+backdrop-blur-xl border border-white/40 dark:border-white/10
+shadow-[0_12px_45px_-12px_rgba(0,0,0,0.35)]">
+
+  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
     {language === "TE" ? "ఈ రోజు ఆచరణ" : "Live it today"}
   </h3>
@@ -582,7 +674,8 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
       disabled={!verseRow}
       className="
         w-full px-8 py-4
-        bg-white dark:bg-slate-900
+        bg-white/80 dark:bg-white/[0.04]
+backdrop-blur-md
         text-slate-900 dark:text-white
         font-semibold rounded-2xl
         border border-slate-200 dark:border-slate-700
