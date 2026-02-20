@@ -1159,24 +1159,21 @@ opacity-70 hover:opacity-100
   <span className="text-base sm:text-lg font-semibold text-gray-500 dark:text-gray-400 mt-1">
     {v.verse}
   </span>
+
   <p
-  className={`
-    ${getVerseFontClass()}
-    leading-relaxed sm:leading-loose
-    ${
-      rightVersion === TELUGU_VERSION_KEY
-        ? "font-telugu leading-[1.85] tracking-[0.2px]"
-        : ""
-    }
-    
-  `}
->
-
-  {resolveText(v, rightVersion)}
-</p>
-
-
-
+    className={`
+      ${getVerseFontClass()}
+      leading-relaxed sm:leading-loose
+      text-gray-900 dark:text-gray-100
+      ${
+        rightVersion === TELUGU_VERSION_KEY
+          ? "font-telugu leading-[1.85] tracking-[0.2px]"
+          : ""
+      }
+    `}
+  >
+    {resolveText(v, rightVersion)}
+  </p>
 </div>
 
                 </div>
