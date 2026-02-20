@@ -342,7 +342,7 @@ const closeAllDemoPopups = useCallback(() => {
   }, []);
   
   useEffect(() => {
-    if (isSearchView || isHomePage || !selectedBook || !selectedChapter) return;  
+    if (isSearchView || !selectedBook || !selectedChapter) return;
     const load = async () => {
       setIsLoadingVerses(true);
       setVerseError(null);

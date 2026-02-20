@@ -600,14 +600,18 @@ type AiTab =
     );
   }
   
-const PRIMARY_TABS: Tab[] = ["Summary", "Notes"];
-
-const ADVANCED_TABS: Tab[] = [
-  "Interlinear",
-  "Compare",
-  "Cross-references",
-  "Historical Context",
-];
+  const PRIMARY_TABS: Tab[] = [
+    "Summary",
+    "Compare",
+    "Notes",
+  ];
+  
+  const ADVANCED_TABS: Tab[] = [
+    "Interlinear",
+    "Cross-references",
+    "Historical Context",
+  ];
+  
 
 const GRADIENT_PRESETS = [
   // Soft slate (default – clean & premium)
@@ -2401,27 +2405,71 @@ if (cached) {
   ---------------------------*/
   return (
 <div
-  className={`p-3 md:p-4 h-full flex flex-col relative bg-slate-50 dark:bg-[#0B0F14] ${teluguClass}`}
+  className={`
+    relative h-full flex flex-col
+    p-4 md:p-5
+    rounded-[1.75rem]
+    overflow-hidden
+
+    bg-gradient-to-br
+    from-white via-slate-50 to-slate-100
+    dark:from-slate-900 dark:via-slate-900 dark:to-slate-950
+
+    border border-slate-200/70 dark:border-white/10
+
+    shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]
+    dark:shadow-[0_10px_50px_-10px_rgba(0,0,0,0.7)]
+
+    backdrop-blur-xl
+
+    ${teluguClass}
+  `}
 >
 
 
 
+
       {/* HEADER */}
-<div className="mb-3">
+      <div
+  className="
+    -mx-4 md:-mx-5
+    -mt-4 md:-mt-5
+    mb-4
+
+    px-5 py-4
+
+    bg-gradient-to-r
+    from-slate-900 via-slate-800 to-slate-900
+    dark:from-black dark:via-slate-900 dark:to-black
+
+    border-b border-white/10
+
+    text-white
+
+    shadow-sm
+  "
+>
+
   <div className="flex items-center justify-between">
 
         
     {/* Title */}
     <h2
-  className={`text-xl font-bold text-slate-900 dark:text-white tracking-tight ${
-    isTeluguUI ? "font-telugu" : ""
-  }`}
+  className={`
+    text-[1.35rem]
+    font-semibold
+    tracking-tight
+    text-white
+    drop-shadow-sm
+    ${isTeluguUI ? "font-telugu" : ""}
+  `}
 >
+
 
       {language === "TE"
         ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
         : verseRef.book}{" "}
-      <span className="text-blue-600 dark:text-blue-400">
+      <span className="text-blue-400 font-semibold">
   {" "}{verseRef.chapter}:{verseRef.verse}
 </span>
 
@@ -2438,17 +2486,43 @@ if (cached) {
 <button
   type="button"
   ref={highlightButtonRef}
-  className="
-    w-10 h-10 rounded-full
-    bg-slate-100 dark:bg-white/5
-    border border-slate-200 dark:border-white/10
-    hover:bg-slate-200 dark:hover:bg-white/10
-    transition
+  className={`
+    relative
+    w-10 h-10
+    rounded-full
+
     flex items-center justify-center
-    text-slate-700 dark:text-white
-  "
-  title="Highlight"
-  aria-label="Highlight"
+
+    transition-all duration-200
+
+    border
+
+    ${
+      effectiveHighlight
+        ? `
+          bg-gradient-to-br
+          from-blue-500/90 to-indigo-600/90
+          border-blue-400
+          text-white
+          shadow-md shadow-blue-500/30
+        `
+        : `
+          bg-white/10
+bg-white/10
+border-white/10
+text-white/80
+
+hover:bg-white/20
+hover:border-white/20
+hover:text-white
+        `
+    }
+
+    backdrop-blur-md
+
+    hover:scale-[1.06]
+    active:scale-[0.94]
+  `}
 
   // ✅ Tap / desktop click
   onClick={() => {
@@ -2528,19 +2602,50 @@ if (cached) {
   }}
   
 >
-  <i className="fas fa-highlighter text-sm" />
+<>
+  <i className="fas fa-highlighter text-[13px]" />
+
+  {effectiveHighlight && (
+    <span
+      className={`
+        absolute -bottom-0.5 -right-0.5
+        w-3 h-3 rounded-full
+        border border-white shadow-sm
+
+        ${
+          effectiveHighlight === "yellow"
+            ? "bg-yellow-400"
+            : effectiveHighlight === "green"
+            ? "bg-green-400"
+            : effectiveHighlight === "pink"
+            ? "bg-rose-400"
+            : "bg-sky-400"
+        }
+      `}
+    />
+  )}
+</>
+
 </button>
 
 
     {highlightOpen && (
       <div
-        className="
-          absolute right-0 mt-2 w-44
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-white/10
-          rounded-2xl shadow-2xl
-          p-3 z-[9999]
-        "
+      className="
+      absolute right-0 mt-2 w-44
+      
+      bg-white dark:bg-slate-900
+      
+      border border-slate-200 dark:border-white/10
+      
+      rounded-2xl
+      
+      shadow-xl shadow-black/10 dark:shadow-black/40
+      
+      p-3 z-[9999]
+
+      animate-in fade-in zoom-in-95 duration-150
+      "      
       >
         <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-2">
           {language === "TE" ? "హైలైట్" : "Highlight"}
@@ -2629,11 +2734,22 @@ if (cached) {
     ref={menuButtonRef}
     onClick={() => setMenuOpen((v) => !v)}
     className="
-  p-2 rounded-xl
-  hover:bg-slate-100 dark:hover:bg-slate-800/60
-  text-slate-600 dark:text-slate-300
-  transition
-"
+    w-9 h-9
+    rounded-full
+  
+    bg-white/10
+    border border-white/10
+  
+    text-white/80
+    hover:text-white
+  
+    hover:bg-white/20
+    hover:border-white/20
+  
+    transition-all duration-200
+  
+    flex items-center justify-center
+  "
 
   >
 
@@ -2768,9 +2884,21 @@ window.dispatchEvent(
   {/* Close button */}
   {onClose && (
     <button
-      onClick={onClose}
-      className="text-slate-500 dark:text-slate-400 hover:text-gray-300"
-    >
+    onClick={onClose}
+  className="
+    w-9 h-9
+    rounded-full
+
+    bg-white/10
+    hover:bg-white/20
+
+    text-white/70 hover:text-white
+
+    transition
+    flex items-center justify-center
+  "
+>
+
       <i className="fas fa-times text-lg" />
     </button>
   )}
@@ -2781,26 +2909,32 @@ window.dispatchEvent(
     {/* VERSE CARD */}
     <div
   className={`
-    mt-2 mb-0
-    border border-slate-200 dark:border-white/10
+    mt-3 mb-1
     rounded-2xl
-    shadow-sm
-    p-3
-    transition-colors
+    p-4
+    transition-all duration-200
+
+    border border-slate-200/70 dark:border-white/10
+
+    shadow-[0_6px_20px_-6px_rgba(0,0,0,0.15)]
+    dark:shadow-[0_6px_30px_-6px_rgba(0,0,0,0.6)]
+
+    backdrop-blur-md
 
     ${
       effectiveHighlight === "yellow"
-        ? "bg-yellow-100 dark:bg-yellow-600/30"
+        ? "bg-yellow-100/80 dark:bg-yellow-600/25"
         : effectiveHighlight === "green"
-        ? "bg-green-100 dark:bg-green-600/30"
+        ? "bg-green-100/80 dark:bg-green-600/25"
         : effectiveHighlight === "pink"
-        ? "bg-rose-100 dark:bg-rose-600/30"
+        ? "bg-rose-100/80 dark:bg-rose-600/25"
         : effectiveHighlight === "blue"
-        ? "bg-sky-100 dark:bg-sky-600/30"
-        : "bg-white dark:bg-slate-900"
+        ? "bg-sky-100/80 dark:bg-sky-600/25"
+        : "bg-white dark:bg-white/[0.05]"
     }
   `}
 >
+
 
 
   {/* Verse Text */}
@@ -2871,9 +3005,35 @@ window.dispatchEvent(
 
     
       {/* Tabs */}
-<div className="mb-0">
+      <div
+  className="
+    mb-0
+    -mx-4 md:-mx-5
+    px-4 md:px-5
+
+    bg-white
+    dark:bg-slate-900/60
+
+    backdrop-blur-xl
+
+    border-b border-slate-200
+    dark:border-white/10
+  "
+>
+
   {/* PRIMARY ROW */}
-  <div className="border-b border-gray-200 dark:border-gray-700">
+  <div
+className="
+border-b border-slate-200 dark:border-white/10
+
+bg-white
+dark:bg-white/[0.04]
+
+backdrop-blur-xl
+"
+
+>
+
     <nav className="-mb-px flex items-center space-x-6">
       {PRIMARY_TABS.map((tab) => (
         <button
@@ -2883,12 +3043,15 @@ window.dispatchEvent(
             setAdvancedOpen(false); // 🔑 collapse advanced
             setErrorMsg("");
           }}
-          className={`py-3 border-b-2 text-sm font-medium ${teluguClass} ${
-
-            activeTab === tab
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 dark:text-gray-400"
-          }`}
+          className={`
+            py-3 border-b-2 text-sm font-medium transition-all duration-200
+            ${teluguClass}
+            ${
+              activeTab === tab
+              ? "border-blue-400 text-blue-400 font-semibold"
+              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"            
+            }
+          `}          
         >
           {getTabLabel(tab, language)}
         </button>
@@ -2908,7 +3071,17 @@ window.dispatchEvent(
 
   {/* ADVANCED ROW */}
   {advancedOpen && (
-    <div className="border-b border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-slate-900/60">
+    <div
+    className="
+    border-b border-slate-200 dark:border-white/10
+
+    bg-white
+    dark:bg-white/[0.03]
+
+    backdrop-blur-xl
+  "
+>
+
       <nav className="flex space-x-6 px-1">
         {ADVANCED_TABS.map((tab) => (
           <button
@@ -2917,11 +3090,15 @@ window.dispatchEvent(
               setActiveTab(tab);
               setErrorMsg("");
             }}
-            className={`py-2 text-sm border-b-2 ${teluguClass} ${
-              activeTab === tab
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 dark:text-gray-400"
-            }`}
+            className={`
+              py-2 text-sm border-b-2 transition-all duration-200
+              ${teluguClass}
+              ${
+                activeTab === tab
+                  ? "border-blue-500 text-blue-500 font-semibold"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              }
+              `}              
           >
             {getTabLabel(tab, language)}
 
@@ -2939,8 +3116,21 @@ window.dispatchEvent(
       {/* Main content */}
       <div
   ref={scrollContainerRef}
-  className="flex-grow overflow-y-auto pr-2"
+  className="
+  flex-grow overflow-y-auto pr-2
+
+  bg-white
+  dark:bg-transparent
+
+  backdrop-blur-xl
+
+
+    scrollbar-thin
+    scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700
+    scrollbar-track-transparent
+  "
 >
+
 
 
 
@@ -2996,7 +3186,16 @@ window.dispatchEvent(
       {compareVerses.map(({ version, text }) => (
         <div
           key={version}
-          className="rounded-lg border border-slate-200 dark:border-white/10 p-3 bg-white dark:bg-slate-900"
+          className="
+rounded-xl
+p-4
+
+bg-white/80 dark:bg-white/[0.04]
+
+border border-slate-200/70 dark:border-white/10
+
+shadow-[0_5px_20px_-5px_rgba(0,0,0,0.2)]
+"
         >
           <div className="flex items-center gap-2 mb-1">
   <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
@@ -3004,13 +3203,20 @@ window.dispatchEvent(
   </span>
 
   <span className="
-    px-2 py-0.5 text-[10px] rounded-full
-    bg-gray-200 dark:bg-gray-700
-    text-gray-700 dark:text-gray-300
-    uppercase tracking-wide
-  ">
-    {version}
-  </span>
+  px-2.5 py-0.5
+  text-[10px]
+  font-semibold
+  rounded-full
+
+  bg-slate-100
+  text-slate-600
+
+  dark:bg-slate-700
+  dark:text-slate-300
+">
+  {version}
+</span>
+
 </div>
 
 
@@ -3272,12 +3478,34 @@ className="
     <LoadingSkeleton />
   ) : isAiTab(activeTab) && analysis[activeTab] == null ? (
 
-    <div className="flex flex-col items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+    <div className="flex flex-col items-start gap-3 text-sm text-slate-700 dark:text-slate-300 font-semibold dark:text-gray-300">
       <p>{getAiEmptyHintText(activeTab, language)}</p>
   
       <button
         onClick={handleGenerateClick}
-        className="px-3 py-2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm hover:bg-blue-700"
+        className="
+        px-4 py-2
+        rounded-xl
+        
+        bg-gradient-to-r
+        from-blue-600
+        via-indigo-600
+        to-blue-700
+        
+        text-white
+        text-sm font-medium
+        
+        shadow-lg shadow-blue-500/30
+        hover:shadow-xl hover:shadow-blue-500/40
+        
+        hover:shadow-xl hover:shadow-blue-500/40
+        hover:scale-[1.02]
+        
+        active:scale-[0.98]
+        
+        transition-all duration-200
+        "        
+
       >
         {getAiActionText(activeTab, language)}
       </button>
@@ -3425,11 +3653,22 @@ className="
                 <button
                   onClick={() => setShareStep(null)}
                   className="
-                    w-9 h-9 rounded-full
-                    bg-white/10 hover:bg-white/20
-                    flex items-center justify-center
-                    transition
-                  "
+                  w-9 h-9
+                  rounded-full
+              
+                  bg-white/10
+                  border border-white/10
+              
+                  text-white/80
+                  hover:text-white
+              
+                  hover:bg-white/20
+                  hover:border-white/20
+              
+                  transition-all duration-200
+              
+                  flex items-center justify-center
+                "              
                   aria-label="Close"
                 >
                   ✕
