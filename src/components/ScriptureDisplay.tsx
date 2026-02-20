@@ -1675,20 +1675,31 @@ onClick={() => handleMultiHighlight(null)}
 
 {shareStep === "content" && shareVerseData && (
   <ModalPortal>
-    <VerseImageShare
-      verseRef={shareVerseData.verseRef}
-      verseText={shareVerseData.verseText}
-      language={shareVerseData.language}
-      backgroundUrl={selectedBackground}
-      gradient={selectedGradient}
-      rangeEnd={shareVerseData.rangeEnd}
-      onClose={() => {
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={() => {
         setShareStep(null);
         setShareVerseData(null);
         clearSelection();
       }}
-      onBack={() => setShareStep("background")}
-    />
+    >
+      <div onClick={(e) => e.stopPropagation()}>
+        <VerseImageShare
+          verseRef={shareVerseData.verseRef}
+          verseText={shareVerseData.verseText}
+          language={shareVerseData.language}
+          backgroundUrl={selectedBackground}
+          gradient={selectedGradient}
+          rangeEnd={shareVerseData.rangeEnd}
+          onClose={() => {
+            setShareStep(null);
+            setShareVerseData(null);
+            clearSelection();
+          }}
+          onBack={() => setShareStep("background")}
+        />
+      </div>
+    </div>
   </ModalPortal>
 )}
 

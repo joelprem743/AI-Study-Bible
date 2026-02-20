@@ -836,7 +836,7 @@ export const VerseTools: React.FC<{
   const isTeluguVersion = (version?: string) =>
     version === "TELUGU_COMMUNITY_V1";
   
-  
+  const [shareVerses, setShareVerses] = useState<string[]>([]);
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -1350,23 +1350,31 @@ const handleWordSelect = (idx: number) => {
 
 
   // Open background selector first
-  const handleShareAsImageClick = () => {
+  const handleShareAsImageClick = async () => {
 
-    // During demo, skip background selection
-    if (demoTriggerShare) {
-      const firstBg = NATURE_BACKGROUNDS?.[0];
-      if (firstBg) {
-        setSelectedBackground(firstBg.url);
-      }
+    const chapter = await fetchChapter(
+      verseRef.book,
+      verseRef.chapter,
+      language === "TE"
+        ? "TELUGU_COMMUNITY_V1"
+        : bibleVersion
+    );
   
-      setShareStep("content");
-      return;
-    }
+    const start = verseRef.verse;
+    const end = verseRef.verse; // change later if you support range selection
+  
+    const verses = chapter
+      .filter(v => v.verse >= start && v.verse <= end)
+      .map(v =>
+        language === "TE"
+          ? v.text.TELUGU_COMMUNITY_V1 || v.text.KJV || ""
+          : v.text[bibleVersion] || v.text.KJV || ""
+      );
+  
+    setShareVerses(verses);
   
     setShareStep("background");
   };
-  
-
 
   
   // Generate and share image with selected background

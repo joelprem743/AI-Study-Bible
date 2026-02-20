@@ -5,7 +5,7 @@
 
   type Props = {
     verseRef: VerseReference;
-    verseText: string;
+    verseText: string | string[];
     language: "EN" | "TE";
 
     meaning?: string;

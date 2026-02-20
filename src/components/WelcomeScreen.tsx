@@ -102,9 +102,13 @@ function getDynamicVerseBackground(
 
   function getTodayKey(): string {
     const now = new Date();
-    return now.toISOString().slice(0, 10);
-  }
   
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+  
+    return `${year}-${month}-${day}`;
+  }
   function getVerseBackground(
     book: string,
     chapter: number,
@@ -746,28 +750,32 @@ backdrop-blur-md
 {/* STEP 2 — Verse / Reflection selector */}
 {shareStep === "content" && verseRow && (
   <ModalPortal>
-    
-    <VerseImageShare
-  verseRef={{
-    book: verseRow.book,
-    chapter: verseRow.chapter,
-    verse: verseRow.verse,
-  }}
-  verseText={verseRow.text}
-  meaning={meaning}
-  language={language}
-  verseUrl={buildVerseUrl(
-    verseRow.book,
-    verseRow.chapter,
-    verseRow.verse
-  )}
-  backgroundUrl={selectedBackground}
-  gradient={selectedGradient}
-  onClose={() => setShareStep(null)}
-  onBack={() => setShareStep("background")}
-/>
-
-
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]"
+      onClick={() => setShareStep(null)}
+    >
+      <div onClick={(e) => e.stopPropagation()}>
+        <VerseImageShare
+          verseRef={{
+            book: verseRow.book,
+            chapter: verseRow.chapter,
+            verse: verseRow.verse,
+          }}
+          verseText={verseRow.text}
+          meaning={meaning}
+          language={language}
+          verseUrl={buildVerseUrl(
+            verseRow.book,
+            verseRow.chapter,
+            verseRow.verse
+          )}
+          backgroundUrl={selectedBackground}
+          gradient={selectedGradient}
+          onClose={() => setShareStep(null)}
+          onBack={() => setShareStep("background")}
+        />
+      </div>
+    </div>
   </ModalPortal>
 )}
 

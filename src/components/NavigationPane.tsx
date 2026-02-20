@@ -633,8 +633,7 @@ hover:text-slate-900 dark:hover:text-white
           key={ch}
           onClick={() => handleChapterSelect(ch)}
           className="
-          h-10 px-2
-        
+          h-10 min-w-[42px] px-2
           flex items-center justify-center
         
           rounded-xl
@@ -651,10 +650,6 @@ hover:text-slate-900 dark:hover:text-white
         
           shadow-[0_1px_2px_rgba(0,0,0,0.12)]
         
-          overflow-hidden
-          whitespace-nowrap
-          text-ellipsis
-        
           hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
           hover:-translate-y-[1px]
         
@@ -662,10 +657,8 @@ hover:text-slate-900 dark:hover:text-white
         
           transition-all duration-150
         "
-        
-        
         >
-          <span className="truncate block w-full text-center">
+          <span className="block w-full text-center">
   {ch}
 </span>
 
@@ -756,37 +749,32 @@ hover:text-slate-900 dark:hover:text-white
   key={v}
   onClick={() => handleVerseSelect(v)}
   className="
-    h-10 px-2
+  h-10 min-w-[42px] px-2
+  flex items-center justify-center
 
-    flex items-center justify-center
+  rounded-xl
 
-    rounded-xl
+  bg-gradient-to-b
+  from-white to-slate-100
+  dark:from-slate-800 dark:to-slate-700
 
-    bg-gradient-to-b
-    from-white to-slate-100
-    dark:from-slate-800 dark:to-slate-700
+  text-slate-900 dark:text-white/90
 
-    text-slate-900 dark:text-white/90
+  border border-slate-200 dark:border-slate-600
 
-    border border-slate-200 dark:border-slate-600
+  ring-1 ring-inset ring-white/40 dark:ring-white/5
 
-    ring-1 ring-inset ring-white/40 dark:ring-white/5
+  shadow-[0_1px_2px_rgba(0,0,0,0.12)]
 
-    shadow-[0_1px_2px_rgba(0,0,0,0.12)]
+  hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
+  hover:-translate-y-[1px]
 
-    overflow-hidden
-    whitespace-nowrap
-    text-ellipsis
+  active:translate-y-[1px]
 
-    hover:shadow-[0_4px_8px_rgba(0,0,0,0.18)]
-    hover:-translate-y-[1px]
-
-    active:translate-y-[1px]
-
-    transition-all duration-150
-  "
+  transition-all duration-150
+"
 >
-  <span className="truncate block w-full text-center">
+  <span className="block w-full text-center">
     {v}
   </span>
 </button>
