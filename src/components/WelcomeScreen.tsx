@@ -65,6 +65,12 @@ const VERSE_BACKGROUNDS = [
   "/verse-bg/mountain-peak.png",
   "/verse-bg/peaceful-meadow.png",
 ];
+const DAILY_BACKGROUND_OVERRIDE: Record<string, string> = {
+  // Format: YYYY-MM-DD
+  // Example overrides:
+  // "2026-02-20": "/verse-bg/bible-cross.png",
+  "2026-02-21": "/verse-bg/coastal-cliffs.png",
+};
 
 function getDynamicVerseBackground(
   book: string,
@@ -93,6 +99,31 @@ function getDynamicVerseBackground(
 
     return "";
   };
+
+  function getTodayKey(): string {
+    const now = new Date();
+    return now.toISOString().slice(0, 10);
+  }
+  
+  function getVerseBackground(
+    book: string,
+    chapter: number,
+    verse: number
+  ): string {
+  
+    // PRIORITY 1 — localStorage manual override (instant, no deploy)
+    const manualOverride = localStorage.getItem("welcome_bg_override");
+    if (manualOverride) return manualOverride;
+  
+    // PRIORITY 2 — hardcoded daily override
+    const today = getTodayKey();
+    if (DAILY_BACKGROUND_OVERRIDE[today]) {
+      return DAILY_BACKGROUND_OVERRIDE[today];
+    }
+  
+    // PRIORITY 3 — default dynamic system
+    return getDynamicVerseBackground(book, chapter, verse);
+  }
 
   const getDisplayBookName = (book: string, language: "EN" | "TE") => {
     if (language === "TE") {
@@ -514,12 +545,12 @@ space-y-4
     className="absolute inset-0 bg-cover bg-center scale-105 transition-transform duration-[3000ms]"
     style={{
       backgroundImage: verseRow
-        ? `url(${getDynamicVerseBackground(
-            verseRow.book,
-            verseRow.chapter,
-            verseRow.verse
-          )})`
-        : "none",
+      ? `url(${getVerseBackground(
+          verseRow.book,
+          verseRow.chapter,
+          verseRow.verse
+        )})`
+      : "none",
     }}
   />
 
