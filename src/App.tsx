@@ -128,7 +128,7 @@ const App: React.FC = () => {
   studyMode === "single" ? singleVersion : null;
 
 
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,11 +201,7 @@ const closeAllDemoPopups = useCallback(() => {
   // Highlights
   const { highlights, toggleHighlight } = useHighlights(user?.id, selectedBook, selectedChapter);
 
-  useEffect(() => {
-    if (!sessionStorage.getItem("welcomeShown")) {
-      setShowWelcome(true);
-    }
-  }, []);
+
   const handleVerseChange = useCallback((v: number) => {
     setSelectedVerse(v);
     setSelectedVerseRef({ book: selectedBook, chapter: selectedChapter, verse: v });
@@ -228,9 +224,7 @@ const closeAllDemoPopups = useCallback(() => {
 
   const handleWelcomeDismiss = () => {
     setShowWelcome(false);
-    sessionStorage.setItem("welcomeShown", "true");
   };
-
   // URL hash sync (OAuth-safe)
   const suppressHash = React.useRef(false);
 
@@ -1037,40 +1031,43 @@ useEffect(() => {
     },
   }}
 />
-      {loading ? (
-        <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">Loading...</div>
-      ) : (
-        <div className="flex flex-col h-screen">
+{loading ? (
+  <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">
+    Loading...
+  </div>
 
+) : showWelcome ? (
 
-{showWelcome && (
+  // BLOCK APP until welcome dismissed
   <WelcomeScreen
     onDismiss={handleWelcomeDismiss}
     onExplainVerse={({ book, chapter, verse, language }) => {
+
       handleWelcomeDismiss();
 
-      // ✅ Navigate to verse + select it
       setIsSearchView(false);
+
       setSelectedBook(book);
       setSelectedChapter(chapter);
       setSelectedVerseRef({ book, chapter, verse });
 
-      // ✅ Open chatbot
       setIsChatOpen(true);
 
-      // ✅ Auto-send question
       const msg =
         language === "TE"
           ? `${book} ${chapter}:${verse} ఈ వాక్యాన్ని వివరించండి.`
           : `Explain ${book} ${chapter}:${verse}.`;
 
       setChatInitialMessage(msg);
-        // ✅ store language for chatbot
-  setChatInitialLanguage(language);
+
+      setChatInitialLanguage(language);
     }}
   />
-)}
 
+) : (
+
+  // NORMAL APP
+  <div className="flex flex-col h-screen">
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
           <header className="
