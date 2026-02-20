@@ -586,10 +586,18 @@ backdrop-blur-md
 </div>
             {/* Meaning */}
             <div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
-bg-gradient-to-br from-white/70 via-white/50 to-white/40
-dark:from-white/[0.08] dark:via-white/[0.05] dark:to-white/[0.03]
-backdrop-blur-xl border border-white/40 dark:border-white/10
-shadow-[0_12px_45px_-12px_rgba(0,0,0,0.35)]">
+
+/* LIGHT MODE — solid elevated card */
+bg-white
+border border-slate-200
+shadow-sm
+
+/* DARK MODE — glass card */
+dark:bg-white/[0.06]
+dark:border-white/10
+dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
+
+transition-colors duration-300">
 
   <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
             <h3
@@ -625,10 +633,18 @@ shadow-[0_12px_45px_-12px_rgba(0,0,0,0.35)]">
     
 {/* Application */}
 <div className="relative p-5 sm:p-6 rounded-2xl overflow-hidden
-bg-gradient-to-br from-white/70 via-white/50 to-white/40
-dark:from-white/[0.08] dark:via-white/[0.05] dark:to-white/[0.03]
-backdrop-blur-xl border border-white/40 dark:border-white/10
-shadow-[0_12px_45px_-12px_rgba(0,0,0,0.35)]">
+
+/* LIGHT MODE — clean elevated card */
+bg-white
+border border-slate-200
+shadow-sm
+
+/* DARK MODE — premium glass */
+dark:bg-white/[0.06]
+dark:border-white/10
+dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
+
+transition-colors duration-300">
 
   <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
