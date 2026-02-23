@@ -8,6 +8,10 @@
   import { sendMessageToLlama } from "../services/geminiService";
   import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
   import VerseImageShare from "./VerseImageShare";
+  import {
+    GRADIENT_PRESETS,
+    NATURE_BACKGROUNDS,
+  } from "../constants/shareBackgrounds";
 
   import ModalPortal from "./ModalPortal";
 
@@ -53,18 +57,7 @@ const classifyVerseTone = (
 };
 
 // Dynamic verse background resolver
-const VERSE_BACKGROUNDS = [
-  "/verse-bg/mountain-sunrise.png",
-  "/verse-bg/ocean-waves.png",
-  "/verse-bg/forest-path.png",
-  "/verse-bg/desert-dunes.png",
-  "/verse-bg/mountain-lake.png",
-  "/verse-bg/sunset-fields.png",
-  "/verse-bg/coastal-cliffs.png",
-  "/verse-bg/autumn-forest.png",
-  "/verse-bg/mountain-peak.png",
-  "/verse-bg/peaceful-meadow.png",
-];
+
 const DAILY_BACKGROUND_OVERRIDE: Record<string, string> = {
   // Format: YYYY-MM-DD
   // Example overrides:
@@ -82,7 +75,9 @@ function getDynamicVerseBackground(
     chapter * 31 +
     verse * 17;
 
-  return VERSE_BACKGROUNDS[Math.abs(hash) % VERSE_BACKGROUNDS.length];
+  return NATURE_BACKGROUNDS[
+    Math.abs(hash) % NATURE_BACKGROUNDS.length
+  ].url;
 }
   const buildVerseUrl = (book: string, chapter: number, verse: number) =>
     `${window.location.origin}/#/${book}/${chapter}/${verse}`;
@@ -890,58 +885,32 @@ backdrop-blur-md
   </div>
 </button>
 
-
-  {/* Image options */}
-  {[
-    "mountain-sunrise",
-    "ocean-waves",
-    "forest-path",
-    "desert-dunes",
-    "mountain-lake",
-    "sunset-fields",
-    "coastal-cliffs",
-    "autumn-forest",
-    "mountain-peak",
-    "peaceful-meadow",
-    "bible-cross",
-    "blurry-grass",
-    "blurry-river",
-    "calm-horizon-light",
-    "coastal-view",
-    "dark-desert-distant-cross",
-    "light-gradient-negative-cross",
-    "old-bible",
-    "openbible-top",
-    "soft-desert",
-    "soft-forest-light-rays",
-    "soft-light-implied-cross",
-    "soft-sky-pastel-gradient"
-  ].map((id) => (
-    <button
-      key={id}
-      onClick={() => {
-        setBgMode("image");
-        setSelectedBackground(`/verse-bg/${id}.png`);
-        setSelectedGradient(null);
-        setShareStep("content");
-      }}
-      className="
-        relative aspect-square rounded-2xl overflow-hidden
-        border border-slate-200 dark:border-slate-700
-        hover:scale-[1.03] hover:shadow-lg
-        transition
-      "
-    >
-      <img
-        src={`/verse-bg/${id}.png`}
-        className="w-full h-full object-cover"
-        alt={id}
-      />
-      <div className="absolute bottom-0 w-full bg-black/60 text-white text-xs py-1 text-center">
-        {id.replace("-", " ")}
-      </div>
-    </button>
-  ))}
+{NATURE_BACKGROUNDS.map((bg) => (
+  <button
+    key={bg.id}
+    onClick={() => {
+      setBgMode("image");
+      setSelectedBackground(bg.url);
+      setSelectedGradient(null);
+      setShareStep("content");
+    }}
+    className="
+      relative aspect-square rounded-2xl overflow-hidden
+      border border-slate-200 dark:border-slate-700
+      hover:scale-[1.03] hover:shadow-lg
+      transition
+    "
+  >
+    <img
+      src={bg.url}
+      className="w-full h-full object-cover"
+      alt={bg.name}
+    />
+    <div className="absolute bottom-0 w-full bg-black/60 text-white text-xs py-1 text-center truncate">
+      {bg.name}
+    </div>
+  </button>
+))}
 </div>
 
 {/* --- GRADIENT COLORS (ONLY AFTER SELECTING GRADIENT) --- */}
@@ -953,32 +922,27 @@ backdrop-blur-md
 
     <div className="overflow-x-auto overflow-y-hidden pb-2">
       <div className="flex gap-3 flex-nowrap">
-        {[
-          { id: "mist", from: "#f8fafc", to: "#e2e8f0" },
-          { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
-          { id: "meadow", from: "#ecfdf5", to: "#bbf7d0" },
-          { id: "sand", from: "#fffbeb", to: "#fde68a" },
-          { id: "lavender", from: "#f5f3ff", to: "#ddd6fe" },
-        ].map((g) => (
-          <button
-            key={g.id}
-            onClick={() => {
-              setSelectedGradient({ from: g.from, to: g.to });
-              setShareStep("content");
-            }}
-            className="
-              w-14 h-14
-              rounded-xl
-              flex-shrink-0
-              border
-              hover:ring-2 hover:ring-blue-400
-              transition
-            "
-            style={{
-              background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-            }}
-          />
-        ))}
+      {GRADIENT_PRESETS.map((g) => (
+  <button
+    key={g.id}
+    onClick={() => {
+      setSelectedGradient({ from: g.from, to: g.to });
+      setSelectedBackground(null);
+      setShareStep("content");
+    }}
+    className="
+      w-14 h-14
+      rounded-xl
+      flex-shrink-0
+      border
+      hover:ring-2 hover:ring-blue-400
+      transition
+    "
+    style={{
+      background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+    }}
+  />
+))}
       </div>
     </div>
   </div>
