@@ -15,36 +15,6 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
   return await createImageBitmap(blob);
 }
 
-function drawSpacedText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  centerX: number,
-  y: number,
-  spacing: number
-) {
-  // If contains Telugu Unicode range → DO NOT SPLIT
-  const teluguRegex = /[\u0C00-\u0C7F]/;
-
-  if (teluguRegex.test(text)) {
-    ctx.fillText(text, centerX, y);
-    return;
-  }
-
-  const characters = Array.from(text); // safer than split("")
-  const totalWidth =
-    characters.reduce(
-      (sum, char) => sum + ctx.measureText(char).width,
-      0
-    ) +
-    spacing * (characters.length - 1);
-
-  let x = centerX - totalWidth / 2;
-
-  for (const char of characters) {
-    ctx.fillText(char, x, y);
-    x += ctx.measureText(char).width + spacing;
-  }
-}
 
 export async function generateVerseImage(
   verseRef: VerseReference,
@@ -118,23 +88,14 @@ ctx.clip();
   /* ---------- BACKGROUND ---------- */
 
   if (bgBitmap) {
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bgBitmap, 0, 0, width, height);
-
-    const vignette = ctx.createRadialGradient(
-      width / 2,
-      height * 0.45,
-      height * 0.1,
-      width / 2,
-      height * 0.45,
-      height * 0.9
-    );
-    
-    vignette.addColorStop(0, "rgba(0,0,0,0.35)");
-    vignette.addColorStop(1, "rgba(0,0,0,0.75)");
-    
-    ctx.fillStyle = vignette;
+  
+    const overlay = ctx.createLinearGradient(0, 0, 0, height);
+    overlay.addColorStop(0, "rgba(0,0,0,0.55)");
+    overlay.addColorStop(0.5, "rgba(0,0,0,0.45)");
+    overlay.addColorStop(1, "rgba(0,0,0,0.65)");
+  
+    ctx.fillStyle = overlay;
     ctx.fillRect(0, 0, width, height);
   } else {
     const g = ctx.createLinearGradient(0, 0, width, height);
@@ -292,7 +253,7 @@ ctx.clip();
   // Soft halo glow behind verse text
 if (bgBitmap) {
   ctx.shadowColor = "rgba(0,0,0,0.6)";
-  ctx.shadowBlur = 22;
+  ctx.shadowBlur = 9;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 }
@@ -325,9 +286,9 @@ ctx.shadowBlur = 0;
   : Math.max(16, Math.round(fontSize * 0.55));
 
   ctx.shadowBlur = 0;
-  ctx.globalAlpha = bgBitmap ? 0.6 : 0.85;
-  ctx.fillStyle = bgBitmap ? "#ffffff" : "#334155";
-  ctx.font = `500 ${referenceFontSize}px Inter, system-ui, sans-serif`;
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
 
   const book =
     language === "TE"
@@ -344,27 +305,21 @@ ctx.shadowBlur = 0;
     : `${book} ${verseRef.chapter}:${verseRef.verse}`;
 
     ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = 0.8;
     ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
     
     if (language === "TE") {
-      ctx.font = `600 ${referenceFontSize * 0.9}px "Hind Madurai", serif`;
-      ctx.fillText(referenceLabel, centerX, y + 20);
+      ctx.font = `500 ${referenceFontSize * 0.95}px "Hind Madurai", serif`;
+      ctx.fillText(referenceLabel, centerX, y + 22);
     } else {
-      ctx.font = `600 ${referenceFontSize * 0.85}px Inter, sans-serif`;
-      drawSpacedText(
-        ctx,
-        referenceLabel.toUpperCase(),
-        centerX,
-        y + 20,
-        2.2
-      );
+      ctx.font = `500 ${referenceFontSize * 0.9}px Inter, sans-serif`;
+      ctx.fillText(referenceLabel.toUpperCase(), centerX, y + 22);
     }
     
     ctx.globalAlpha = 1;
 
   /* ---------- FOOTER ---------- */
-
   const footerY = height - Math.max(80, Math.round(fontSize * 2.4));
 
   ctx.textAlign = "center";
@@ -402,6 +357,7 @@ ctx.shadowBlur = 0;
 
   ctx.globalAlpha = 1;
   ctx.textAlign = "left";
+
 
   /* ---------- EXPORT ---------- */
 
