@@ -15,6 +15,36 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
   return await createImageBitmap(blob);
 }
 
+function drawSpacedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  y: number,
+  spacing: number
+) {
+  // If contains Telugu Unicode range → DO NOT SPLIT
+  const teluguRegex = /[\u0C00-\u0C7F]/;
+
+  if (teluguRegex.test(text)) {
+    ctx.fillText(text, centerX, y);
+    return;
+  }
+
+  const characters = Array.from(text); // safer than split("")
+  const totalWidth =
+    characters.reduce(
+      (sum, char) => sum + ctx.measureText(char).width,
+      0
+    ) +
+    spacing * (characters.length - 1);
+
+  let x = centerX - totalWidth / 2;
+
+  for (const char of characters) {
+    ctx.fillText(char, x, y);
+    x += ctx.measureText(char).width + spacing;
+  }
+}
 
 export async function generateVerseImage(
   verseRef: VerseReference,
@@ -58,13 +88,33 @@ console.log("IS ARRAY:", Array.isArray(verseText));
     }
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  const scale = 2; // 🔥 print clarity multiplier
 
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No canvas context");
+  
+  ctx.scale(scale, scale);
+  ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
+// Rounded corner mask
+const radius = 60;
 
+ctx.beginPath();
+ctx.moveTo(radius, 0);
+ctx.lineTo(width - radius, 0);
+ctx.quadraticCurveTo(width, 0, width, radius);
+ctx.lineTo(width, height - radius);
+ctx.quadraticCurveTo(width, height, width - radius, height);
+ctx.lineTo(radius, height);
+ctx.quadraticCurveTo(0, height, 0, height - radius);
+ctx.lineTo(0, radius);
+ctx.quadraticCurveTo(0, 0, radius, 0);
+ctx.closePath();
+ctx.clip();
   /* ---------- BACKGROUND ---------- */
 
   if (bgBitmap) {
@@ -72,7 +122,19 @@ console.log("IS ARRAY:", Array.isArray(verseText));
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bgBitmap, 0, 0, width, height);
 
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    const vignette = ctx.createRadialGradient(
+      width / 2,
+      height * 0.45,
+      height * 0.1,
+      width / 2,
+      height * 0.45,
+      height * 0.9
+    );
+    
+    vignette.addColorStop(0, "rgba(0,0,0,0.35)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.75)");
+    
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   } else {
     const g = ctx.createLinearGradient(0, 0, width, height);
@@ -99,22 +161,13 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
 
-  if (bgBitmap) {
-    const overlay = ctx.createLinearGradient(0, 0, 0, height);
-    overlay.addColorStop(0, "rgba(0,0,0,0.45)");
-    overlay.addColorStop(0.4, "rgba(0,0,0,0.25)");
-    overlay.addColorStop(0.7, "rgba(0,0,0,0.05)");
-    overlay.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = overlay;
-    ctx.fillRect(0, 0, width, height);
-  }
 
   /* ---------- RESPONSIVE VERSE LAYOUT ---------- */
 
   const aspectRatio = height / width;
   const isPortrait = aspectRatio > 1.3;
   
-  const columnWidth = Math.round(width * (isPortrait ? 0.78 : 0.64));
+  const columnWidth = Math.round(width * (isPortrait ? 0.68 : 0.60));
   const centerX = width / 2;
   
   const topPadding = isPortrait
@@ -141,13 +194,13 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   function wrapText(text: string, fontPx: number) {
 
     ctx.font =
-      language === "TE"
-        ? `${fontPx}px Noto Serif Telugu, serif`
-        : `italic ${fontPx}px Georgia, serif`;
+    language === "TE"
+    ? `600 ${fontPx}px "Hind Madurai", serif`
+    : `600 ${fontPx}px "Playfair Display", serif`
   
     const lineHeight =
       language === "TE"
-        ? Math.round(fontPx * 1.7)
+        ? Math.round(fontPx * 1.55)
         : Math.round(fontPx * 1.6);
   
     const lines: string[] = [];
@@ -216,34 +269,33 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   const minFontSize = isPortrait ? 28 : 22;
 
   while (totalHeight > maxTextHeight && fontSize > minFontSize) {
-    fontSize -= 2;
+    fontSize -= 1;
     blocks = wrapAll(fontSize);
     totalHeight = totalHeightFor(blocks);
   }
-
+  fontSize -=1;
   /* Apply final font */
   ctx.font =
-    language === "TE"
-      ? `${fontSize}px Noto Serif Telugu, serif`
-      : `italic ${fontSize}px Georgia, serif`;
+  language === "TE"
+    ? `600 ${fontSize}px "Hind Madurai", serif`
+    : `600 ${fontSize}px "Playfair Display", serif`;
 
   if (bgBitmap) {
     ctx.fillStyle = "#ffffff";
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
   } else {
     ctx.fillStyle = "#0f172a";
     ctx.shadowBlur = 0;
   }
 
   /* Draw verses separately */
-  let y = isPortrait
-  ? Math.max(
-      topPadding,
-      (height - totalHeight - bottomReserved) / 2
-    )
-  : topPadding;
+  let y = (height - totalHeight) / 2 - 5;
+  // Soft halo glow behind verse text
+if (bgBitmap) {
+  ctx.shadowColor = "rgba(0,0,0,0.6)";
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
 
   blocks.forEach((block, index) => {
 
@@ -252,17 +304,19 @@ console.log("IS ARRAY:", Array.isArray(verseText));
       y += block.lineHeight * 1.4;
     }
   
-    block.lines.forEach(line => {
-  
-      if (line.trim().length === 0) return;
-  
-      ctx.fillText(line, centerX, y);
-  
-      y += block.lineHeight;
-  
-    });
+block.lines.forEach(line => {
+
+  if (line.trim().length === 0) return;
+
+ctx.fillText(line, centerX, y);
+
+  y += block.lineHeight;
+
+});
   
   });
+  // Disable glow for other elements
+ctx.shadowBlur = 0;
 
   /* ---------- REFERENCE ---------- */
 
@@ -289,13 +343,29 @@ console.log("IS ARRAY:", Array.isArray(verseText));
       : `${book} ${verseRef.chapter}:${verseRef.verse}, ${rangeEnd}`
     : `${book} ${verseRef.chapter}:${verseRef.verse}`;
 
-  ctx.fillText(referenceLabel, centerX, y);
-
-  ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = "#ffffff";
+    
+    if (language === "TE") {
+      ctx.font = `600 ${referenceFontSize * 0.9}px "Hind Madurai", serif`;
+      ctx.fillText(referenceLabel, centerX, y + 20);
+    } else {
+      ctx.font = `600 ${referenceFontSize * 0.85}px Inter, sans-serif`;
+      drawSpacedText(
+        ctx,
+        referenceLabel.toUpperCase(),
+        centerX,
+        y + 20,
+        2.2
+      );
+    }
+    
+    ctx.globalAlpha = 1;
 
   /* ---------- FOOTER ---------- */
 
-  const footerY = height - Math.max(110, Math.round(fontSize * 3));
+  const footerY = height - Math.max(80, Math.round(fontSize * 2.4));
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -311,12 +381,10 @@ console.log("IS ARRAY:", Array.isArray(verseText));
     );
   }
 
-  ctx.shadowColor = "rgba(0,0,0,0.4)";
-  ctx.shadowBlur = 3;
-  ctx.shadowOffsetY = 1;
 
-  ctx.globalAlpha = 0.6;
-  ctx.font = "600 26px Inter, system-ui, sans-serif";
+
+  ctx.globalAlpha = 0.35;
+  ctx.font = "500 22px Inter, sans-serif";
   ctx.fillText(
     "Bible Companion",
     width / 2,
