@@ -8,6 +8,10 @@ import { generateVerseImage } from "../utils/verseImage";
 import ModalPortal from "./ModalPortal";
 import VerseImageShare from "./VerseImageShare";
 import { buildVerseShareCaption, buildVerseShareUrl } from "../utils/share";
+import {
+  GRADIENT_PRESETS,
+  NATURE_BACKGROUNDS,
+} from "../constants/shareBackgrounds";
 const TELUGU_VERSION_KEY = "TELUGU_COMMUNITY_V1";
 
 interface ScriptureDisplayProps {
@@ -85,14 +89,14 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
     }
   };
 
-  const GRADIENT_PRESETS = [
-    { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
-    { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
-    { id: "lavender", from: "#ede9fe", to: "#ddd6fe" },
-    { id: "mint", from: "#ecfeff", to: "#cffafe" },
-    { id: "sand", from: "#fffbeb", to: "#fef3c7" },
-    { id: "rose", from: "#fff1f2", to: "#ffe4e6" },
-  ];
+  // const GRADIENT_PRESETS = [
+  //   { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
+  //   { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
+  //   { id: "lavender", from: "#ede9fe", to: "#ddd6fe" },
+  //   { id: "mint", from: "#ecfeff", to: "#cffafe" },
+  //   { id: "sand", from: "#fffbeb", to: "#fef3c7" },
+  //   { id: "rose", from: "#fff1f2", to: "#ffe4e6" },
+  // ];
   
   
 
@@ -132,13 +136,20 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   const touchMovedRef = useRef<Map<number, boolean>>(new Map());
 
   // State
+  type ShareLayout = "portrait" | "square";
+  type ShareStep = "background" | "content" | null;
+  
+  const [shareLayout, setShareLayout] = useState<ShareLayout>("square");
+  const [shareStep, setShareStep] = useState<ShareStep>(null);
+  const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
+  const [selectedGradient, setSelectedGradient] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
   const [autoScrollDir, setAutoScrollDir] = useState<"up" | "down" | null>(null);
   const [selectedVerses, setSelectedVerses] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [shareStep, setShareStep] = useState<"background" | "content" | null>(null);
-  const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
-  const [selectedGradient, setSelectedGradient] = useState<{ from: string; to: string } | null>(null);
   const [shareVerseData, setShareVerseData] = useState<{
     verseRef: VerseReference;
     verseText: string;
@@ -170,31 +181,31 @@ const pendingHighlightRef = useRef<string | null>(null);
 
   const gradientSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const NATURE_BACKGROUNDS = [
-    { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
-    { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
-    { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
-    { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
-    { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
-    { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
-    { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
-    { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
-    { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
-    { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
-    { id: "11", name: "Bible Cross", url: "/verse-bg/bible-cross.png" },
-    { id: "12", name: "Blurry Grass", url: "/verse-bg/blurry-grass.png" },
-    { id: "13", name: "Blurry River", url: "/verse-bg/blurry-river.png" },
-    { id: "14", name: "Calm Horizon Light", url: "/verse-bg/calm-horizon-light.png" },
-    { id: "15", name: "Coastal View", url: "/verse-bg/coastal-view.png" },
-    { id: "16", name: "Desert Cross (Dark)", url: "/verse-bg/dark-desert-distant-cross.png" },
-    { id: "17", name: "Light Gradient Cross", url: "/verse-bg/light-gradient-negative-cross.png" },
-    { id: "18", name: "Old Bible", url: "/verse-bg/old-bible.png" },
-    { id: "19", name: "Open Bible (Top View)", url: "/verse-bg/openbible-top.png" },
-    { id: "20", name: "Soft Desert", url: "/verse-bg/soft-desert.png" },
-    { id: "21", name: "Soft Forest Light Rays", url: "/verse-bg/soft-forest-light-rays.png" },
-    { id: "22", name: "Implied Light Cross", url: "/verse-bg/soft-light-implied-cross.png" },
-    { id: "23", name: "Soft Sky Pastel Gradient", url: "/verse-bg/soft-sky-pastel-gradient.png" },
-  ];
+  // const NATURE_BACKGROUNDS = [
+  //   { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
+  //   { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
+  //   { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
+  //   { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
+  //   { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
+  //   { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
+  //   { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
+  //   { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
+  //   { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
+  //   { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
+  //   { id: "11", name: "Bible Cross", url: "/verse-bg/bible-cross.png" },
+  //   { id: "12", name: "Blurry Grass", url: "/verse-bg/blurry-grass.png" },
+  //   { id: "13", name: "Blurry River", url: "/verse-bg/blurry-river.png" },
+  //   { id: "14", name: "Calm Horizon Light", url: "/verse-bg/calm-horizon-light.png" },
+  //   { id: "15", name: "Coastal View", url: "/verse-bg/coastal-view.png" },
+  //   { id: "16", name: "Desert Cross (Dark)", url: "/verse-bg/dark-desert-distant-cross.png" },
+  //   { id: "17", name: "Light Gradient Cross", url: "/verse-bg/light-gradient-negative-cross.png" },
+  //   { id: "18", name: "Old Bible", url: "/verse-bg/old-bible.png" },
+  //   { id: "19", name: "Open Bible (Top View)", url: "/verse-bg/openbible-top.png" },
+  //   { id: "20", name: "Soft Desert", url: "/verse-bg/soft-desert.png" },
+  //   { id: "21", name: "Soft Forest Light Rays", url: "/verse-bg/soft-forest-light-rays.png" },
+  //   { id: "22", name: "Implied Light Cross", url: "/verse-bg/soft-light-implied-cross.png" },
+  //   { id: "23", name: "Soft Sky Pastel Gradient", url: "/verse-bg/soft-sky-pastel-gradient.png" },
+  // ];
   
   
 
@@ -1314,12 +1325,12 @@ opacity-70 hover:opacity-100
   )}
 </div>
 
-      <button
-        onClick={handleShareAsText}
-        className="flex-1 py-2 rounded-xl bg-blue-600 text-white font-medium"
-      >
-        Share
-      </button>
+<button
+  onClick={handleShareAsImage}
+  className="flex-1 py-2 rounded-xl bg-blue-600 text-white font-medium"
+>
+  Share
+</button>
 
       <button
         onClick={handleAddToNotes}
@@ -1684,20 +1695,24 @@ onClick={() => handleMultiHighlight(null)}
       }}
     >
       <div onClick={(e) => e.stopPropagation()}>
-        <VerseImageShare
-          verseRef={shareVerseData.verseRef}
-          verseText={shareVerseData.verseText}
-          language={shareVerseData.language}
-          backgroundUrl={selectedBackground}
-          gradient={selectedGradient}
-          rangeEnd={shareVerseData.rangeEnd}
-          onClose={() => {
-            setShareStep(null);
-            setShareVerseData(null);
-            clearSelection();
-          }}
-          onBack={() => setShareStep("background")}
-        />
+      <VerseImageShare
+  verseRef={shareVerseData.verseRef}
+  verseText={shareVerseData.verseText}
+  language={shareVerseData.language}
+  meaning={undefined}
+  verseUrl={undefined}
+  layout={shareLayout}
+  setLayout={setShareLayout}
+  backgroundUrl={selectedBackground}
+  gradient={selectedGradient}
+  rangeEnd={shareVerseData.rangeEnd}
+  onClose={() => {
+    setShareStep(null);
+    setShareVerseData(null);
+    clearSelection();
+  }}
+  onBack={() => setShareStep("background")}
+/>
       </div>
     </div>
   </ModalPortal>

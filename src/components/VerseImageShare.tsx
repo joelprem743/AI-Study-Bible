@@ -2,36 +2,31 @@
   import React, { useEffect, useState } from "react";
   import { generateVerseImage } from "../utils/verseImage";
   import { VerseReference } from "..";
+  type ShareLayout = "portrait" | "square";
 
   type Props = {
     verseRef: VerseReference;
     verseText: string | string[];
     language: "EN" | "TE";
-
+  
     meaning?: string;
     verseUrl?: string;
-
+  
+    layout: ShareLayout;
+    setLayout: (layout: ShareLayout) => void;
+  
     backgroundUrl?: string | null;
     gradient?: { from: string; to: string } | null;
     churchName?: string;
-
-    rangeEnd?: number;   // 🔥 ADD THIS
-
+    rangeEnd?: number;
+  
     onClose: () => void;
     onBack: () => void;
   };
 
 
 
-    const GRADIENTS = [
-      { id: "mist", from: "#f8fafc", to: "#e2e8f0" },
-      { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
-      { id: "meadow", from: "#ecfdf5", to: "#bbf7d0" },
-      { id: "sand", from: "#fffbeb", to: "#fde68a" },
-      { id: "lavender", from: "#f5f3ff", to: "#ddd6fe" },
-      { id: "stone", from: "#f1f5f9", to: "#cbd5e1" },
-    ];
-    
+
     
     export default function VerseImageShare({
       verseRef,
@@ -39,6 +34,8 @@
       meaning,
       language,
       verseUrl,
+      layout,
+      setLayout,
       backgroundUrl,
       gradient: initialGradient,
       churchName,
@@ -46,9 +43,7 @@
       onClose,
       onBack,
     }: Props) {  
-    const [activeGradient, setActiveGradient] = useState(
-      initialGradient ?? GRADIENTS[0]
-    );
+      const [activeGradient] = useState(initialGradient ?? null);
     
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -81,7 +76,8 @@
             backgroundUrl ?? null,
             activeGradient ?? null,
             churchName,
-            rangeEnd
+            rangeEnd,
+            layout,
           );
     
           if (!cancelled) {
@@ -103,7 +99,16 @@
           URL.revokeObjectURL(objectUrl);
         }
       };
-    }, [verseRef, verseText, language, backgroundUrl, activeGradient, churchName, rangeEnd]);
+    }, [
+      verseRef,
+      verseText,
+      language,
+      backgroundUrl,
+      activeGradient,
+      churchName,
+      rangeEnd,
+      layout   // ✅ ADD THIS
+    ]);
     
 
 
@@ -182,29 +187,31 @@
       <>
         {/* Modal card */}
         <div
-          className="
-            bg-white dark:bg-slate-900
-            rounded-2xl
-            w-[92vw] max-w-md
-            max-h-[90vh]
-            overflow-hidden
-            shadow-2xl
-            border border-slate-200 dark:border-white/10
-            relative
-          "
-          onClick={(e) => e.stopPropagation()}
-        >
+className="
+bg-white dark:bg-slate-900
+rounded-2xl
+w-[95vw] max-w-md
+max-h-[90vh]
+flex flex-col
+shadow-2xl
+border border-slate-200 dark:border-white/10
+relative
+"
+  onClick={(e) => e.stopPropagation()}
+>
     
           {/* Header */}
           <div
-            className="
-              px-5 py-4
-              rounded-t-2xl
-              bg-gradient-to-b from-slate-900 to-slate-800
-              text-white
-              flex items-center justify-between
-            "
-          >
+  className={`
+    px-5
+    py-4
+    rounded-t-2xl
+    bg-gradient-to-b from-slate-900 to-slate-800
+    text-white
+    flex items-center justify-between
+  `}
+>
+
             <div>
               <h3 className="text-sm font-semibold tracking-wide">
                 {language === "TE" ? "వాక్యాన్ని షేర్ చేయండి" : "Share verse"}
@@ -229,27 +236,99 @@
             </button>
           </div>
     
-    
+{/* Layout Toggle */}
+<div className="px-5 py-4 border-b border-slate-200 dark:border-white/10">
+
+  <div className="relative bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 flex">
+
+    {/* Sliding background */}
+    <div
+  className={`
+    absolute top-1 bottom-1 left-1
+    w-[calc(50%-4px)]
+    rounded-xl
+    bg-white dark:bg-slate-700
+    shadow-md
+    transition-transform duration-300 ease-in-out
+    ${layout === "portrait" ? "translate-x-full" : "translate-x-0"}
+  `}
+/>
+
+    {/* Square Button */}
+    <button
+      onClick={() => setLayout("square")}
+      className={`
+        relative z-10 flex-1
+        py-2 text-sm font-semibold rounded-xl
+        transition-colors duration-200
+        ${
+          layout === "square"
+            ? "text-slate-900 dark:text-white"
+            : "text-slate-500 dark:text-slate-400"
+        }
+      `}
+    >
+      Square (1:1)
+    </button>
+    {/* Portrait Button */}
+    <button
+      onClick={() => setLayout("portrait")}
+      className={`
+        relative z-10 flex-1
+        py-2 text-sm font-semibold rounded-xl
+        transition-colors duration-200
+        ${
+          layout === "portrait"
+            ? "text-slate-900 dark:text-white"
+            : "text-slate-500 dark:text-slate-400"
+        }
+      `}
+    >
+      Portrait (4:5)
+    </button>
+
+
+  </div>
+</div>
           {/* Content wrapper (THIS FIXES ALL PADDING) */}
-          <div className="p-4 pt-3">
-    
+          <div className="p-4 pt-3 overflow-y-auto flex-1">
             {/* Preview */}
-            <div className="aspect-square bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
-              {loading ? (
-                <span className="text-xs text-slate-500">Generating…</span>
-              ) : previewUrl ? (
-                <img
-                  src={previewUrl}
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              ) : (
-                <span className="text-xs text-red-500">Failed</span>
-              )}
-            </div>
+            <div className="p-4 flex justify-center">
+            <div
+  className={`
+    w-full
+    rounded-2xl
+    overflow-hidden
+    bg-slate-100
+    flex items-center justify-center
+    ${
+      layout === "square"
+        ? "aspect-square"
+        : "aspect-[4/5]"
+    }
+  `}
+>
+  {loading ? (
+    <span className="text-xs text-slate-500">Generating…</span>
+  ) : previewUrl ? (
+<img
+  src={previewUrl}
+  className="w-full h-full object-contain"
+/>
+  ) : (
+    <span className="text-xs text-red-500">Failed</span>
+  )}
+</div>
+</div>
     
     
             {/* Actions */}
-            <div className="flex items-center justify-between gap-3 mt-4">
+            <div
+  className={`
+    flex items-center justify-between gap-3
+    ${layout === "portrait" ? "mt-4" : "mt-3"}
+  `}
+>
     
               <button
                 onClick={onBack}

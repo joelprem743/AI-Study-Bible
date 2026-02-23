@@ -6,6 +6,10 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import {
+  GRADIENT_PRESETS,
+  NATURE_BACKGROUNDS,
+} from "../constants/shareBackgrounds";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -613,25 +617,7 @@ type AiTab =
   ];
   
 
-const GRADIENT_PRESETS = [
-  // Soft slate (default – clean & premium)
-  { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
 
-  // Cool sky
-  { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
-
-  // Lavender calm
-  { id: "lavender", from: "#ede9fe", to: "#ddd6fe" },
-
-  // Mint light
-  { id: "mint", from: "#ecfeff", to: "#cffafe" },
-
-  // Warm sand
-  { id: "sand", from: "#fffbeb", to: "#fef3c7" },
-
-  // Rose soft
-  { id: "rose", from: "#fff1f2", to: "#ffe4e6" },
-];
 
 /* -------------------------
   Inline reference regex
@@ -835,7 +821,9 @@ export const VerseTools: React.FC<{
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
   const isTeluguVersion = (version?: string) =>
     version === "TELUGU_COMMUNITY_V1";
-  
+  type ShareLayout = "portrait" | "square";
+
+  const [shareLayout, setShareLayout] = useState<ShareLayout>("square");
   const [shareVerses, setShareVerses] = useState<string[]>([]);
   const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string>("");
@@ -894,85 +882,6 @@ const [isLongVerse, setIsLongVerse] = useState(false);
 
   const [previewHighlight, setPreviewHighlight] =
   useState<string | null>(null);
-
-  // Nature background images for verse sharing
-  const NATURE_BACKGROUNDS = [
-    { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
-    { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
-    { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
-    { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
-    { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
-    { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
-    { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
-    { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
-    { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
-    { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
-    {
-      id: "11",
-      name: "Bible Cross",
-      url: "/verse-bg/bible-cross.png",
-    },
-    {
-      id: "12",
-      name: "Blurry Grass",
-      url: "/verse-bg/blurry-grass.png",
-    },
-    {
-      id: "13",
-      name: "Blurry River",
-      url: "/verse-bg/blurry-river.png",
-    },
-    {
-      id: "14",
-      name: "Calm Horizon Light",
-      url: "/verse-bg/calm-horizon-light.png",
-    },
-    {
-      id: "15",
-      name: "Coastal View",
-      url: "/verse-bg/coastal-view.png",
-    },
-    {
-      id: "16",
-      name: "Desert Cross (Dark)",
-      url: "/verse-bg/dark-desert-distant-cross.png",
-    },
-    {
-      id: "17",
-      name: "Light Gradient Cross",
-      url: "/verse-bg/light-gradient-negative-cross.png",
-    },
-    {
-      id: "18",
-      name: "Old Bible",
-      url: "/verse-bg/old-bible.png",
-    },
-    {
-      id: "19",
-      name: "Open Bible (Top View)",
-      url: "/verse-bg/openbible-top.png",
-    },
-    {
-      id: "20",
-      name: "Soft Desert",
-      url: "/verse-bg/soft-desert.png",
-    },
-    {
-      id: "21",
-      name: "Soft Forest Light Rays",
-      url: "/verse-bg/soft-forest-light-rays.png",
-    },
-    {
-      id: "22",
-      name: "Implied Light Cross",
-      url: "/verse-bg/soft-light-implied-cross.png",
-    },
-    {
-      id: "23",
-      name: "Soft Sky Pastel Gradient",
-      url: "/verse-bg/soft-sky-pastel-gradient.png",
-    },
-  ];
 
 
 
@@ -3743,24 +3652,25 @@ className="
                 {/* Image options */}
                 {NATURE_BACKGROUNDS.map((bg) => (
                   <button
-                    key={bg.id}
-                    onClick={() => {
-                      setSelectedBackground(bg.url);
-                      setSelectedGradient(null);
-                      setShareStep("content");
-                    }}
-                    className="
-                      relative aspect-square rounded-2xl overflow-hidden
-                      border border-slate-200 dark:border-slate-700
-                      hover:scale-[1.03] hover:shadow-lg
-                      transition
-                    "
-                  >
-                    <img
-                      src={bg.url}
-                      className="w-full h-full object-cover"
-                      alt={bg.name}
-                    />
+  key={bg.id}
+  onClick={() => {
+    setSelectedBackground(bg.url);
+    setSelectedGradient(null);
+    setShareStep("content");
+  }}
+  className="
+    relative aspect-square w-full
+    rounded-2xl overflow-hidden
+    border border-slate-200 dark:border-slate-700
+    hover:scale-[1.03] hover:shadow-lg
+    transition
+  "
+>
+<img
+  src={bg.url}
+  className="w-full h-full object-cover object-center"
+  alt={bg.name}
+/>
                     <div className="absolute bottom-0 w-full bg-black/60 text-white text-[10px] py-1 text-center px-1 truncate">
                       {bg.name}
                     </div>
@@ -3839,22 +3749,22 @@ className="
         );
       }}
     >
-      <div onClick={(e) => e.stopPropagation()}>
-        <VerseImageShare
-          verseRef={verseRef}
-          verseText={displayVerseText}
-          language={language}
-          backgroundUrl={selectedBackground}
-          gradient={selectedGradient}
-          onClose={() => {
-            setShareStep(null);
-            window.dispatchEvent(
-              new CustomEvent("demo-behind-modal", { detail: false })
-            );
-          }}
-          onBack={() => setShareStep("background")}
-        />
-      </div>
+      <VerseImageShare
+        verseRef={verseRef}
+        verseText={displayVerseText}
+        language={language}
+        layout={shareLayout}   // keep this
+        setLayout={setShareLayout}
+        backgroundUrl={selectedBackground}
+        gradient={selectedGradient}
+        onClose={() => {
+          setShareStep(null);
+          window.dispatchEvent(
+            new CustomEvent("demo-behind-modal", { detail: false })
+          );
+        }}
+        onBack={() => setShareStep("background")}
+      />
     </div>
   </ModalPortal>
 )}

@@ -748,7 +748,7 @@ backdrop-blur-md
         </div>
         </div>
 {/* STEP 2 — Verse / Reflection selector */}
-{shareStep === "content" && verseRow && (
+{/* {shareStep === "content" && verseRow && (
   <ModalPortal>
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]"
@@ -777,7 +777,7 @@ backdrop-blur-md
       </div>
     </div>
   </ModalPortal>
-)}
+)} */}
 
 
 {/* STEP 1 — Background / Gradient picker */}

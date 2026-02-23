@@ -23,7 +23,9 @@ export async function generateVerseImage(
   backgroundImageUrl?: string | null,
   gradient?: { from: string; to: string } | null,
   churchName?: string,
-  rangeEnd?: number
+  rangeEnd?: number,
+  layout: "portrait" | "square" = "portrait" 
+
 ): Promise<Blob> {
 
   console.log("VERSE TEXT TYPE:", typeof verseText);
@@ -41,20 +43,16 @@ console.log("IS ARRAY:", Array.isArray(verseText));
 
   let bgBitmap: ImageBitmap | null = null;
   let width = 1080;
-  let height = 1080;
+  let height = layout === "square" ? 1080 : 1350;  // 4:5 portrait
 
   if (backgroundImageUrl) {
     try {
       bgBitmap = await loadBitmap(backgroundImageUrl);
-
-      const scale = Math.min(
-        MAX_CANVAS / bgBitmap.width,
-        MAX_CANVAS / bgBitmap.height,
-        1
-      );
-
-      width = Math.round(bgBitmap.width * scale);
-      height = Math.round(bgBitmap.height * scale);
+  
+      // Enforce layout dimensions
+      width = 1080;
+      height = layout === "square" ? 1080 : 1350;
+  
     } catch {
       bgBitmap = null;
     }
@@ -113,14 +111,32 @@ console.log("IS ARRAY:", Array.isArray(verseText));
 
   /* ---------- RESPONSIVE VERSE LAYOUT ---------- */
 
-  const columnWidth = Math.round(width * 0.64);
+  const aspectRatio = height / width;
+  const isPortrait = aspectRatio > 1.3;
+  
+  const columnWidth = Math.round(width * (isPortrait ? 0.78 : 0.64));
   const centerX = width / 2;
-  const topPadding = Math.round(height * 0.22);
-  const bottomReserved = 260;
-  const maxTextHeight = height - topPadding - bottomReserved;
+  
+  const topPadding = isPortrait
+  ? Math.round(height * 0.18)
+  : Math.round(height * 0.22);
+  
+  const bottomReserved = isPortrait
+    ? Math.round(height * 0.22)
+    : 260;
+    const maxTextHeight = isPortrait
+    ? height - topPadding - bottomReserved
+    : height - topPadding - bottomReserved;
 
-  let baseFontSize = language === "TE" ? 38 : 36;
-  let fontSize = baseFontSize;
+    let baseFontSize;
+
+    if (isPortrait) {
+      baseFontSize = language === "TE" ? 48 : 46;
+    } else {
+      baseFontSize = language === "TE" ? 38 : 36;
+    }
+    
+    let fontSize = baseFontSize;
 
   function wrapText(text: string, fontPx: number) {
 
@@ -197,7 +213,9 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   let blocks = wrapAll(fontSize);
   let totalHeight = totalHeightFor(blocks);
 
-  while (totalHeight > maxTextHeight && fontSize > 22) {
+  const minFontSize = isPortrait ? 28 : 22;
+
+  while (totalHeight > maxTextHeight && fontSize > minFontSize) {
     fontSize -= 2;
     blocks = wrapAll(fontSize);
     totalHeight = totalHeightFor(blocks);
@@ -220,7 +238,12 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   }
 
   /* Draw verses separately */
-  let y = topPadding;
+  let y = isPortrait
+  ? Math.max(
+      topPadding,
+      (height - totalHeight - bottomReserved) / 2
+    )
+  : topPadding;
 
   blocks.forEach((block, index) => {
 
@@ -243,8 +266,9 @@ console.log("IS ARRAY:", Array.isArray(verseText));
 
   /* ---------- REFERENCE ---------- */
 
-  const referenceFontSize = Math.max(16, Math.round(fontSize * 0.55));
-  y += Math.round(fontSize * 0.8);
+  const referenceFontSize = isPortrait
+  ? Math.max(20, Math.round(fontSize * 0.6))
+  : Math.max(16, Math.round(fontSize * 0.55));
 
   ctx.shadowBlur = 0;
   ctx.globalAlpha = bgBitmap ? 0.6 : 0.85;
