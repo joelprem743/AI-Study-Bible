@@ -128,27 +128,27 @@ ctx.clip();
   const aspectRatio = height / width;
   const isPortrait = aspectRatio > 1.3;
   
-  const columnWidth = Math.round(width * (isPortrait ? 0.68 : 0.60));
+  const columnWidth = Math.round(width * (isPortrait ? 0.78 : 0.70));
   const centerX = width / 2;
   
-  const topPadding = isPortrait
-  ? Math.round(height * 0.18)
-  : Math.round(height * 0.22);
-  
+  const topPadding = Math.round(height * 0.14);
+
   const bottomReserved = isPortrait
-    ? Math.round(height * 0.22)
-    : 260;
+    ? Math.round(height * 0.18)
+    : 220;
+
+
     const maxTextHeight = isPortrait
     ? height - topPadding - bottomReserved
     : height - topPadding - bottomReserved;
 
     let baseFontSize;
 
-    if (isPortrait) {
-      baseFontSize = language === "TE" ? 48 : 46;
-    } else {
-      baseFontSize = language === "TE" ? 38 : 36;
-    }
+if (isPortrait) {
+  baseFontSize = language === "TE" ? 56 : 52;
+} else {
+  baseFontSize = language === "TE" ? 44 : 42;
+}
     
     let fontSize = baseFontSize;
 
@@ -160,9 +160,9 @@ ctx.clip();
     : `600 ${fontPx}px "Playfair Display", serif`
   
     const lineHeight =
-      language === "TE"
-        ? Math.round(fontPx * 1.55)
-        : Math.round(fontPx * 1.6);
+    language === "TE"
+      ? Math.round(fontPx * 1.5)
+      : Math.round(fontPx * 1.45);
   
     const lines: string[] = [];
   
@@ -234,7 +234,6 @@ ctx.clip();
     blocks = wrapAll(fontSize);
     totalHeight = totalHeightFor(blocks);
   }
-  fontSize -=1;
   /* Apply final font */
   ctx.font =
   language === "TE"
@@ -262,7 +261,7 @@ if (bgBitmap) {
 
     // HARD verse separation BEFORE verse starts
     if (index !== 0) {
-      y += block.lineHeight * 1.4;
+      y += block.lineHeight * 0.8;
     }
   
 block.lines.forEach(line => {
