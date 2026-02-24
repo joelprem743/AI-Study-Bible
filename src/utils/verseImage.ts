@@ -319,44 +319,48 @@ ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
   /* ---------- FOOTER ---------- */
-  const footerY = height - Math.max(80, Math.round(fontSize * 2.4));
+  const footerY = height - Math.max(110, Math.round(fontSize * 3));
+
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-
-  if (churchName?.trim()) {
+  const footerColor = isImageBackground ? "#ffffff" : "#0f172a";
+  
+  /* Optional Church Attribution */
+  if (churchName && churchName.trim()) {
     ctx.globalAlpha = isImageBackground ? 0.6 : 0.8;
     ctx.font = "400 16px Inter, system-ui, sans-serif";
-
-    ctx.fillText(
-      `— Shared by ${churchName}`,
-      width / 2,
-      footerY
-    );
+  
+    const attributionText =
+      language === "TE"
+        ? `— Shared by ${churchName}`
+        : `— Shared by ${churchName}`;
+  
+    ctx.fillText(attributionText, width / 2, footerY);
   }
-
-
-
-  ctx.globalAlpha = 0.35;
-  ctx.font = "500 22px Inter, sans-serif";
+  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetY = 1;
+  /* App Name */
+  ctx.globalAlpha = 0.6;
+  ctx.font = "600 26px Inter, system-ui, sans-serif";
   ctx.fillText(
     "Bible Companion",
     width / 2,
     footerY + (churchName ? 28 : 6)
   );
-
+  /* URL */
   ctx.globalAlpha = isImageBackground ? 0.6 : 0.65;
   ctx.font = "500 18px Inter, system-ui, sans-serif";
-
+  
   ctx.fillText(
     SITE_URL,
     width / 2,
     footerY + (churchName ? 58 : 32)
   );
-
+  
   ctx.globalAlpha = 1;
-  ctx.textAlign = "left";
-
+  ctx.textAlign = "left"; // reset
 
   /* ---------- EXPORT ---------- */
 
