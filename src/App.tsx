@@ -381,9 +381,30 @@ const closeAllDemoPopups = useCallback(() => {
   
           setVerses(merged);
         }
-      } catch (e) {
-        console.error(e);
-        setVerseError("Failed to load chapter.");
+      } catch (e: any) {
+        console.error("Chapter load error:", e);
+      
+        let message = "Unable to load this chapter.";
+      
+        // User offline
+        if (!navigator.onLine) {
+          message = "You appear to be offline. Please check your internet connection.";
+        }
+      
+        // Supabase unreachable / SSL / server down
+        else if (e instanceof TypeError && e.message === "Failed to fetch") {
+          message =
+            "We’re currently experiencing a temporary server issue while connecting to our database. " +
+            "We apologize for the inconvenience. Please try again in a few minutes.";
+        }
+      
+        // PostgREST or Supabase returned structured error
+        else if (e?.code) {
+          message =
+            "A database error occurred while loading this chapter. Please try again shortly.";
+        }
+      
+        setVerseError(message);
         setVerses([]);
       } finally {
         setIsLoadingVerses(false);

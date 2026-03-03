@@ -864,7 +864,22 @@ const handleAddToNotes = useCallback(() => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-6">
-        <p className="text-red-600 dark:text-red-400 font-semibold">{error}</p>
+        <p className="text-red-600 dark:text-red-400 font-semibold">{error && (
+  <div className="flex flex-col items-center justify-center p-10 text-center">
+    <div className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
+      Service Temporarily Unavailable
+    </div>
+    <div className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
+      {error}
+    </div>
+    <button
+      onClick={() => window.location.reload()}
+      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
+    >
+      Retry
+    </button>
+  </div>
+)} </p>
       </div>
     );
   }
