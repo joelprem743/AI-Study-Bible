@@ -338,6 +338,15 @@ const closeAllDemoPopups = useCallback(() => {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  function failFast<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error("FAST_FAIL")), timeoutMs)
+      ),
+    ]);
+  }
+
   // Load verses
 
   useEffect(() => {
@@ -360,25 +369,28 @@ const closeAllDemoPopups = useCallback(() => {
   
       try {
         if (studyMode === "single") {
-          const data = await fetchChapter(
-            selectedBook,
-            selectedChapter,
-            singleVersion
+          const data = await failFast(
+            fetchChapter(selectedBook, selectedChapter, singleVersion),
+            1200 // fail after 1.2s
           );
+        
           setVerses(data);
         } else {
-          const [left, right] = await Promise.all([
-            fetchChapter(selectedBook, selectedChapter, leftVersion),
-            fetchChapter(selectedBook, selectedChapter, rightVersion),
-          ]);
-  
+          const [left, right] = await failFast(
+            Promise.all([
+              fetchChapter(selectedBook, selectedChapter, leftVersion),
+              fetchChapter(selectedBook, selectedChapter, rightVersion),
+            ]),
+            1200
+          );
+        
           const merged = mergeParallelVerses(
             left,
             right,
             leftVersion,
             rightVersion
           );
-  
+        
           setVerses(merged);
         }
       } catch (e: any) {
@@ -1074,43 +1086,35 @@ useEffect(() => {
     },
   }}
 />
-{loading ? (
-  <div className="flex items-center justify-center h-screen text-gray-700 dark:text-gray-300">
-    Loading...
-  </div>
+{showWelcome ? (
 
-) : showWelcome ? (
+<WelcomeScreen
+  onDismiss={handleWelcomeDismiss}
+  onExplainVerse={({ book, chapter, verse, language }) => {
 
-  // BLOCK APP until welcome dismissed
-  <WelcomeScreen
-    onDismiss={handleWelcomeDismiss}
-    onExplainVerse={({ book, chapter, verse, language }) => {
+    handleWelcomeDismiss();
 
-      handleWelcomeDismiss();
+    setIsSearchView(false);
 
-      setIsSearchView(false);
+    setSelectedBook(book);
+    setSelectedChapter(chapter);
+    setSelectedVerseRef({ book, chapter, verse });
 
-      setSelectedBook(book);
-      setSelectedChapter(chapter);
-      setSelectedVerseRef({ book, chapter, verse });
+    setIsChatOpen(true);
 
-      setIsChatOpen(true);
+    const msg =
+      language === "TE"
+        ? `${book} ${chapter}:${verse} ఈ వాక్యాన్ని వివరించండి.`
+        : `Explain ${book} ${chapter}:${verse}.`;
 
-      const msg =
-        language === "TE"
-          ? `${book} ${chapter}:${verse} ఈ వాక్యాన్ని వివరించండి.`
-          : `Explain ${book} ${chapter}:${verse}.`;
-
-      setChatInitialMessage(msg);
-
-      setChatInitialLanguage(language);
-    }}
-  />
+    setChatInitialMessage(msg);
+    setChatInitialLanguage(language);
+  }}
+/>
 
 ) : (
 
-  // NORMAL APP
-  <div className="flex flex-col h-screen">
+<div className="flex flex-col h-screen">
 
           {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
           <header className="

@@ -863,23 +863,42 @@ const handleAddToNotes = useCallback(() => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-6">
-        <p className="text-red-600 dark:text-red-400 font-semibold">{error && (
-  <div className="flex flex-col items-center justify-center p-10 text-center">
-    <div className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
-      Service Temporarily Unavailable
-    </div>
-    <div className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
-      {error}
-    </div>
-    <button
-      onClick={() => window.location.reload()}
-      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
-    >
-      Retry
-    </button>
-  </div>
-)} </p>
+      <div className="flex items-center justify-center h-full px-6 bg-slate-50 dark:bg-[#0B0F14]">
+        
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 
+                        border border-slate-200 dark:border-white/10
+                        rounded-3xl shadow-xl p-8 text-center">
+  
+          {/* Icon */}
+          <div className="mx-auto mb-5 w-14 h-14 rounded-full 
+                          bg-red-100 dark:bg-red-900/30 
+                          flex items-center justify-center">
+            <i className="fas fa-exclamation-triangle text-red-600 dark:text-red-400 text-xl" />
+          </div>
+  
+          {/* Title */}
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
+            Service Temporarily Unavailable
+          </h2>
+  
+          {/* Message */}
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            We’re currently experiencing a temporary service issue.
+            We apologize for the inconvenience. Please try again in a few minutes.
+          </p>
+  
+          {/* Button */}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 w-full py-3 rounded-2xl 
+                       bg-blue-600 hover:bg-blue-700 
+                       text-white text-sm font-medium 
+                       transition shadow-md hover:shadow-lg"
+          >
+            Retry
+          </button>
+  
+        </div>
       </div>
     );
   }
