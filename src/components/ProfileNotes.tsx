@@ -1,5 +1,5 @@
 // src/components/ProfileNotes.tsx
-import { useState, useMemo,useEffect } from "react";
+import { useState, useMemo,useEffect, useRef } from "react";
 import { useNotes } from "../context/NotesContext";
 import { useAuth } from "../context/AuthContext";
 import type { Note } from "../lib/noteService";
@@ -173,6 +173,26 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
 
   const [activeTab, setActiveTab] = useState<"verse" | "topical">("verse");
 
+  /* -------- Filters (same as highlights) -------- */
+  
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [bookFilter, setBookFilter] = useState<string | null>(null);
+  
+  const filterRef = useRef<HTMLDivElement | null>(null);
+  
+  /* close filter on outside click */
+  
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+  
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   /* ---------------- Verse notes ---------------- */
 
   const verseNotes = useMemo(() => Object.values(notesByKey), [notesByKey]);
@@ -184,6 +204,8 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     } = { OLD: {}, NEW: {} };
 
     for (const n of verseNotes) {
+
+      if (bookFilter && n.book !== bookFilter) continue;
       const testament = getTestament(n.book);
       if (!obj[testament][n.book]) obj[testament][n.book] = {};
       if (!obj[testament][n.book][n.chapter])
@@ -192,7 +214,7 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     }
 
     return obj;
-  }, [verseNotes]);
+  }, [verseNotes, bookFilter]);
 
   const goToVerseNote = (note: Note) => {
     window.location.hash = `#/${encodeURIComponent(
@@ -234,7 +256,9 @@ export default function ProfileNotes({ userId, onClose ,incomingVerse}: Props) {
     setIsAddingVerse(true); // ✅ enter add mode
   }, [incomingVerse]);
   
-  
+  const hasVerseResults =
+  Object.keys(groupedVerseNotes.OLD).length > 0 ||
+  Object.keys(groupedVerseNotes.NEW).length > 0;
   /* ---------------- UI ---------------- */
 
   return (
@@ -264,15 +288,123 @@ text-slate-900 dark:text-slate-100
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900">
 
-          <h2 className="text-lg font-semibold">My Notes</h2>
-          <button
-            onClick={() => {
-              if (editorMode === "view") onClose();
-            }}
-          >
-            Close
-          </button>
-        </div>
+<h2 className="text-lg font-semibold">My Notes</h2>
+
+<div className="flex items-center gap-3">
+
+{/* FILTER BUTTON (same UI as highlights) */}
+
+<div ref={filterRef} className="relative">
+
+<button
+onClick={() => setFilterOpen(v => !v)}
+className={`
+flex items-center gap-2
+px-3 py-1.5 text-sm font-medium
+rounded-lg border transition
+${
+filterOpen
+? "bg-blue-600 text-white border-blue-600"
+: "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+}
+`}
+>
+⚙ Filters
+</button>
+
+{filterOpen && (
+<div
+className="
+absolute right-0 mt-3
+w-72
+p-5
+rounded-2xl
+border border-slate-200 dark:border-slate-700
+bg-white dark:bg-slate-900
+shadow-xl
+space-y-5
+z-50
+"
+>
+
+{/* BOOK FILTER */}
+
+<div>
+
+<label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+Book
+</label>
+
+<div className="relative mt-1">
+
+<select
+value={bookFilter ?? ""}
+onChange={(e) => setBookFilter(e.target.value || null)}
+className="
+appearance-none
+w-full
+px-3 py-2.5
+pr-9
+text-sm
+rounded-xl
+border border-slate-300 dark:border-slate-600
+bg-white dark:bg-slate-900
+focus:ring-2 focus:ring-blue-500
+"
+>
+
+<option value="">All Books</option>
+
+{BIBLE_META_WITH_VERSE_COUNTS.map((b) => (
+<option key={b.name} value={b.name}>
+{language === "TE"
+? TELUGU_BOOK_NAMES[b.name] || b.name
+: b.name}
+</option>
+))}
+
+</select>
+
+<div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+<svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+<path d="M5 7l5 6 5-6H5z" />
+</svg>
+</div>
+
+</div>
+
+</div>
+
+{/* CLEAR FILTER */}
+
+<button
+onClick={() => setBookFilter(null)}
+className="
+text-xs font-semibold
+px-3 py-1.5
+rounded-lg
+border border-slate-300 dark:border-slate-600
+"
+>
+Clear Filters
+</button>
+
+</div>
+)}
+
+</div>
+
+<button
+onClick={() => {
+if (editorMode === "view") onClose();
+}}
+>
+Close
+</button>
+
+</div>
+
+</div>
 
         {/* Tabs */}
         <div className="flex border-b">
@@ -301,121 +433,116 @@ text-slate-900 dark:text-slate-100
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {/* ================= VERSE NOTES ================= */}
           {activeTab === "verse" && !loading && (
-            <>
-              {(["OLD", "NEW"] as const).map((testament) => {
-                const books = groupedVerseNotes[testament];
-                if (!books || Object.keys(books).length === 0) return null;
+  <>
+    {(["OLD", "NEW"] as const).map((testament) => {
+      const books = groupedVerseNotes[testament];
 
-                return (
-                  <div key={testament} className="px-4 py-6">
-                    <div className="mb-4 px-3 py-2 bg-gray-100 dark:bg-slate-800/60 border-l-4 border-indigo-500 text-xs font-bold uppercase">
-                      {language === "TE"
-                        ? testament === "OLD"
-                          ? "పాత నిబంధన"
-                          : "క్రొత్త నిబంధన"
-                        : testament === "OLD"
-                        ? "Old Testament"
-                        : "New Testament"}
+      if (!books || Object.keys(books).length === 0) return null;
+
+      return (
+        <div key={testament} className="px-4 py-6">
+          <div className="mb-4 px-3 py-2 bg-gray-100 dark:bg-slate-800/60 border-l-4 border-indigo-500 text-xs font-bold uppercase">
+            {language === "TE"
+              ? testament === "OLD"
+                ? "పాత నిబంధన"
+                : "క్రొత్త నిబంధన"
+              : testament === "OLD"
+              ? "Old Testament"
+              : "New Testament"}
+          </div>
+
+          {sortBooksByBibleOrder(books).map((book) => (
+            <div key={book} className="mb-5">
+              <h3 className="text-lg font-semibold">
+                {getDisplayBookName(book, language)}
+              </h3>
+
+              {Object.keys(books[book])
+                .sort((a, b) => Number(a) - Number(b))
+                .map((chapter) => (
+                  <div key={chapter} className="ml-4 mt-2">
+                    <div className="text-sm opacity-70">
+                      {language === "TE" ? "అధ్యాయం" : "Chapter"} {chapter}
                     </div>
 
-                    {sortBooksByBibleOrder(books).map((book) => (
+                    {books[book][Number(chapter)].map((note) => {
+                      const key = `${note.book}-${note.chapter}-${note.verse}-${note.id}`;
+                      const isOpen = expandedVerseKey === key;
 
-                      <div key={book} className="mb-5">
-                        <h3 className="text-lg font-semibold">
-                          {getDisplayBookName(book, language)}
-                        </h3>
-
-                        {Object.keys(books[book])
-  .sort((a, b) => Number(a) - Number(b))
-  .map((chapter) => (
-
-                          <div key={chapter} className="ml-4 mt-2">
-                            <div className="text-sm opacity-70">
-                              {language === "TE" ? "అధ్యాయం" : "Chapter"}{" "}
-                              {chapter}
+                      return (
+                        <div
+                          key={note.id}
+                          className="rounded-xl p-3 mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 shadow-sm hover:shadow-md transition"
+                        >
+                          <div
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() =>
+                              setExpandedVerseKey(isOpen ? null : key)
+                            }
+                          >
+                            <div className="text-sm font-medium">
+                              {chapter}:{note.verse}
+                              <span className="ml-2 text-xs text-gray-400">
+                                {note.content?.slice(0, 40)}
+                                {note.content && note.content.length > 40
+                                  ? "…"
+                                  : ""}
+                              </span>
                             </div>
 
-                            {books[book][Number(chapter)].map((note) => {
-  const key = `${note.book}-${note.chapter}-${note.verse}-${note.id}`;
-  const isOpen = expandedVerseKey === key;
-
-  return (
-    <div
-      key={note.id}
-      className="
-        rounded-xl
-        p-3 mt-2
-bg-white dark:bg-slate-800
-border border-gray-200 dark:border-slate-700
-text-slate-900 dark:text-slate-100
-        shadow-sm
-        hover:shadow-md
-        transition
-      "
-    >
-      {/* Header (collapsed view) */}
-      <div
-        className="flex items-center justify-between cursor-pointer"
-        onClick={() =>
-          setExpandedVerseKey(isOpen ? null : key)
-        }
-      >
-       <div className="text-sm font-medium">
-  {chapter}:{note.verse}
-  <span className="ml-2 text-xs text-gray-400">
-    {note.content?.slice(0, 40)}
-    {note.content && note.content.length > 40 ? "…" : ""}
-  </span>
-</div>
-
-        <div className="text-xs text-gray-400">
-          {isOpen ? "Hide" : "View"}
-        </div>
-      </div>
-
-      {/* Expanded content */}
-      {isOpen && (
-        <div className="mt-2 space-y-3">
-          <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-            {note.content || "(empty)"}
-          </p>
-
-          <div className="flex items-center gap-3 text-sm">
-          <button
-  className="text-blue-600 hover:underline"
-  onClick={() => goToVerseNote(note)}
->
-  Go to verse
-</button>
-
-
-            <button
-              className="text-red-600 hover:underline ml-auto"
-              onClick={() => {
-                if (window.confirm("Delete this note?")) {
-                  deleteNote(note.id);
-                  setExpandedVerseKey(null);
-                }
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-})}
-
+                            <div className="text-xs text-gray-400">
+                              {isOpen ? "Hide" : "View"}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    ))}
+
+                          {isOpen && (
+                            <div className="mt-2 space-y-3">
+                              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                                {note.content || "(empty)"}
+                              </p>
+
+                              <div className="flex items-center gap-3 text-sm">
+                                <button
+                                  className="text-blue-600 hover:underline"
+                                  onClick={() => goToVerseNote(note)}
+                                >
+                                  Go to verse
+                                </button>
+
+                                <button
+                                  className="text-red-600 hover:underline ml-auto"
+                                  onClick={() => {
+                                    if (window.confirm("Delete this note?")) {
+                                      deleteNote(note.id);
+                                      setExpandedVerseKey(null);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </>
-          )}
+                ))}
+            </div>
+          ))}
+        </div>
+      );
+    })}
+
+    {!hasVerseResults && (
+      <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
+        {bookFilter
+          ? `No notes found in ${getDisplayBookName(bookFilter, language)}`
+          : "No verse notes yet"}
+      </div>
+    )}
+  </>
+)}
 
 {activeTab === "topical" && editorMode === "view" && (
   <>
