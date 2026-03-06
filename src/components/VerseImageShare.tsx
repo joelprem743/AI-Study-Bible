@@ -2,6 +2,8 @@
   import React, { useEffect, useState } from "react";
   import { generateVerseImage } from "../utils/verseImage";
   import { VerseReference } from "..";
+  import { buildVerseShareCaption, buildVerseShareUrl } from "../utils/share";
+  import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
   type ShareLayout = "portrait" | "square";
 
   type Props = {
@@ -113,26 +115,35 @@
 
 
 
+
     const resolvedVerseUrl =
     verseUrl ??
-    `${window.location.origin}/#/${verseRef.book}/${verseRef.chapter}/${verseRef.verse}`;
+    buildVerseShareUrl(
+      verseRef.book,
+      verseRef.chapter,
+      verseRef.verse
+    );
+  
 
   const handleCopyToClipboard = async () => {
-    const textToCopy = `
-    ${reference}
-    
-    ${verseText}
-    
-    Discover more in Bible Companion
-    
-    ${resolvedVerseUrl}
-    `.trim();
-    
-
-
+    const displayBook =
+    language === "TE"
+      ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+      : verseRef.book;
+  
+  const caption = buildVerseShareCaption(
+    displayBook,
+    verseRef.chapter,
+    verseRef.verse,
+    Array.isArray(verseText) ? verseText.join(" ") : verseText,
+    language
+  );
+  
+    const textToCopy = `${caption}\n\n${resolvedVerseUrl}`;
+  
     try {
       await navigator.clipboard.writeText(textToCopy);
-
+  
       setToast({
         message:
           language === "TE"
@@ -149,10 +160,9 @@
         type: "error",
       });
     }
-
+  
     setTimeout(() => setToast(null), 2500);
   };
-
     
 
     

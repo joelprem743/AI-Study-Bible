@@ -181,28 +181,17 @@ const teluguUiClass = isTeluguUI ? "font-telugu" : "font-sans";
         // -----------------------------
         // Step 1: Fetch daily verse ref
         // -----------------------------
-// Step 1: Fetch daily verse ref (FAST FAIL after 1.5s)
+// Step 1: Fetch daily verse ref
 let daily: Awaited<ReturnType<typeof getOrCreateDailyVerse>>;
 
 try {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("WELCOME_FAST_FAIL")), 1500)
-  );
-
-  daily = await Promise.race([
-    getOrCreateDailyVerse(),
-    timeout,
-  ]);
+  daily = await getOrCreateDailyVerse();
 } catch (err) {
   console.error("Daily verse fetch/create failed:", err);
 
   if (!cancelled) {
-    // Stop loading immediately
     setLoadingVerse(false);
     setLoadingDevotional(false);
-
-    // 🔥 Always close welcome if Step 1 fails
-    onDismiss();
   }
 
   return;

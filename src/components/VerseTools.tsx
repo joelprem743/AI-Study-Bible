@@ -1228,11 +1228,18 @@ const handleWordSelect = (idx: number) => {
   };
 
   const handleShareVerse = async () => {
-    const caption = buildVerseShareCaption(
-      verseRef.book,
-      verseRef.chapter,
-      verseRef.verse
-    );
+    const displayBook =
+    language === "TE"
+      ? TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book
+      : verseRef.book;
+  
+  const caption = buildVerseShareCaption(
+    displayBook,
+    verseRef.chapter,
+    verseRef.verse,
+    displayVerseText,
+    language
+  );
   
     const url = buildVerseShareUrl(
       verseRef.book,
@@ -1252,7 +1259,7 @@ const handleWordSelect = (idx: number) => {
       }
     }
   
-    await navigator.clipboard.writeText(caption);
+    await navigator.clipboard.writeText(`${caption}\n\n${url}`);
   };
   
 
@@ -1286,17 +1293,7 @@ const handleWordSelect = (idx: number) => {
   };
 
   
-  // Generate and share image with selected background
 
-  const handleCopyShareText = () => {
-    const caption = buildVerseShareCaption(
-      verseRef.book,
-      verseRef.chapter,
-      verseRef.verse
-    );
-  
-    navigator.clipboard.writeText(caption);
-  };
   
 
   /* -------------------------
@@ -2373,8 +2370,8 @@ if (cached) {
     {/* Title */}
     <h2
   className={`
-    text-[1.35rem]
-    font-semibold
+    text-[1.45rem]
+    font-bold
     tracking-tight
     text-white
     drop-shadow-sm

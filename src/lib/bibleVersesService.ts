@@ -50,7 +50,12 @@ export const fetchVerseByRef = async (
     const row = res.data as BibleVerseRow;
 
     // ✅ store in cache
-    verseCache.set(key, row);
+// prevent unlimited memory growth
+if (verseCache.size > 5000) {
+  verseCache.clear();
+}
+
+verseCache.set(key, row);
 
     return row;
   })();
