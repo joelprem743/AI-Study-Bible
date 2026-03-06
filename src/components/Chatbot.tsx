@@ -66,7 +66,7 @@ const renderChatGPTStyleContent = (
         </ul>
       </div>
     );
-    
+
     currentUL = [];
   };
 
@@ -159,7 +159,7 @@ const BotMessage: React.FC<{
   sources?: GroundingChunk[];
   renderWithRefs: (node: React.ReactNode) => React.ReactNode;
   onReferenceClick: (ref: string) => void;
-  
+
 }> = ({ answer, sources, renderWithRefs, onReferenceClick }) => {
   const [openSections, setOpenSections] = React.useState<Record<number, boolean>>(
     () =>
@@ -185,8 +185,8 @@ const BotMessage: React.FC<{
 
       {/* Bot bubble */}
       <div className="flex flex-col w-full max-w-[92%] p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.25rem] rounded-tl-none shadow-md border border-slate-100 dark:border-slate-700">
-      {answer.sections.map((sec, i) => (
-        <div 
+        {answer.sections.map((sec, i) => (
+          <div
             key={`${sec.heading || "section"}-${i}`}
             className="mb-3 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50/60 dark:bg-slate-900/40"
           >
@@ -195,8 +195,8 @@ const BotMessage: React.FC<{
               className="w-full flex items-center justify-between px-4 py-3 text-left bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
               <span className="font-semibold text-[13px] text-slate-900 dark:text-white">
-  {sec.heading}
-</span>
+                {sec.heading}
+              </span>
 
               <span className="text-xs opacity-70">
                 {openSections[i] ? "−" : "+"}
@@ -205,30 +205,30 @@ const BotMessage: React.FC<{
 
             {openSections[i] && (
               <div className="p-4 space-y-3">
-<div className="space-y-2">
-{renderChatGPTStyleContent(sec.content, renderWithRefs)}
-</div>
+                <div className="space-y-2">
+                  {renderChatGPTStyleContent(sec.content, renderWithRefs)}
+                </div>
 
 
-{sec.scriptures.length > 0 && (
-  <div>
-    <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
-      Scriptures
-    </div>
+                {sec.scriptures.length > 0 && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+                      Scriptures
+                    </div>
 
-    <div className="flex flex-wrap gap-2">
-      {sec.scriptures.map((ref, j) => (
-        <button
-          key={j}
-          onClick={() => onReferenceClick(ref)}
-          className="text-[11px] px-3 py-1 rounded-full border"
-        >
-          {ref}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
+                    <div className="flex flex-wrap gap-2">
+                      {sec.scriptures.map((ref, j) => (
+                        <button
+                          key={j}
+                          onClick={() => onReferenceClick(ref)}
+                          className="text-[11px] px-3 py-1 rounded-full border"
+                        >
+                          {ref}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               </div>
             )}
@@ -357,17 +357,17 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   const [modelLanguage, setModelLanguage] = useState<"EN" | "TE">("EN");
 
 
-const [chatScope, setChatScope] = useState<ChatScope>("GLOBAL");
+  const [chatScope, setChatScope] = useState<ChatScope>("GLOBAL");
 
   // const [chatMode, setChatMode] = useState<ChatMode>(ChatMode.FAST);
 
   const [previewRef, setPreviewRef] = useState<string | null>(null);
-const [previewText, setPreviewText] = useState<string>("");
-const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewText, setPreviewText] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-const [answerDepth, setAnswerDepth] = useState<
-"SHORT" | "MEDIUM" | "DEEP"
->("MEDIUM");
+  const [answerDepth, setAnswerDepth] = useState<
+    "SHORT" | "MEDIUM" | "DEEP"
+  >("MEDIUM");
 
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -385,20 +385,20 @@ const [answerDepth, setAnswerDepth] = useState<
   const controlsRef = useRef<HTMLDivElement>(null);
   const lastAutoSentRef = useRef<string | null>(null);
   const modelLanguageRef = useRef<"EN" | "TE">("EN");
-const languageRef = useRef<"EN" | "TE">("EN");
+  const languageRef = useRef<"EN" | "TE">("EN");
 
-useEffect(() => {
-  messagesRef.current = messages;
-}, [messages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
 
-useEffect(() => {
-  modelLanguageRef.current = modelLanguage;
-}, [modelLanguage]);
+  useEffect(() => {
+    modelLanguageRef.current = modelLanguage;
+  }, [modelLanguage]);
 
-useEffect(() => {
-  languageRef.current = language;
-}, [language]);
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
 
 
@@ -407,13 +407,13 @@ useEffect(() => {
 
   useEffect(() => {
     if (!isOpen) return;
-  
+
     const handleClickOutside = (e: MouseEvent) => {
       // ✅ If verse preview modal is open, never close chatbot by outside click
       if (isPreviewOpen) return;
-  
+
       const target = e.target as Node;
-  
+
       if (
         chatRef.current &&
         !chatRef.current.contains(target) &&
@@ -423,30 +423,30 @@ useEffect(() => {
         onToggle();
       }
     };
-  
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onToggle, isPreviewOpen]);
-  
+
 
   useEffect(() => {
     if (!isPreviewOpen) return;
-  
+
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-  
+
     return () => {
       document.body.style.overflow = original;
     };
   }, [isPreviewOpen]);
-  
+
 
   useEffect(() => {
     if (!isModeDropdownOpen) return;
-  
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-  
+
       if (
         controlsRef.current &&
         !controlsRef.current.contains(target)
@@ -454,24 +454,24 @@ useEffect(() => {
         setIsModeDropdownOpen(false);
       }
     };
-  
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isModeDropdownOpen]);
-  
+
 
   useEffect(() => {
     if (!isOpen) return;
     if (!initialMessage) return;
-  
+
     if (lastAutoSentRef.current === initialMessage) return;
     lastAutoSentRef.current = initialMessage;
-  
+
     // ✅ Set best scope
     if (selectedVerseRef) {
       setChatScope("VERSE");
     }
-  
+
     // ✅ Apply language BEFORE sending
     if (initialLanguage === "TE" || initialLanguage === "EN") {
       setLanguage(initialLanguage);
@@ -480,20 +480,20 @@ useEffect(() => {
       modelLanguageRef.current = initialLanguage;
 
     }
-  
+
     // ✅ Send after state update (next tick)
     setTimeout(() => {
       handleSend(initialMessage);
       onInitialMessageConsumed?.(); // ✅ critical
     }, 0);
-    
+
   }, [isOpen, initialMessage, selectedVerseRef, initialLanguage, onInitialMessageConsumed]);
-  
-  
+
+
 
   useEffect(() => {
     if (!isOpen) return;
-  
+
     // ✅ While initialMessage exists, DON'T override language here.
     // Auto-send effect owns language syncing.
     if (initialMessage) return;
@@ -515,18 +515,18 @@ useEffect(() => {
     setFollowUpQs([]);
   }, [isOpen, studyMode, singleVersion, initialLanguage, initialMessage]);
 
-  
+
 
   useEffect(() => {
     const handler = (e: any) => {
       // ❌ Never stream when structured JSON is expected
 
     };
-  
+
     window.addEventListener("llama-stream", handler);
     return () => window.removeEventListener("llama-stream", handler);
   }, [isLoading]);
-  
+
   // Translation helper for UI text
   const t = (key: string) => {
     if (language === "TE") return (UI_TEXT as any)[`${key}_te`] || (UI_TEXT as any)[`${key}_en`];
@@ -588,160 +588,160 @@ useEffect(() => {
     if (!match) return "";
     return match[1].trim();
   };
-  
+
   const effectiveEnglishVersion = (() => {
     // Telugu single mode still needs English fallback for logic
     if (studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1") {
       return "KJV";
     }
-  
+
     return singleVersion;
   })();
-  
+
   // ===== Robust JSON Helpers (Follow-ups) =====
 
-// 1) Strip illegal control chars that can crash JSON.parse
-const stripIllegalControlChars = (s: string) => {
-  // Remove ASCII control chars except \n and \t (keep readable text)
-  return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
-};
+  // 1) Strip illegal control chars that can crash JSON.parse
+  const stripIllegalControlChars = (s: string) => {
+    // Remove ASCII control chars except \n and \t (keep readable text)
+    return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+  };
 
-// Convert raw newlines that appear INSIDE JSON string literals into escaped "\\n"
-// This repairs model output like: "content": "line1
-// line2"  ->  "content": "line1\nline2"
-const escapeNewlinesInsideJsonStrings = (input: string) => {
-  let out = "";
-  let inString = false;
-  let escaped = false;
+  // Convert raw newlines that appear INSIDE JSON string literals into escaped "\\n"
+  // This repairs model output like: "content": "line1
+  // line2"  ->  "content": "line1\nline2"
+  const escapeNewlinesInsideJsonStrings = (input: string) => {
+    let out = "";
+    let inString = false;
+    let escaped = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i];
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
 
-    if (!inString) {
-      if (ch === '"') inString = true;
+      if (!inString) {
+        if (ch === '"') inString = true;
+        out += ch;
+        continue;
+      }
+
+      // inString === true
+      if (escaped) {
+        // current char is escaped, keep as-is
+        out += ch;
+        escaped = false;
+        continue;
+      }
+
+      if (ch === "\\") {
+        out += ch;
+        escaped = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = false;
+        out += ch;
+        continue;
+      }
+
+      // Raw line breaks are illegal inside JSON strings
+      if (ch === "\n") {
+        out += "\\n";
+        continue;
+      }
+      if (ch === "\r") {
+        // normalize CR or CRLF to \n
+        out += "\\n";
+        // swallow following \n if present (CRLF)
+        if (input[i + 1] === "\n") i++;
+        continue;
+      }
+
       out += ch;
-      continue;
     }
 
-    // inString === true
-    if (escaped) {
-      // current char is escaped, keep as-is
-      out += ch;
-      escaped = false;
-      continue;
+    return out;
+  };
+
+  // 2) Try to extract JSON from <json>...</json> or fallback to first {...} block
+  const extractBestJsonCandidate = (raw: string): string => {
+    // prefer <json> sentinel
+    const sentinel = raw.match(/<json>([\s\S]*?)<\/json>/i);
+    if (sentinel?.[1]) return sentinel[1].trim();
+
+    // fallback: try first object-like block
+    const firstBrace = raw.indexOf("{");
+    const lastBrace = raw.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return raw.slice(firstBrace, lastBrace + 1).trim();
     }
 
-    if (ch === "\\") {
-      out += ch;
-      escaped = true;
-      continue;
+    return "";
+  };
+
+  // 3) Best-effort JSON repair (minimal, safe-ish)
+  const tryRepairJson = (jsonText: string) => {
+    let s = jsonText;
+
+    // remove BOM
+    s = s.replace(/^\uFEFF/, "");
+
+    // strip illegal control chars
+    s = stripIllegalControlChars(s);
+
+    // Find the first { and last } to extract clean JSON
+    const firstBrace = s.indexOf("{");
+    const lastBrace = s.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      s = s.slice(firstBrace, lastBrace + 1);
     }
 
-    if (ch === '"') {
-      inString = false;
-      out += ch;
-      continue;
+    // Repair raw newlines inside quoted strings (common model failure mode)
+    s = escapeNewlinesInsideJsonStrings(s);
+
+    // remove trailing commas:  {"a":[1,2,],}  -> {"a":[1,2]}
+    s = s.replace(/,\s*([}\]])/g, "$1");
+
+    return s.trim();
+  };
+
+  // 4) Safe parse wrapper
+  const safeJsonParse = <T,>(raw: string): { ok: true; value: T } | { ok: false; error: any } => {
+    try {
+      return { ok: true, value: JSON.parse(raw) as T };
+    } catch (err) {
+      return { ok: false, error: err };
     }
+  };
 
-    // Raw line breaks are illegal inside JSON strings
-    if (ch === "\n") {
-      out += "\\n";
-      continue;
-    }
-    if (ch === "\r") {
-      // normalize CR or CRLF to \n
-      out += "\\n";
-      // swallow following \n if present (CRLF)
-      if (input[i + 1] === "\n") i++;
-      continue;
-    }
+  // 5) Fallback question extraction when JSON is garbage
+  const fallbackExtractQuestions = (raw: string): string[] => {
+    const cleaned = raw
+      .replace(/<json>/gi, "")
+      .replace(/<\/json>/gi, "")
+      .trim();
 
-    out += ch;
-  }
+    // try to capture anything inside quotes after "questions": [...]
+    const quoted = Array.from(cleaned.matchAll(/"([^"]+)"/g))
+      .map(m => m[1])
+      .map(q => q.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
 
-  return out;
-};
+    // If model included schema, quoted will include "questions" as a word. Remove it.
+    const filtered = quoted.filter(q => q.toLowerCase() !== "questions");
 
-// 2) Try to extract JSON from <json>...</json> or fallback to first {...} block
-const extractBestJsonCandidate = (raw: string): string => {
-  // prefer <json> sentinel
-  const sentinel = raw.match(/<json>([\s\S]*?)<\/json>/i);
-  if (sentinel?.[1]) return sentinel[1].trim();
+    // Hard cap to 3
+    return filtered.slice(0, 3);
+  };
 
-  // fallback: try first object-like block
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    return raw.slice(firstBrace, lastBrace + 1).trim();
-  }
-
-  return "";
-};
-
-// 3) Best-effort JSON repair (minimal, safe-ish)
-const tryRepairJson = (jsonText: string) => {
-  let s = jsonText;
-
-  // remove BOM
-  s = s.replace(/^\uFEFF/, "");
-
-  // strip illegal control chars
-  s = stripIllegalControlChars(s);
-
-  // Find the first { and last } to extract clean JSON
-  const firstBrace = s.indexOf("{");
-  const lastBrace = s.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    s = s.slice(firstBrace, lastBrace + 1);
-  }
-
-  // Repair raw newlines inside quoted strings (common model failure mode)
-  s = escapeNewlinesInsideJsonStrings(s);
-
-  // remove trailing commas:  {"a":[1,2,],}  -> {"a":[1,2]}
-  s = s.replace(/,\s*([}\]])/g, "$1");
-
-  return s.trim();
-};
-
-// 4) Safe parse wrapper
-const safeJsonParse = <T,>(raw: string): { ok: true; value: T } | { ok: false; error: any } => {
-  try {
-    return { ok: true, value: JSON.parse(raw) as T };
-  } catch (err) {
-    return { ok: false, error: err };
-  }
-};
-
-// 5) Fallback question extraction when JSON is garbage
-const fallbackExtractQuestions = (raw: string): string[] => {
-  const cleaned = raw
-    .replace(/<json>/gi, "")
-    .replace(/<\/json>/gi, "")
-    .trim();
-
-  // try to capture anything inside quotes after "questions": [...]
-  const quoted = Array.from(cleaned.matchAll(/"([^"]+)"/g))
-    .map(m => m[1])
-    .map(q => q.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  // If model included schema, quoted will include "questions" as a word. Remove it.
-  const filtered = quoted.filter(q => q.toLowerCase() !== "questions");
-
-  // Hard cap to 3
-  return filtered.slice(0, 3);
-};
-
-// 6) Normalize final questions
-const normalizeQuestions = (qs: string[]) => {
-  return qs
-    .map(q => String(q))
-    .map(q => q.replace(/\s+/g, " ").trim())
-    .map(q => q.replace(/^(\d+[\).\s-]+)/, "")) // remove "1) " or "2. "
-    .filter(Boolean)
-    .slice(0, 3);
-};
+  // 6) Normalize final questions
+  const normalizeQuestions = (qs: string[]) => {
+    return qs
+      .map(q => String(q))
+      .map(q => q.replace(/\s+/g, " ").trim())
+      .map(q => q.replace(/^(\d+[\).\s-]+)/, "")) // remove "1) " or "2. "
+      .filter(Boolean)
+      .slice(0, 3);
+  };
 
 
   // Follow-up generation: uses modelLanguage (ensures future follow-ups match selected model language)
@@ -750,12 +750,12 @@ const normalizeQuestions = (qs: string[]) => {
     history: Message[]
   ): Promise<string[]> => {
     const currentModelLang = modelLanguageRef.current;
-  
+
     const langInstruction =
       currentModelLang === "TE"
         ? "ప్రశ్నలు పూర్తిగా తెలుగులో మాత్రమే ఇవ్వండి. ఇంగ్లీష్ వద్దు."
         : "Return questions in English only.";
-  
+
     const prompt = `
   You are generating FOLLOW-UP QUESTIONS only.
   
@@ -789,42 +789,42 @@ const normalizeQuestions = (qs: string[]) => {
   
   ${langInstruction}
   `;
-  
+
     let resultText = "";
-  
+
     try {
       const result = await sendMessageToLlama(prompt, history, currentModelLang);
       resultText = result.text || "";
     } catch {
       return [];
     }
-  
+
     // ✅ Step 1: extract best JSON candidate
     const candidateRaw = extractBestJsonCandidate(resultText);
     if (!candidateRaw) {
       // no JSON found: fallback
       return normalizeQuestions(fallbackExtractQuestions(resultText));
     }
-  
+
     // ✅ Step 2: attempt parse as-is
     const direct = safeJsonParse<{ questions?: any }>(candidateRaw);
     if (direct.ok && Array.isArray(direct.value?.questions)) {
       return normalizeQuestions(direct.value.questions);
     }
-  
+
     // ✅ Step 3: repair and parse again
     const repaired = tryRepairJson(candidateRaw);
     const repairedParse = safeJsonParse<{ questions?: any }>(repaired);
-  
+
     if (repairedParse.ok && Array.isArray(repairedParse.value?.questions)) {
       return normalizeQuestions(repairedParse.value.questions);
     }
-  
+
     // ✅ Step 4: fallback extraction if still broken
     return normalizeQuestions(fallbackExtractQuestions(resultText));
   };
-  
-  
+
+
 
   // ===== JSON SENTINEL HELPERS =====
 
@@ -836,35 +836,35 @@ const normalizeQuestions = (qs: string[]) => {
         .replace(/[–—]/g, "-")
         .replace(/\(.*?\)/g, "")
         .trim();
-  
+
       const m = refString.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
       if (!m) return "";
-  
+
       const rawBook = m[1].trim();
       const chapter = Number(m[2]);
       const startVerse = Number(m[3]);
       const endVerse = m[4] ? Number(m[4]) : startVerse;
-  
+
       let meta = findBookMetadata(rawBook);
-  
+
       if (!meta) {
         const eng = Object.entries(TELUGU_BOOK_NAMES).find(
           ([, tel]) => tel === rawBook
         );
         if (eng) meta = findBookMetadata(eng[0]);
       }
-  
-      if (!meta) return "";
-  
-      const version =
-  languageRef.current === "TE"
-    ? "TELUGU_COMMUNITY_V1"
-    : effectiveEnglishVersion;
 
-  
+      if (!meta) return "";
+
+      const version =
+        languageRef.current === "TE"
+          ? "TELUGU_COMMUNITY_V1"
+          : effectiveEnglishVersion;
+
+
       const chapterData = await fetchChapter(meta.name, chapter, version);
       if (!chapterData?.length) return "";
-  
+
       return chapterData
         .filter(v => v.verse >= startVerse && v.verse <= endVerse)
         .map(v => v.text[version] ?? "")
@@ -874,42 +874,42 @@ const normalizeQuestions = (qs: string[]) => {
       return "";
     }
   };
-  
+
   const normalizePlainText = (text: string) =>
     text
       .replace(/[−–—]/g, "-")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-  
-      
+
+
 
   // ✅ Recover multiple sections from plain text when JSON parsing fails
-const recoverSectionsFromText = (raw: string): ChatbotAnswer["sections"] => {
-  const text = normalizePlainText(raw);
+  const recoverSectionsFromText = (raw: string): ChatbotAnswer["sections"] => {
+    const text = normalizePlainText(raw);
 
-  // Split on blank lines before Title-like lines
-  const blocks = text.split(/\n{2,}(?=[A-Z][^\n]{0,80}\n)/);
+    // Split on blank lines before Title-like lines
+    const blocks = text.split(/\n{2,}(?=[A-Z][^\n]{0,80}\n)/);
 
-  return blocks
-    .map((block, i) => {
-      const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
-      if (!lines.length) return null;
+    return blocks
+      .map((block, i) => {
+        const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return null;
 
-      return {
-        heading: lines[0].slice(0, 80),
-        content: lines.slice(1).join("\n"),
-        scriptures: [],
-      };
-    })
-    .filter(Boolean) as ChatbotAnswer["sections"];
-};
+        return {
+          heading: lines[0].slice(0, 80),
+          content: lines.slice(1).join("\n"),
+          scriptures: [],
+        };
+      })
+      .filter(Boolean) as ChatbotAnswer["sections"];
+  };
 
-  
-  
+
+
   const handleClickReference = async (reference: string) => {
     const meta = findBookMetadata(reference.split(/\s+\d+:/)[0]);
     if (!meta) return; // ignore garbage matches
-  
+
     setPreviewRef(reference);
     const text = await loadReferenceText(reference);
     setPreviewText(text);
@@ -917,110 +917,109 @@ const recoverSectionsFromText = (raw: string): ChatbotAnswer["sections"] => {
   };
 
   const renderNodeWithRefs = (node: React.ReactNode): React.ReactNode => {
-  if (node == null) return null;
+    if (node == null) return null;
 
-  if (typeof node === "string") {
-    const parts: React.ReactNode[] = [];
-    const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
+    if (typeof node === "string") {
+      const parts: React.ReactNode[] = [];
+      const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
 
-    let lastIndex = 0;
-    let m: RegExpExecArray | null;
+      let lastIndex = 0;
+      let m: RegExpExecArray | null;
 
-    while ((m = regex.exec(node)) !== null) {
-      const match = m[1];
-      const start = m.index;
+      while ((m = regex.exec(node)) !== null) {
+        const match = m[1];
+        const start = m.index;
 
-      if (start > lastIndex) {
-        parts.push(node.slice(lastIndex, start));
+        if (start > lastIndex) {
+          parts.push(node.slice(lastIndex, start));
+        }
+
+        parts.push(
+          <span
+            key={`${match}-${start}`}
+            className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClickReference(match);
+            }}
+          >
+            {match}
+          </span>
+        );
+
+        lastIndex = start + match.length;
       }
 
-      parts.push(
-        <span
-          key={`${match}-${start}`}
-          className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleClickReference(match);
-          }}
-        >
-          {match}
-        </span>
+      if (lastIndex < node.length) {
+        parts.push(node.slice(lastIndex));
+      }
+
+      return parts.length ? parts : node;
+    }
+
+    if (Array.isArray(node)) {
+      return node.map((c, i) => (
+        <React.Fragment key={i}>
+          {renderNodeWithRefs(c)}
+        </React.Fragment>
+      ));
+    }
+
+    if (React.isValidElement(node)) {
+      const element = node as React.ReactElement<{ children?: React.ReactNode }>;
+
+      return React.cloneElement(
+        element,
+        element.props,
+        renderNodeWithRefs(element.props.children)
       );
-
-      lastIndex = start + match.length;
     }
 
-    if (lastIndex < node.length) {
-      parts.push(node.slice(lastIndex));
+
+    return node;
+  };
+
+  const extractJsonObject = (text: string): string => {
+    const jsonText = extractJsonFromSentinel(text);
+    if (!jsonText) {
+      throw new Error("No <json>...</json> block found in AI response");
     }
-
-    return parts.length ? parts : node;
-  }
-
-  if (Array.isArray(node)) {
-    return node.map((c, i) => (
-      <React.Fragment key={i}>
-        {renderNodeWithRefs(c)}
-      </React.Fragment>
-    ));
-  }
-
-  if (React.isValidElement(node)) {
-    const element = node as React.ReactElement<{ children?: React.ReactNode }>;
-  
-    return React.cloneElement(
-      element,
-      element.props,
-      renderNodeWithRefs(element.props.children)
-    );
-  }
-  
-
-  return node;
-};
-
-const extractJsonObject = (text: string): string => {
-  const jsonText = extractJsonFromSentinel(text);
-  if (!jsonText) {
-    throw new Error("No <json>...</json> block found in AI response");
-  }
-  return jsonText;
-};
+    return jsonText;
+  };
 
 
 
 
 
-const buildContextualInput = (input: string) => {
-  const currentModelLang = modelLanguageRef.current;
-  const currentUILang = languageRef.current;
+  const buildContextualInput = (input: string) => {
+    const currentModelLang = modelLanguageRef.current;
+    const currentUILang = languageRef.current;
 
-  if (chatScope === "VERSE" && selectedVerseRef) {
-    const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
+    if (chatScope === "VERSE" && selectedVerseRef) {
+      const verseData = verses.find(v => v.verse === selectedVerseRef.verse);
 
-    const verseText =
-      currentUILang === "TE"
-        ? verseData?.text.TELUGU_COMMUNITY_V1
-        : verseData?.text[effectiveEnglishVersion];
+      const verseText =
+        currentUILang === "TE"
+          ? verseData?.text.TELUGU_COMMUNITY_V1
+          : verseData?.text[effectiveEnglishVersion];
 
-    return verseText
-      ? `${
-          currentModelLang === "TE"
-            ? "ఈ వచన సందర్భంలో మాత్రమే సమాధానం ఇవ్వండి:"
-            : "Answer strictly in the context of"
+      return verseText
+        ? `${currentModelLang === "TE"
+          ? "ఈ వచన సందర్భంలో మాత్రమే సమాధానం ఇవ్వండి:"
+          : "Answer strictly in the context of"
         } ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse} (${verseText}): ${input}`
-      : `Answer in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}: ${input}`;
-  }
+        : `Answer in the context of ${selectedVerseRef.book} ${selectedVerseRef.chapter}:${selectedVerseRef.verse}: ${input}`;
+    }
 
-  if (chatScope === "CHAPTER" && selectedBook && selectedChapter) {
-    return currentModelLang === "TE"
-      ? `${selectedBook} ${selectedChapter} అధ్యాయం సందర్భంలో సమాధానం ఇవ్వండి: ${input}`
-      : `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
-  }
-  
+    if (chatScope === "CHAPTER" && selectedBook && selectedChapter) {
+      return currentModelLang === "TE"
+        ? `${selectedBook} ${selectedChapter} అధ్యాయం సందర్భంలో సమాధానం ఇవ్వండి: ${input}`
+        : `Answer in the context of ${selectedBook} chapter ${selectedChapter}: ${input}`;
+    }
 
-  return input;
-};
+
+    return input;
+  };
 
 
 
@@ -1034,24 +1033,24 @@ const buildContextualInput = (input: string) => {
     setFollowUpQs([]);
 
     const finalInput = forcedInput ?? input.trim();
-if (!finalInput || isLoading) return;
+    if (!finalInput || isLoading) return;
 
-const currentModelLang = modelLanguageRef.current;
-const currentUILang = languageRef.current;
+    const currentModelLang = modelLanguageRef.current;
+    const currentUILang = languageRef.current;
 
-// STEP 3: detect direct question
+    // STEP 3: detect direct question
 
-const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
-  const isTelugu = currentModelLang === "TE";
+    const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
+      const isTelugu = currentModelLang === "TE";
 
-  const sectionRules =
-    depth === "SHORT"
-      ? "2 sections, concise, devotional"
-      : depth === "MEDIUM"
-      ? "3 sections, clear teaching flow"
-      : "Up to 4 sections, deep insight without padding";
+      const sectionRules =
+        depth === "SHORT"
+          ? "2 sections, concise, devotional"
+          : depth === "MEDIUM"
+            ? "3 sections, clear teaching flow"
+            : "Up to 4 sections, deep insight without padding";
 
-  return `
+      return `
 SYSTEM INSTRUCTION (CRITICAL):
 
 ${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు." : "You are a Bible teacher."}
@@ -1108,13 +1107,13 @@ Return JSON wrapped EXACTLY like this:
 
 DO NOT output anything outside <json>.
 `;
-};
+    };
 
-const userMessage: Message = {
-  id: crypto.randomUUID(),
-  text: finalInput,
-  sender: "user",
-};
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      text: finalInput,
+      sender: "user",
+    };
 
 
     setMessages(prev => [...prev, userMessage].slice(-50));
@@ -1138,21 +1137,21 @@ ${langInstruction}
 ${getFormattingRules(answerDepth)}
 
       `,
-      [...messagesRef.current, userMessage],
+        [...messagesRef.current, userMessage],
         currentModelLang,
         answerDepth
       );
-      
-      
+
+
       let parsed: ChatbotAnswer;
 
       // 1️⃣ Try strict <json> extraction first
       const strictJson = extractJsonFromSentinel(response.text);
-      
+
       if (strictJson) {
         const repaired = tryRepairJson(strictJson);
         const attempt = safeJsonParse<ChatbotAnswer>(repaired);
-      
+
         if (attempt.ok && Array.isArray(attempt.value.sections)) {
           parsed = attempt.value;
         } else {
@@ -1160,13 +1159,13 @@ ${getFormattingRules(answerDepth)}
             sections: recoverSectionsFromText(response.text),
           };
         }
-        
+
       } else {
         // 2️⃣ Fallback: try best-effort object extraction
         const candidate = extractBestJsonCandidate(response.text);
         const repaired = tryRepairJson(candidate);
         const attempt = safeJsonParse<ChatbotAnswer>(repaired);
-      
+
         if (attempt.ok && Array.isArray(attempt.value.sections)) {
           parsed = attempt.value;
         } else {
@@ -1175,7 +1174,7 @@ ${getFormattingRules(answerDepth)}
           };
         }
       }
-      
+
       // Ensure parsed is initialized
       if (!parsed || !Array.isArray(parsed.sections)) {
         parsed = {
@@ -1183,27 +1182,27 @@ ${getFormattingRules(answerDepth)}
         };
       }
 
-    // Normalize sections
-    parsed.sections = parsed.sections.map(sec => ({
-      heading: typeof sec.heading === "string" ? sec.heading.trim() : "",
-      content:
-        typeof sec.content === "string"
-          ? normalizePlainText(sec.content)
-          : "",
-      scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
-    }));
-    
-    const botMessage: Message = {
-      id: crypto.randomUUID(),
-      sender: "bot",
-      answer: parsed,
-      sources: response.sources,
-    };
-    
+      // Normalize sections
+      parsed.sections = parsed.sections.map(sec => ({
+        heading: typeof sec.heading === "string" ? sec.heading.trim() : "",
+        content:
+          typeof sec.content === "string"
+            ? normalizePlainText(sec.content)
+            : "",
+        scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
+      }));
 
-      
+      const botMessage: Message = {
+        id: crypto.randomUUID(),
+        sender: "bot",
+        answer: parsed,
+        sources: response.sources,
+      };
 
-    setMessages(prev => [...prev, botMessage].slice(-50));
+
+
+
+      setMessages(prev => [...prev, botMessage].slice(-50));
 
 
       // generate follow-ups using the same model language
@@ -1212,7 +1211,7 @@ ${getFormattingRules(answerDepth)}
           parsed,
           [...messagesRef.current.filter(m => m.sender === "user"), userMessage]
         );
-        
+
         setFollowUpQs(aiQs);
       } catch (err) {
         console.warn("Follow-up skipped:", err);
@@ -1227,17 +1226,17 @@ ${getFormattingRules(answerDepth)}
             ? "AI మోడల్ ఓవరోడెడ్ అయ్యింది. దయచేసి మోడల్ మార్చండి."
             : "The AI model is overloaded. Try switching models."
           : currentModelLang === "TE"
-          ? "ఏదో తప్పిపోయింది. దయచేసి మళ్లీ ప్రయత్నించండి."
-          : "Something went wrong. Please try again.";
+            ? "ఏదో తప్పిపోయింది. దయచేసి మళ్లీ ప్రయత్నించండి."
+            : "Something went wrong. Please try again.";
 
-          const errorMessage: Message = {
-            id: crypto.randomUUID(),
-            text: fallback,
-            sender: "bot",
-          };
-          
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        text: fallback,
+        sender: "bot",
+      };
 
-          setMessages(prev => [...prev, errorMessage].slice(-50));
+
+      setMessages(prev => [...prev, errorMessage].slice(-50));
     } finally {
       setIsLoading(false);
     }
@@ -1252,21 +1251,22 @@ ${getFormattingRules(answerDepth)}
   const handleLanguageSelect = (newLang: "EN" | "TE") => {
     setLanguage(newLang);
     setModelLanguage(newLang);
-  
+
     // ✅ force immediate sync for next send
     languageRef.current = newLang;
     modelLanguageRef.current = newLang;
-  
+
     setFollowUpQs([]);
   };
-  
+
 
   return (
     <>
       {/* FLOAT BUTTON */}
       <button
-  ref={toggleButtonRef}
-  onClick={onToggle}
+        id="tour-chatbot-fab"
+        ref={toggleButtonRef}
+        onClick={onToggle}
 
         className="
           fixed bottom-5 right-5 w-16 h-16
@@ -1286,9 +1286,9 @@ ${getFormattingRules(answerDepth)}
 
       {/* CHAT WINDOW */}
       {isOpen && (
-  <div
-  ref={chatRef}
-  className="
+        <div
+          ref={chatRef}
+          className="
     fixed bottom-24 right-5
     w-[92vw] sm:w-[420px] md:w-[480px]
     h-[75vh] md:h-[78vh]
@@ -1299,116 +1299,116 @@ text-slate-900 dark:text-slate-200
     transition-shadow duration-200
     hover:shadow-[0_0_12px_3px_rgba(59,130,246,0.45)]
   "
->
+        >
 
 
 
-{/* HEADER (PREMIUM) */}
-<div className="px-4 py-3 bg-slate-900 dark:bg-slate-950 text-white flex justify-between items-center">
+          {/* HEADER (PREMIUM) */}
+          <div className="px-4 py-3 bg-slate-900 dark:bg-slate-950 text-white flex justify-between items-center">
 
-  <div className="flex items-center gap-3">
-    <div className="relative">
-      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
-        BC
-      </div>
-      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full"></div>
-    </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                  BC
+                </div>
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full"></div>
+              </div>
 
-    <div>
-      <div className="font-bold text-sm tracking-wide">Bible Companion</div>
-      <div className="text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
-        <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
-        Ready to assist
-      </div>
-    </div>
-  </div>
+              <div>
+                <div className="font-bold text-sm tracking-wide">Bible Companion</div>
+                <div className="text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                  <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
+                  Ready to assist
+                </div>
+              </div>
+            </div>
 
-  {/* Controls */}
-  <div ref={controlsRef} className="relative flex items-center gap-2">
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        setIsModeDropdownOpen((v) => !v);
-      }}      
-      className="p-2 hover:bg-white/10 rounded-full transition-colors"
-      aria-label="Chat settings"
-      title="Chat settings"
-    >
-      <i className="fas fa-cog text-sm" />
-    </button>
+            {/* Controls */}
+            <div ref={controlsRef} className="relative flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsModeDropdownOpen((v) => !v);
+                }}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Chat settings"
+                title="Chat settings"
+              >
+                <i className="fas fa-cog text-sm" />
+              </button>
 
-    <button
-      onClick={onToggle}
-      className="p-2 hover:bg-white/10 rounded-full transition-colors"
-      aria-label="Close chat"
-      title="Close"
-    >
-      ✕
-    </button>
+              <button
+                onClick={onToggle}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Close chat"
+                title="Close"
+              >
+                ✕
+              </button>
 
-    {/* POPOVER */}
-    {isModeDropdownOpen && (
-      <div
-        className="
+              {/* POPOVER */}
+              {isModeDropdownOpen && (
+                <div
+                  className="
           absolute right-0 top-12 w-52
           bg-white dark:bg-slate-900
           border border-slate-200 dark:border-slate-700
           rounded-2xl shadow-xl z-50
           p-3 space-y-3 text-slate-900 dark:text-white
         "
-      >
-        {/* Scope */}
-        <div>
-          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-            Scope
-          </label>
-          <select
-            value={chatScope}
-            onChange={(e) => setChatScope(e.target.value as ChatScope)}
-            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
-          >
-            <option value="GLOBAL">Global</option>
-            <option value="CHAPTER">Chapter</option>
-            <option value="VERSE">Verse</option>
-          </select>
-        </div>
+                >
+                  {/* Scope */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Scope
+                    </label>
+                    <select
+                      value={chatScope}
+                      onChange={(e) => setChatScope(e.target.value as ChatScope)}
+                      className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+                    >
+                      <option value="GLOBAL">Global</option>
+                      <option value="CHAPTER">Chapter</option>
+                      <option value="VERSE">Verse</option>
+                    </select>
+                  </div>
 
-        {/* Depth */}
-        <div>
-          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-            Answer Depth
-          </label>
-          <select
-            value={answerDepth}
-            onChange={(e) =>
-              setAnswerDepth(e.target.value as "SHORT" | "MEDIUM" | "DEEP")
-            }
-            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
-          >
-            <option value="SHORT">Short</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="DEEP">Deep</option>
-          </select>
-        </div>
+                  {/* Depth */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Answer Depth
+                    </label>
+                    <select
+                      value={answerDepth}
+                      onChange={(e) =>
+                        setAnswerDepth(e.target.value as "SHORT" | "MEDIUM" | "DEEP")
+                      }
+                      className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+                    >
+                      <option value="SHORT">Short</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="DEEP">Deep</option>
+                    </select>
+                  </div>
 
-        {/* Language */}
-        <div>
-          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-            Language
-          </label>
-          <select
-            value={language}
-            onChange={(e) => handleLanguageSelect(e.target.value as "EN" | "TE")}
-            className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
-          >
-            <option value="EN">English</option>
-            <option value="TE">తెలుగు</option>
-          </select>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
+                  {/* Language */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Language
+                    </label>
+                    <select
+                      value={language}
+                      onChange={(e) => handleLanguageSelect(e.target.value as "EN" | "TE")}
+                      className="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
+                    >
+                      <option value="EN">English</option>
+                      <option value="TE">తెలుగు</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
 
 
@@ -1417,7 +1417,7 @@ text-slate-900 dark:text-slate-200
             {messages.length === 0 && (
               <div className="flex flex-col gap-4 mb-4">
                 {/* WELCOME MESSAGE */}
-<div className="
+                <div className="
 p-4
 bg-blue-50 dark:bg-slate-800
 text-slate-900 dark:text-slate-200
@@ -1477,25 +1477,25 @@ rounded-lg text-sm leading-relaxed
 
             {/* CHAT THREAD */}
             {messages.map((msg) =>
-  msg.sender === "user" ? (
-    <UserMessage key={msg.id} message={msg.text as string} />
-  ) : msg.answer ? (
-    <BotMessage
-  key={msg.id}
-  answer={msg.answer}
-  sources={msg.sources}
-  renderWithRefs={renderNodeWithRefs}
-  onReferenceClick={handleClickReference}
-/>
+              msg.sender === "user" ? (
+                <UserMessage key={msg.id} message={msg.text as string} />
+              ) : msg.answer ? (
+                <BotMessage
+                  key={msg.id}
+                  answer={msg.answer}
+                  sources={msg.sources}
+                  renderWithRefs={renderNodeWithRefs}
+                  onReferenceClick={handleClickReference}
+                />
 
-  ) : (
-    <div key={msg.id} className="text-sm text-red-500">
-      {typeof msg.text === "string" ? msg.text : "Invalid response"}
-    </div>
-  )
-)}
+              ) : (
+                <div key={msg.id} className="text-sm text-red-500">
+                  {typeof msg.text === "string" ? msg.text : "Invalid response"}
+                </div>
+              )
+            )}
 
-{isLoading && <BotTyping />}
+            {isLoading && <BotTyping />}
 
 
 
@@ -1503,13 +1503,13 @@ rounded-lg text-sm leading-relaxed
             {followUpQs.length > 0 && (
               <div className="flex flex-col gap-2 mb-2 mt-2">
                 <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                {modelLanguageRef.current === "TE" ? UI_TEXT.followUpHeading_te : UI_TEXT.followUpHeading_en}
+                  {modelLanguageRef.current === "TE" ? UI_TEXT.followUpHeading_te : UI_TEXT.followUpHeading_en}
                 </div>
                 {followUpQs.map((q, i) => (
-  <button
-    key={i}
-    onClick={() => handleSuggestionClick(q)}
-    className="
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(q)}
+                    className="
     w-full text-left p-3 text-sm
     rounded-xl
     bg-white dark:bg-slate-800
@@ -1517,14 +1517,14 @@ rounded-lg text-sm leading-relaxed
     hover:bg-slate-50 dark:hover:bg-slate-700
     transition
     "
-    
-  >
-    <div className="prose prose-sm dark:prose-invert max-w-none">
-    <p className="text-sm">{q}</p>
 
-    </div>
-  </button>
-))}
+                  >
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <p className="text-sm">{q}</p>
+
+                    </div>
+                  </button>
+                ))}
 
               </div>
             )}
@@ -1567,14 +1567,14 @@ rounded-lg text-sm leading-relaxed
         </div>
       )}
 
-{isPreviewOpen && (
-  <ModalPortal>
-    <div
-      className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
-      onMouseDown={() => setIsPreviewOpen(false)}
-    >
-<div
-  className="
+      {isPreviewOpen && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+            onMouseDown={() => setIsPreviewOpen(false)}
+          >
+            <div
+              className="
     bg-white dark:bg-slate-950
     text-slate-900 dark:text-slate-200
     rounded-2xl w-full max-w-md
@@ -1584,38 +1584,38 @@ rounded-lg text-sm leading-relaxed
     border border-slate-200 dark:border-slate-700
   "
 
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header (fixed) */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">
-  {previewRef}
-</h3>
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header (fixed) */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {previewRef}
+                </h3>
 
-        </div>
+              </div>
 
-        {/* Scrollable content */}
-        <div className="p-4 overflow-y-auto flex-1 overscroll-contain">
-        <p className="text-sm whitespace-pre-wrap leading-relaxed break-words text-slate-700 dark:text-slate-200">
-            {previewText || "Verse not found."}
-          </p>
-        </div>
+              {/* Scrollable content */}
+              <div className="p-4 overflow-y-auto flex-1 overscroll-contain">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed break-words text-slate-700 dark:text-slate-200">
+                  {previewText || "Verse not found."}
+                </p>
+              </div>
 
-        {/* Footer (fixed) */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 shrink-0 flex justify-end">
-          <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => setIsPreviewOpen(false)}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  </ModalPortal>
-)}
+              {/* Footer (fixed) */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-700 shrink-0 flex justify-end">
+                <button
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => setIsPreviewOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
 
 
     </>

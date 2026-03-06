@@ -21,6 +21,7 @@
     "cors": "^2.8.5",
     "docx": "^9.5.1",
     "dotenv": "^17.2.3",
+    "driver.js": "^1.4.0",
     "express": "^5.2.1",
     "fast-xml-parser": "^5.3.3",
     "file-saver": "^2.0.5",
