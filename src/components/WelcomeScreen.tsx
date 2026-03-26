@@ -7,6 +7,7 @@
   import { fetchVerseByRef, BibleVerseRow } from "../lib/bibleVersesService";
   import { sendMessageToLlama } from "../services/geminiService";
   import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
+  import { VersePreviewModal } from "./VersePreviewModal";
   import VerseImageShare from "./VerseImageShare";
   import {
     GRADIENT_PRESETS,
@@ -141,7 +142,7 @@ function getDynamicVerseBackground(
 
     const [loadingVerse, setLoadingVerse] = useState(true);
     const [loadingDevotional, setLoadingDevotional] = useState(true);
-    
+
     type BgMode = "none" | "gradient" | "image";
 
     const [bgMode, setBgMode] = useState<BgMode>("none");
@@ -196,6 +197,7 @@ try {
 
   return;
 }
+
 
         // -----------------------------
         // Step 2: Fetch Verse text
@@ -745,10 +747,10 @@ backdrop-blur-md
         </div>
         </div>
 {/* STEP 2 — Verse / Reflection selector */}
-{/* {shareStep === "content" && verseRow && (
+{shareStep === "content" && verseRow && (
   <ModalPortal>
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000]"
       onClick={() => setShareStep(null)}
     >
       <div onClick={(e) => e.stopPropagation()}>
@@ -768,13 +770,15 @@ backdrop-blur-md
           )}
           backgroundUrl={selectedBackground}
           gradient={selectedGradient}
+          layout="square"
+          setLayout={() => {}}
           onClose={() => setShareStep(null)}
           onBack={() => setShareStep("background")}
         />
       </div>
     </div>
   </ModalPortal>
-)} */}
+)}
 
 
 {/* STEP 1 — Background / Gradient picker */}
@@ -891,9 +895,12 @@ backdrop-blur-md
   <button
     key={bg.id}
     onClick={() => {
+      console.log("CLICKED BG:", bg.url);
       setBgMode("image");
       setSelectedBackground(bg.url);
       setSelectedGradient(null);
+      
+      // go directly to content (image preview)
       setShareStep("content");
     }}
     className="
@@ -971,6 +978,8 @@ backdrop-blur-md
     </div>
   </ModalPortal>
 )}
+
+
 
       </div>
     );
