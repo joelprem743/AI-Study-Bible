@@ -41,7 +41,7 @@ interface ScriptureDisplayProps {
 
 const VerseSkeleton: React.FC = () => (
   <div className="p-3 rounded-lg animate-pulse">
-    <div className="space-y-2">
+    <div className="space-y-1">
       <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-32" />
       <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-full" />
       <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-3/4" />
@@ -1039,7 +1039,7 @@ opacity-70 hover:opacity-100
       {isSingle && (
         <div
         className="
-          max-w-3xl mx-auto space-y-2
+          max-w-3xl mx-auto space-y-[1px]
           bg-white dark:bg-gray-900
           border border-slate-200 dark:border-white/10
           rounded-[2rem]
@@ -1073,7 +1073,7 @@ opacity-70 hover:opacity-100
                 onTouchMove={(e) => handleTouchMove(v.verse, e)}
                 onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
-                  p-2 sm:p-3
+                  py-[2px] px-1
                   rounded-2xl
                   cursor-pointer
                   transition-all duration-150
@@ -1097,11 +1097,11 @@ opacity-70 hover:opacity-100
   dir="ltr"
   className={`
     ${getVerseFontClass()}
-    leading-relaxed sm:leading-relaxed md:leading-loose
+    leading-tight sm:leading-snug md:leading-snug
     text-gray-900 dark:text-gray-100
     ${
       englishVersion === TELUGU_VERSION_KEY
-        ? "font-telugu leading-[1.85] tracking-[0.2px]"
+        ? "font-telugu leading-[1.45] tracking-[0.2px]"
         : ""
     }
     
@@ -1160,7 +1160,7 @@ opacity-70 hover:opacity-100
                 onTouchMove={(e) => handleTouchMove(v.verse, e)}
                 onTouchEnd={(e) => handleTouchEnd(v.verse, e)}
                 className={`
-                  p-2 sm:p-3
+                  py-[2px] px-1
                   rounded-2xl
                   cursor-pointer
                   transition-all duration-150

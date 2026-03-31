@@ -37,3 +37,9 @@ input,
 textarea {
   color-scheme: light dark;
 }
+@font-face {
+  font-family: 'Gurajada';
+  src: url('/fonts/Gurajada-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}

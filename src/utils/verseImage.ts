@@ -5,14 +5,17 @@ import { VerseReference } from "..";
 const MAX_CANVAS = 2048;
 const SITE_URL = "biblecompanions.in";
 
-async function loadBitmap(url: string): Promise<ImageBitmap> {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("Image fetch failed");
+async function loadBitmap(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
 
-  const blob = await res.blob();
-  if (!blob.size) throw new Error("Empty image blob");
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
 
-  return await createImageBitmap(blob);
+    // prevent caching issues during dev
+    img.src = url + "?v=" + Date.now();
+  });
 }
 
 
@@ -41,7 +44,7 @@ console.log("IS ARRAY:", Array.isArray(verseText));
     await (document as any).fonts.ready;
   }
 
-  let bgBitmap: ImageBitmap | null = null;
+  let bgBitmap: HTMLImageElement | null = null;
   let width = 1080;
   let height = layout === "square" ? 1080 : 1350;  // 4:5 portrait
 
@@ -53,7 +56,8 @@ console.log("IS ARRAY:", Array.isArray(verseText));
       width = 1080;
       height = layout === "square" ? 1080 : 1350;
   
-    } catch {
+    } catch (err) {
+      console.error("BACKGROUND LOAD FAILED:", backgroundImageUrl, err);
       bgBitmap = null;
     }
   }
@@ -69,6 +73,8 @@ console.log("IS ARRAY:", Array.isArray(verseText));
   
   ctx.scale(scale, scale);
   ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.textRendering = "optimizeLegibility"; // 🔥 improves glyph shaping
 ctx.imageSmoothingQuality = "high";
 // Rounded corner mask
 const radius = 60;
@@ -88,7 +94,26 @@ ctx.clip();
   /* ---------- BACKGROUND ---------- */
 
   if (bgBitmap) {
-    ctx.drawImage(bgBitmap, 0, 0, width, height);
+    const imgRatio = bgBitmap.width / bgBitmap.height;
+    const canvasRatio = width / height;
+    
+    let drawWidth, drawHeight, offsetX, offsetY;
+    
+    if (imgRatio > canvasRatio) {
+      // image is wider → crop sides
+      drawHeight = height;
+      drawWidth = imgRatio * height;
+      offsetX = -(drawWidth - width) / 2;
+      offsetY = 0;
+    } else {
+      // image is taller → crop top/bottom
+      drawWidth = width;
+      drawHeight = width / imgRatio;
+      offsetX = 0;
+      offsetY = -(drawHeight - height) / 2;
+    }
+    
+    ctx.drawImage(bgBitmap, offsetX, offsetY, drawWidth, drawHeight);
   
     const overlay = ctx.createLinearGradient(0, 0, 0, height);
     overlay.addColorStop(0, "rgba(0,0,0,0.55)");
@@ -128,7 +153,7 @@ ctx.clip();
   const aspectRatio = height / width;
   const isPortrait = aspectRatio > 1.3;
   
-  const columnWidth = Math.round(width * (isPortrait ? 0.78 : 0.70));
+  const columnWidth = Math.round(width * (isPortrait ? 0.68 : 0.66));
   const centerX = width / 2;
   
   const topPadding = Math.round(height * 0.14);
@@ -145,24 +170,29 @@ ctx.clip();
     let baseFontSize;
 
 if (isPortrait) {
-  baseFontSize = language === "TE" ? 56 : 52;
+  baseFontSize = language === "TE" ? 68 : 52;
 } else {
-  baseFontSize = language === "TE" ? 44 : 42;
+  baseFontSize = language === "TE" ? 54 : 42;
 }
-    
-    let fontSize = baseFontSize;
+
+let fontSize = baseFontSize;
+
+// 🔥 ONLY CONTROL POINT
+if (language === "TE") {
+  fontSize = baseFontSize * 1.25;
+}
 
   function wrapText(text: string, fontPx: number) {
 
     ctx.font =
     language === "TE"
-    ? `600 ${fontPx}px "Hind Madurai", serif`
-    : `600 ${fontPx}px "Playfair Display", serif`
+    ? `500 ${fontPx}px "Gurajada", serif`
+    : `700 ${fontPx}px "Montserrat", sans-serif`
   
     const lineHeight =
     language === "TE"
-      ? Math.round(fontPx * 1.5)
-      : Math.round(fontPx * 1.45);
+      ? Math.round(fontPx * 1.65)
+      : Math.round(fontPx * 1.6);
   
     const lines: string[] = [];
   
@@ -227,7 +257,9 @@ if (isPortrait) {
   let blocks = wrapAll(fontSize);
   let totalHeight = totalHeightFor(blocks);
 
-  const minFontSize = isPortrait ? 28 : 22;
+  const minFontSize = language === "TE"
+  ? (isPortrait ? 36 : 28)
+  : (isPortrait ? 28 : 22);
 
   while (totalHeight > maxTextHeight && fontSize > minFontSize) {
     fontSize -= 1;
@@ -237,24 +269,60 @@ if (isPortrait) {
   /* Apply final font */
   ctx.font =
   language === "TE"
-    ? `600 ${fontSize}px "Hind Madurai", serif`
-    : `600 ${fontSize}px "Playfair Display", serif`;
+    ? `500 ${fontSize}px "Gurajada", serif`
+    : `700 ${fontSize}px "Montserrat", sans-serif`;
 
-  if (bgBitmap) {
-    ctx.fillStyle = "#ffffff";
-  } else {
-    ctx.fillStyle = "#0f172a";
-    ctx.shadowBlur = 0;
-  }
+  // if (bgBitmap) {
+  //   ctx.fillStyle = "#ffffff";
+  // } else {
+  //   ctx.fillStyle = "#0f172a";
+  //   ctx.shadowBlur = 0;
+  // }
 
   /* Draw verses separately */
-  let y = (height - totalHeight) / 2 - 5;
+  let y = (height - totalHeight) / 2 + 10;
   // Soft halo glow behind verse text
-if (bgBitmap) {
-  ctx.shadowColor = "rgba(0,0,0,0.6)";
-  ctx.shadowBlur = 9;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
+
+
+  function drawProText(text: string, x: number, y: number) {
+    ctx.textAlign = "center";
+  
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+  
+    const outerStroke =
+      language === "TE"
+        ? Math.max(4, fontSize * 0.12)
+        : Math.max(2, fontSize * 0.05);
+  
+    const innerStroke =
+      language === "TE"
+        ? Math.max(2, fontSize * 0.05)
+        : Math.max(1, fontSize * 0.025);
+  
+    // Outer
+    ctx.lineWidth = outerStroke;
+    ctx.strokeStyle = "rgba(0,0,0,0.75)";
+    ctx.strokeText(text, x, y);
+  
+    // Inner
+    ctx.lineWidth = innerStroke;
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.strokeText(text, x, y);
+  
+    // Fill
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(text, x, y);
+  }
+
+  
+ctx.shadowBlur = 0;
+ctx.shadowColor = "transparent";
+
+if (language === "EN") {
+  ctx.shadowColor = "rgba(0,0,0,0.25)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
 }
 
   blocks.forEach((block, index) => {
@@ -264,15 +332,15 @@ if (bgBitmap) {
       y += block.lineHeight * 0.8;
     }
   
-block.lines.forEach(line => {
+    block.lines.forEach(line => {
 
-  if (line.trim().length === 0) return;
-
-ctx.fillText(line, centerX, y);
-
-  y += block.lineHeight;
-
-});
+      if (line.trim().length === 0) return;
+    
+      drawProText(line, centerX, y); // 🔥 critical fix
+    
+      y += block.lineHeight;
+    
+    });
   
   });
   // Disable glow for other elements
@@ -309,11 +377,12 @@ ctx.shadowBlur = 0;
     ctx.textAlign = "center";
     
     if (language === "TE") {
-      ctx.font = `500 ${referenceFontSize * 0.95}px "Hind Madurai", serif`;
-      ctx.fillText(referenceLabel, centerX, y + 22);
+      ctx.font = `500 ${referenceFontSize * 0.95}px "Gurajada", serif`;
+      ctx.fillText(referenceLabel, centerX, y + 36);
     } else {
-      ctx.font = `500 ${referenceFontSize * 0.9}px Inter, sans-serif`;
-      ctx.fillText(referenceLabel.toUpperCase(), centerX, y + 22);
+      ctx.globalAlpha = 0.7;
+      ctx.font = `600 ${referenceFontSize * 0.8}px "Montserrat", sans-serif`;
+      ctx.fillText(referenceLabel.toUpperCase(), centerX, y + 36);
     }
     
     ctx.globalAlpha = 1;
