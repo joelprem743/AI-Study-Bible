@@ -1714,7 +1714,13 @@ const handleWordSelect = (idx: number) => {
   }, [demoTriggerHighlight, onHighlightChange]);
   
   
-  
+  useEffect(() => {
+    NATURE_BACKGROUNDS.forEach((bg) => {
+      const img = new Image();
+      img.src = bg.url;
+    });
+  }, []);
+
   useEffect(() => {
     const handleDemoStepChange = () => {
       // Close share preview when demo moves to next step

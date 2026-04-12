@@ -66,6 +66,10 @@
       let cancelled = false;
       let objectUrl: string | null = null;
     
+      const timeout = setTimeout(() => {
+        run();
+      }, 150); // 🔥 debounce
+    
       const run = async () => {
         try {
           setLoading(true);
@@ -93,28 +97,12 @@
         }
       };
     
-      run();
-    
       return () => {
         cancelled = true;
-        if (objectUrl) {
-          URL.revokeObjectURL(objectUrl);
-        }
+        clearTimeout(timeout);
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
       };
-    }, [
-      verseRef,
-      verseText,
-      language,
-      backgroundUrl,
-      activeGradient,
-      churchName,
-      rangeEnd,
-      layout   // ✅ ADD THIS
-    ]);
-    
-
-
-
+    }, [verseRef, verseText, language, backgroundUrl, activeGradient, churchName, rangeEnd, layout]);
 
     const resolvedVerseUrl =
     verseUrl ??

@@ -4,17 +4,24 @@ import { VerseReference } from "..";
 
 const MAX_CANVAS = 2048;
 const SITE_URL = "biblecompanions.in";
+const imageCache = new Map<string, HTMLImageElement>();
 
 async function loadBitmap(url: string): Promise<HTMLImageElement> {
+  if (imageCache.has(url)) {
+    return imageCache.get(url)!;
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
+    img.onload = () => {
+      imageCache.set(url, img);
+      resolve(img);
+    };
 
-    // prevent caching issues during dev
-    img.src = url + "?v=" + Date.now();
+    img.onerror = reject;
+    img.src = url;
   });
 }
 
