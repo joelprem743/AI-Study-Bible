@@ -1690,7 +1690,7 @@ rounded-lg text-sm leading-relaxed
           <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
           <div
 className={`
-  relative flex items-center space-x-2
+  relative flex items-center space-x-2.5 sm:space-x-2
   px-2 py-2 rounded-2xl
   transition-all duration-300
   backdrop-blur-md
@@ -1729,7 +1729,7 @@ onClick={() => {
   disabled={isLoading}
 className={`
   relative flex items-center justify-center
-  w-11 h-11 rounded-xl
+  w-11 h-11 rounded-xl active:scale-95
   transition-all duration-200
   ${
     isListening
@@ -1765,7 +1765,7 @@ className={`
   </svg>
 </button>
 
-<div className="relative flex-grow">
+<div className="relative flex-grow min-w-0">
   <input
     type="text"
     value={input}
@@ -1777,18 +1777,34 @@ className={`
     onKeyDown={(e) => e.key === "Enter" && handleSend(undefined, "text")}
     placeholder={language === "TE" ? UI_TEXT.placeholder_te : UI_TEXT.placeholder_en}
     className="
-      w-full px-4 py-3 pr-16 text-[13px]
-      rounded-2xl
-      border-0
-      bg-transparent
-      text-slate-900 dark:text-white
-      placeholder:text-slate-400
-      focus:outline-none focus:ring-2 focus:ring-blue-500
-    "
+    w-full min-w-0 px-3 py-[12px] pr-24 text-[14px] sm:text-[13px]
+    rounded-2xl
+    border-0
+    bg-transparent
+    text-slate-900 dark:text-white
+    placeholder:text-slate-400
+    focus:outline-none focus:ring-2 focus:ring-blue-500
+  "
   />
 
+<button
+  onClick={() => handleSend(undefined, "text")}
+  disabled={isLoading}
+  className="
+    absolute right-2 top-1/2 -translate-y-1/2
+    w-9 h-9 flex items-center justify-center
+    rounded-lg
+    bg-blue-600 hover:bg-blue-700
+    shadow-md
+    transition
+    disabled:opacity-40
+  "
+>
+  <i className="fas fa-paper-plane text-[12px] text-white" />
+</button>
+
   {/* INLINE STATE INDICATOR */}
-  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-[2px] pointer-events-none">
+  <div className="absolute right-14 top-1/2 -translate-y-1/2 flex items-center gap-[2px] pointer-events-none">
 
     {/* LISTENING */}
     {isListening && (
@@ -1833,11 +1849,11 @@ className={`
   </div>
 </div>
 
-              <button
+              {/* <button
                 onClick={() => handleSend(undefined, "text")}
                 disabled={isLoading}
                 className={`
-  w-11 h-11 flex items-center justify-center
+w-11 h-11 flex items-center justify-center active:scale-95
   rounded-xl
   bg-blue-600 hover:bg-blue-700
   shadow-md shadow-blue-500/30
@@ -1846,8 +1862,8 @@ className={`
 `}
                 title={language === "TE" ? UI_TEXT.send_te : UI_TEXT.send_en}
               >
-                <i className="fas fa-paper-plane" />
-              </button>
+                <i className="fas fa-paper-plane text-sm" />
+              </button> */}
             </div>
 
 
