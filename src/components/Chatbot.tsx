@@ -351,7 +351,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   // UI language (controls UI strings, suggestions)
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
-
+  const lastInputWasVoiceRef = useRef(false);
   // modelLanguage controls the language instruction sent to the AI.
   // This enables Option B: keep chat history, but all future AI responses follow modelLanguage.
   const [modelLanguage, setModelLanguage] = useState<"EN" | "TE">("EN");
@@ -377,8 +377,10 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const messagesRef = useRef<Message[]>([]);
-
-
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
@@ -400,7 +402,88 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     languageRef.current = language;
   }, [language]);
 
+  useEffect(() => {
+    return () => {
+      // 🛑 kill speech when component unmounts
+      speechSynthesis.cancel();
+    };
+  }, []);
 
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+  
+    if (!SpeechRecognition) return;
+  
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === "TE" ? "te-IN" : "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+  
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+  
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+  
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+  
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+    
+      handleSend(transcript, "voice");
+    };
+  
+    recognitionRef.current = recognition;
+  }, [language]);
+
+  const startListening = () => {
+    // stop speaking if user interrupts
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+  
+    recognitionRef.current?.start();
+  };
+  
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+  };
+  const extractSpeechText = (answer: ChatbotAnswer) => {
+    return answer.sections
+      .map(sec => {
+        const clean = sec.content
+          .replace(/\n/g, " ")
+          .replace(/[-•]\s*/g, "") // remove bullet markers
+          .trim();
+  
+        return `${sec.heading}. ${clean}`;
+      })
+      .join(". ");
+  };
+
+  const speak = (text: string) => {
+    if (!text) return;
+  
+    // 🛑 clear any ongoing + queued speech
+    speechSynthesis.cancel();
+  
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === "TE" ? "te-IN" : "en-US";
+  
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+  
+    // 🛑 avoid queue race conditions
+    setTimeout(() => {
+      speechSynthesis.speak(utterance);
+    }, 0);
+  };
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages, followUpQs]);
@@ -1027,12 +1110,24 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
 
   // SEND MESSAGE
-  const handleSend = async (forcedInput?: string) => {
+  const handleSend = async (
+    forcedInput?: string,
+    source: "voice" | "text" = "text"
+  ) => {
     if (isLoading) return;
-    // clear old follow-ups (they belong to previous bot answer)
-    setFollowUpQs([]);
 
+    // 🛑 HARD STOP any ongoing speech
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+    
+    setFollowUpQs([]);
+  
     const finalInput = forcedInput ?? input.trim();
+    if (!finalInput) return;
+  
+    // ✅ SINGLE SOURCE OF TRUTH
+    lastInputWasVoiceRef.current = source === "voice";
+    
     if (!finalInput || isLoading) return;
 
     const currentModelLang = modelLanguageRef.current;
@@ -1143,36 +1238,22 @@ ${getFormattingRules(answerDepth)}
       );
 
 
-      let parsed: ChatbotAnswer;
+
 
       // 1️⃣ Try strict <json> extraction first
-      const strictJson = extractJsonFromSentinel(response.text);
+      let parsed: ChatbotAnswer;
 
-      if (strictJson) {
-        const repaired = tryRepairJson(strictJson);
-        const attempt = safeJsonParse<ChatbotAnswer>(repaired);
-
-        if (attempt.ok && Array.isArray(attempt.value.sections)) {
-          parsed = attempt.value;
-        } else {
-          parsed = {
-            sections: recoverSectionsFromText(response.text),
-          };
-        }
-
+      const candidate = extractBestJsonCandidate(response.text);
+      const repaired = tryRepairJson(candidate);
+      
+      const attempt = safeJsonParse<ChatbotAnswer>(repaired);
+      
+      if (attempt.ok && Array.isArray(attempt.value.sections)) {
+        parsed = attempt.value;
       } else {
-        // 2️⃣ Fallback: try best-effort object extraction
-        const candidate = extractBestJsonCandidate(response.text);
-        const repaired = tryRepairJson(candidate);
-        const attempt = safeJsonParse<ChatbotAnswer>(repaired);
-
-        if (attempt.ok && Array.isArray(attempt.value.sections)) {
-          parsed = attempt.value;
-        } else {
-          parsed = {
-            sections: recoverSectionsFromText(response.text),
-          };
-        }
+        parsed = {
+          sections: recoverSectionsFromText(response.text),
+        };
       }
 
       // Ensure parsed is initialized
@@ -1205,6 +1286,13 @@ ${getFormattingRules(answerDepth)}
       setMessages(prev => [...prev, botMessage].slice(-50));
 
 
+      if (lastInputWasVoiceRef.current) {
+        const speechText = extractSpeechText(parsed);
+        speak(speechText);
+      
+        // ✅ prevent leakage
+        lastInputWasVoiceRef.current = false;
+      }
       // generate follow-ups using the same model language
       try {
         const aiQs = await generateAIFollowUps(
@@ -1243,7 +1331,7 @@ ${getFormattingRules(answerDepth)}
   };
 
   const handleSuggestionClick = (question: string) => {
-    handleSend(question);
+    handleSend(question, "text");
   };
 
   // When user switches UI language, we update both UI language and modelLanguage depending on intent.
@@ -1266,7 +1354,11 @@ ${getFormattingRules(answerDepth)}
       <button
         id="tour-chatbot-fab"
         ref={toggleButtonRef}
-        onClick={onToggle}
+        onClick={() => {
+          speechSynthesis.cancel(); // 🛑 stop voice when closing
+          setIsSpeaking(false);
+          onToggle();
+        }}
 
         className="
           fixed bottom-5 right-5 w-16 h-16
@@ -1537,11 +1629,29 @@ rounded-lg text-sm leading-relaxed
           {/* INPUT */}
           <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center space-x-2">
+              {/* 🎤 Voice Button */}
+              <button
+                onClick={isListening ? stopListening : startListening}
+                className={`
+                  px-3 py-2 rounded-lg
+                  ${isListening ? "bg-red-500" : "bg-slate-700"}
+                  text-white
+                `}
+                title="Voice input"
+              >
+                {isListening ? "🎙️" : "🎤"}
+              </button>
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onChange={(e) => {
+                  // 🛑 interrupt speech immediately on typing
+                  speechSynthesis.cancel();
+                  setIsSpeaking(false);
+                
+                  setInput(e.target.value);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSend(undefined, "text")}
                 placeholder={language === "TE" ? UI_TEXT.placeholder_te : UI_TEXT.placeholder_en}
                 className="
   flex-grow px-4 py-3 text-[13px]
@@ -1555,7 +1665,7 @@ rounded-lg text-sm leading-relaxed
               />
 
               <button
-                onClick={() => handleSend()}
+                onClick={() => handleSend(undefined, "text")}
                 disabled={isLoading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800"
                 title={language === "TE" ? UI_TEXT.send_te : UI_TEXT.send_en}
