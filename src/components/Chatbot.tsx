@@ -1675,16 +1675,45 @@ rounded-lg text-sm leading-relaxed
             <div className="flex items-center space-x-2">
               {/* 🎤 Voice Button */}
               <button
-                onClick={isListening ? stopListening : startListening}
-                className={`
-                  px-3 py-2 rounded-lg
-                  ${isListening ? "bg-red-500" : "bg-slate-700"}
-                  text-white
-                `}
-                title="Voice input"
-              >
-                {isListening ? "🎙️" : "🎤"}
-              </button>
+  onMouseDown={startListening}
+  onMouseUp={stopListening}
+  onTouchStart={startListening}
+  onTouchEnd={stopListening}
+  disabled={isLoading}
+  className={`
+    relative flex items-center justify-center
+    w-11 h-11 rounded-full
+    transition-all duration-150
+    active:scale-90
+    shadow-md
+    ${isListening
+      ? "bg-red-500 shadow-red-400/60"
+      : "bg-slate-800 hover:bg-slate-700"}
+    ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+  `}
+  title="Hold to speak"
+>
+  {/* Pulse ring */}
+  {isListening && (
+    <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75"></span>
+  )}
+
+  {/* SVG Icon (replace emoji) */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5 text-white relative"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 1v11m0 0a3 3 0 003-3V5a3 3 0 10-6 0v4a3 3 0 003 3zm0 0v4m-4 0h8"
+    />
+  </svg>
+</button>
               <input
                 type="text"
                 value={input}
@@ -1717,6 +1746,26 @@ rounded-lg text-sm leading-relaxed
                 <i className="fas fa-paper-plane" />
               </button>
             </div>
+
+            {isListening && (
+  <div className="flex items-center justify-center gap-2 mt-3">
+
+    {/* animated bars */}
+    <div className="flex items-end gap-[3px] h-5">
+      <span className="w-[3px] h-full bg-red-500 animate-[bounce_1s_infinite]"></span>
+      <span className="w-[3px] h-3 bg-red-400 animate-[bounce_1s_infinite_0.2s]"></span>
+      <span className="w-[3px] h-4 bg-red-500 animate-[bounce_1s_infinite_0.4s]"></span>
+      <span className="w-[3px] h-2 bg-red-400 animate-[bounce_1s_infinite_0.6s]"></span>
+    </div>
+
+    <span className="text-xs text-red-500 font-medium tracking-wide">
+      Listening
+    </span>
+
+  </div>
+)}
+
+
           </div>
         </div>
       )}
