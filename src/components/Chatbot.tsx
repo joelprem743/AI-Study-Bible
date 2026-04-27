@@ -410,6 +410,18 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   }, []);
 
   useEffect(() => {
+    const loadVoices = () => {
+      speechSynthesis.getVoices();
+    };
+  
+    loadVoices();
+  
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
@@ -469,20 +481,48 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   const speak = (text: string) => {
     if (!text) return;
   
-    // 🛑 clear any ongoing + queued speech
-    speechSynthesis.cancel();
+    // 🛑 kill any ongoing speech
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+      speechSynthesis.cancel();
+    }
   
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === "TE" ? "te-IN" : "en-US";
+  
+    const voices = speechSynthesis.getVoices();
+  
+    // 🔍 Find Telugu voice
+    const teluguVoice = voices.find(
+      v =>
+        v.lang?.toLowerCase().includes("te") ||
+        v.name?.toLowerCase().includes("telugu")
+    );
+  
+    // 🔍 Find English fallback
+    const englishVoice = voices.find(
+      v => v.lang?.toLowerCase().includes("en")
+    );
+  
+    if (language === "TE") {
+      if (teluguVoice) {
+        utterance.voice = teluguVoice;
+        utterance.lang = teluguVoice.lang;
+      } else {
+        // ⚠️ HARD fallback (don't pretend Telugu exists)
+        utterance.voice = englishVoice || voices[0];
+        utterance.lang = "en-US";
+  
+        console.warn("⚠️ No Telugu voice found. Falling back to English voice.");
+      }
+    } else {
+      utterance.voice = englishVoice || voices[0];
+      utterance.lang = "en-US";
+    }
   
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
   
-    // 🛑 avoid queue race conditions
-    setTimeout(() => {
-      speechSynthesis.speak(utterance);
-    }, 0);
+    speechSynthesis.speak(utterance);
   };
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1128,7 +1168,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     // ✅ SINGLE SOURCE OF TRUTH
     lastInputWasVoiceRef.current = source === "voice";
     
-    if (!finalInput || isLoading) return;
+    if (!finalInput) return;
 
     const currentModelLang = modelLanguageRef.current;
     const currentUILang = languageRef.current;
@@ -1430,7 +1470,11 @@ text-slate-900 dark:text-slate-200
               </button>
 
               <button
-                onClick={onToggle}
+                onClick={() => {
+                  speechSynthesis.cancel();
+                  setIsSpeaking(false);
+                  onToggle();
+                }}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 aria-label="Close chat"
                 title="Close"
