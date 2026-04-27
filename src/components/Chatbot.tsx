@@ -1692,24 +1692,23 @@ rounded-lg text-sm leading-relaxed
 className={`
   relative flex items-center space-x-2.5 sm:space-x-2
   px-2 py-2 rounded-2xl
-  transition-all duration-300
-  backdrop-blur-md
-  ${
-    isListening
-      ? "bg-blue-500/10 border border-blue-400/30 shadow-[0_0_8px_rgba(59,130,246,0.18)]"
-      : isSpeaking
-      ? "bg-blue-500/10 border-blue-400/30 shadow-[0_0_12px_rgba(59,130,246,0.25)]"
-      : isLoading
-      ? "bg-slate-700/40 border border-slate-600"
-      : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
-  }
+transition-all duration-200
+${
+  isListening
+    ? "bg-white dark:bg-slate-800 border border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.55)]"
+: isSpeaking
+  ? "bg-gradient-to-r from-blue-50 to-blue-100 dark:from-slate-800 dark:to-slate-800 border border-blue-200 shadow-[0_8px_30px_rgba(59,130,246,0.35)]"
+  : isLoading
+    ? "bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
+  : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+}
 `}
 
 >
-{(isListening || isSpeaking) && (
+{/* {isListening && (
   <div className="absolute inset-0 rounded-2xl opacity-20 blur-md pointer-events-none
     bg-gradient-to-r from-blue-500 to-blue-400" />
-)}
+)} */}
               {/* 🎤 Voice Button */}
               <button
 onClick={() => {
@@ -1745,8 +1744,8 @@ className={`
 
   {/* Inner glow */}
   {isListening && (
-    <span className="absolute inset-0 rounded-full bg-blue-500 opacity-20 blur-md"></span>
-  )}
+  <span className="absolute inset-0 rounded-full bg-blue-500 opacity-25"></span>
+)}
 
   {/* Mic Icon */}
   <svg
@@ -1788,19 +1787,36 @@ className={`
   />
 
 <button
-  onClick={() => handleSend(undefined, "text")}
+  onClick={() => {
+    if (isSpeaking) {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+  
+    handleSend(undefined, "text");
+  }}
   disabled={isLoading}
-  className="
+  className={`
     absolute right-2 top-1/2 -translate-y-1/2
     w-9 h-9 flex items-center justify-center
     rounded-lg
-    bg-blue-600 hover:bg-blue-700
+    transition-all duration-200
     shadow-md
-    transition
     disabled:opacity-40
-  "
+  
+    ${
+      isSpeaking
+        ? "bg-slate-800 text-white hover:bg-slate-700 shadow-md"
+        : "bg-blue-600 hover:bg-blue-700 text-white"
+    }
+  `}
 >
-  <i className="fas fa-paper-plane text-[12px] text-white" />
+<i
+  className={`fas ${
+    isSpeaking ? "fa-stop" : "fa-paper-plane"
+  } text-[13px]`}
+/>
 </button>
 
   {/* INLINE STATE INDICATOR */}
