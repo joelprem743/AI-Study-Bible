@@ -440,13 +440,18 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     recognition.onend = () => {
       setIsListening(false);
     };
-  
+
     recognition.onerror = () => {
       setIsListening(false);
     };
   
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
+    
+      recognition.stop();
+      setIsListening(false);
+    
+      setIsLoading(true); // 🔥 immediate feedback
     
       handleSend(transcript, "voice");
     };
@@ -455,16 +460,27 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   }, [language]);
 
   const startListening = () => {
-    // stop speaking if user interrupts
+    if (!recognitionRef.current) return;
+  
     speechSynthesis.cancel();
     setIsSpeaking(false);
   
-    recognitionRef.current?.start();
+    try {
+      recognitionRef.current.start();
+    } catch {
+      // prevents "already started" crash
+    }
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+  
+    recognitionRef.current.stop(); // ✅ allow transcript to finish
+  
+    // fallback safety (in case onend is delayed)
+    setIsListening(false);
   };
   
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-  };
   const extractSpeechText = (answer: ChatbotAnswer) => {
     return answer.sections
       .map(sec => {
@@ -1672,36 +1688,70 @@ rounded-lg text-sm leading-relaxed
 
           {/* INPUT */}
           <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center space-x-2">
+          <div
+className={`
+  relative flex items-center space-x-2
+  px-2 py-2 rounded-2xl
+  transition-all duration-300
+  backdrop-blur-md
+  ${
+    isListening
+      ? "bg-blue-500/10 border border-blue-400/30 shadow-[0_0_8px_rgba(59,130,246,0.18)]"
+      : isSpeaking
+      ? "bg-blue-500/10 border-blue-400/30 shadow-[0_0_12px_rgba(59,130,246,0.25)]"
+      : isLoading
+      ? "bg-slate-700/40 border border-slate-600"
+      : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
+  }
+`}
+
+>
+{(isListening || isSpeaking) && (
+  <div className="absolute inset-0 rounded-2xl opacity-20 blur-md pointer-events-none
+    bg-gradient-to-r from-blue-500 to-blue-400" />
+)}
               {/* 🎤 Voice Button */}
               <button
-  onMouseDown={startListening}
-  onMouseUp={stopListening}
-  onTouchStart={startListening}
-  onTouchEnd={stopListening}
+onClick={() => {
+  if (isListening) {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  } else {
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+
+    try {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    } catch {}
+  }
+}}
   disabled={isLoading}
-  className={`
-    relative flex items-center justify-center
-    w-11 h-11 rounded-full
-    transition-all duration-150
-    active:scale-90
-    shadow-md
-    ${isListening
-      ? "bg-red-500 shadow-red-400/60"
-      : "bg-slate-800 hover:bg-slate-700"}
-    ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-  `}
-  title="Hold to speak"
+className={`
+  relative flex items-center justify-center
+  w-11 h-11 rounded-xl
+  transition-all duration-200
+  ${
+    isListening
+      ? "bg-blue-600 shadow-lg shadow-blue-400/40 scale-105"
+      : "bg-slate-800 hover:bg-slate-700"
+  }
+`}
 >
   {/* Pulse ring */}
   {isListening && (
-    <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75"></span>
+    <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-30"></span>
   )}
 
-  {/* SVG Icon (replace emoji) */}
+  {/* Inner glow */}
+  {isListening && (
+    <span className="absolute inset-0 rounded-full bg-blue-500 opacity-20 blur-md"></span>
+  )}
+
+  {/* Mic Icon */}
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5 text-white relative"
+    className="w-5 h-5 text-white z-10"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -1714,56 +1764,91 @@ rounded-lg text-sm leading-relaxed
     />
   </svg>
 </button>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => {
-                  // 🛑 interrupt speech immediately on typing
-                  speechSynthesis.cancel();
-                  setIsSpeaking(false);
-                
-                  setInput(e.target.value);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handleSend(undefined, "text")}
-                placeholder={language === "TE" ? UI_TEXT.placeholder_te : UI_TEXT.placeholder_en}
-                className="
-  flex-grow px-4 py-3 text-[13px]
-  rounded-2xl
-  border border-slate-200 dark:border-slate-700
-  bg-white dark:bg-slate-800
-  text-slate-900 dark:text-white
-  placeholder:text-slate-400
-  focus:outline-none focus:ring-2 focus:ring-blue-500
-"
-              />
+
+<div className="relative flex-grow">
+  <input
+    type="text"
+    value={input}
+    onChange={(e) => {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setInput(e.target.value);
+    }}
+    onKeyDown={(e) => e.key === "Enter" && handleSend(undefined, "text")}
+    placeholder={language === "TE" ? UI_TEXT.placeholder_te : UI_TEXT.placeholder_en}
+    className="
+      w-full px-4 py-3 pr-16 text-[13px]
+      rounded-2xl
+      border-0
+      bg-transparent
+      text-slate-900 dark:text-white
+      placeholder:text-slate-400
+      focus:outline-none focus:ring-2 focus:ring-blue-500
+    "
+  />
+
+  {/* INLINE STATE INDICATOR */}
+  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-[2px] pointer-events-none">
+
+    {/* LISTENING */}
+    {isListening && (
+      <>
+        {[...Array(3)].map((_, i) => (
+          <span
+            key={i}
+            className="w-[2px] bg-blue-500 rounded-full animate-[bounce_0.9s_infinite]"
+            style={{
+              height: `${6 + i * 3}px`,
+              animationDelay: `${i * 0.1}s`
+            }}
+          />
+        ))}
+      </>
+    )}
+
+    {/* THINKING */}
+    {!isListening && isLoading && (
+      <div className="flex gap-1">
+  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:120ms]"></span>
+  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:240ms]"></span>
+</div>
+    )}
+
+    {/* SPEAKING */}
+    {!isListening && !isLoading && isSpeaking && (
+      <>
+{[...Array(5)].map((_, i) => (
+  <span
+    key={i}
+    className="w-[2px] bg-blue-500 rounded-full animate-[pulse_0.6s_infinite]"
+    style={{
+      height: `${8 + i * 3}px`,
+      animationDelay: `${i * 0.08}s`
+    }}
+  />
+))}
+      </>
+    )}
+  </div>
+</div>
 
               <button
                 onClick={() => handleSend(undefined, "text")}
                 disabled={isLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800"
+                className={`
+  w-11 h-11 flex items-center justify-center
+  rounded-xl
+  bg-blue-600 hover:bg-blue-700
+  shadow-md shadow-blue-500/30
+  transition
+  disabled:opacity-40
+`}
                 title={language === "TE" ? UI_TEXT.send_te : UI_TEXT.send_en}
               >
                 <i className="fas fa-paper-plane" />
               </button>
             </div>
-
-            {isListening && (
-  <div className="flex items-center justify-center gap-2 mt-3">
-
-    {/* animated bars */}
-    <div className="flex items-end gap-[3px] h-5">
-      <span className="w-[3px] h-full bg-red-500 animate-[bounce_1s_infinite]"></span>
-      <span className="w-[3px] h-3 bg-red-400 animate-[bounce_1s_infinite_0.2s]"></span>
-      <span className="w-[3px] h-4 bg-red-500 animate-[bounce_1s_infinite_0.4s]"></span>
-      <span className="w-[3px] h-2 bg-red-400 animate-[bounce_1s_infinite_0.6s]"></span>
-    </div>
-
-    <span className="text-xs text-red-500 font-medium tracking-wide">
-      Listening
-    </span>
-
-  </div>
-)}
 
 
           </div>
@@ -1781,7 +1866,6 @@ rounded-lg text-sm leading-relaxed
     bg-white dark:bg-slate-950
     text-slate-900 dark:text-slate-200
     rounded-2xl w-full max-w-md
-    shadow-2xl
     flex flex-col
     max-h-[85vh]
     border border-slate-200 dark:border-slate-700
