@@ -1,8 +1,8 @@
 import textToSpeech from "@google-cloud/text-to-speech";
 
 const client = new textToSpeech.TextToSpeechClient({
-    keyFilename: "D:/ai-bible-study-app/google-credentials.json",
-  });
+  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON as string),
+});
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -37,13 +37,15 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: "No audio returned" });
     }
 
-    const audioBuffer = Buffer.from(response.audioContent as string, "base64");
+    const audioBuffer = Buffer.from(
+      response.audioContent as string,
+      "base64"
+    );
 
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-store");
 
     return res.send(audioBuffer);
-
   } catch (err: any) {
     console.error("🔥 TTS ERROR:", err);
 
