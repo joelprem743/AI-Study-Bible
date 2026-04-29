@@ -14,6 +14,8 @@
       import { useThemeMode } from "./hooks/useThemeMode";
       import { createGuidedTour } from "./demo/guidedTour";
       import toast, { Toaster } from "react-hot-toast";
+      import { Analytics } from "@vercel/analytics/react"
+      import { SpeedInsights } from "@vercel/speed-insights/next"
 
 
       import {
@@ -1103,7 +1105,7 @@
         // Render
         return (
 
-
+<>
           <LanguageProvider>
 
             <Toaster
@@ -2012,7 +2014,11 @@
 
               </div>
             )}
+            
           </LanguageProvider>
+           <Analytics />
+           <SpeedInsights/>
+           </>
         );
       };
 
