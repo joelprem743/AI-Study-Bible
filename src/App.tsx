@@ -9,13 +9,15 @@
       import { SearchResultDisplay } from "./components/SearchResultDisplay";
       import ProfileNotes from "./components/ProfileNotes";
       import { AudioProvider } from "./context/AudioContext";
+      import { SpeedInsights } from "@vercel/speed-insights/react"
+      
       import { useLocalStorage } from "./hooks/useLocalStorage";
       import { useHighlights } from "./hooks/useHighlights";
       import { useThemeMode } from "./hooks/useThemeMode";
       import { createGuidedTour } from "./demo/guidedTour";
       import toast, { Toaster } from "react-hot-toast";
       import { Analytics } from "@vercel/analytics/react"
-      import { SpeedInsights } from "@vercel/speed-insights/next"
+
 
 
       import {
