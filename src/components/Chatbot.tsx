@@ -309,7 +309,41 @@ const INLINE_REF_RENDER_REGEX = new RegExp(
 );
 
 
+// // ===== DOMAIN FILTER (STRICT) =====
+// const BIBLE_KEYWORDS = [
+//   "bible","jesus","christ","god","scripture","gospel",
+//   "genesis","exodus","leviticus","numbers","deuteronomy",
+//   "psalm","proverbs","isaiah","matthew","mark","luke","john",
+//   "acts","romans","corinthians","galatians","ephesians",
+//   "philippians","colossians","thessalonians","timothy",
+//   "titus","hebrews","james","peter","revelation",
+//   "sin","salvation","faith","grace","cross","church","holy spirit"
+// ];
 
+// const isBibleRelated = (text: string) => {
+//   const lower = text.toLowerCase();
+
+//   // obvious non-religious topics
+//   const blocked = ["phone", "samsung", "physics", "movie", "actor", "politics", "cricket"];
+
+//   if (blocked.some(k => lower.includes(k))) return false;
+
+//   // allow if contains any bible keyword
+//   if (BIBLE_KEYWORDS.some(k => lower.includes(k))) return true;
+
+//   // allow general theological intent
+//   if (
+//     lower.includes("meaning") ||
+//     lower.includes("life") ||
+//     lower.includes("purpose") ||
+//     lower.includes("god") ||
+//     lower.includes("faith")
+//   ) {
+//     return true;
+//   }
+
+//   return false;
+// };
 
 // MAIN CHATBOT COMPONENT
 interface ChatbotProps {
@@ -374,6 +408,13 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   const [followUpQs, setFollowUpQs] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    visible: boolean;
+  }>({
+    message: "",
+    visible: false
+  });
 
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const messagesRef = useRef<Message[]>([]);
@@ -451,8 +492,8 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       recognition.stop();
       setIsListening(false);
     
-      setIsLoading(true); // 🔥 immediate feedback
-    
+      console.log("SET LOADING TRUE");
+setIsLoading(true);
       handleSend(transcript, "voice");
     };
   
@@ -470,6 +511,14 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     } catch {
       // prevents "already started" crash
     }
+  };
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true });
+  
+    setTimeout(() => {
+      setToast({ message: "", visible: false });
+    }, 2500); // 2.5 sec
   };
 
   const stopListening = () => {
@@ -1157,12 +1206,25 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     }
 
 
-    return input;
+    return `Answer ONLY from a Biblical and Christian theology perspective: ${input}`;
   };
 
 
 
-
+  const isBibleAnswer = (parsed: ChatbotAnswer) => {
+    if (!parsed.sections || parsed.sections.length === 0) return false;
+  
+    return parsed.sections.every(sec => {
+      const hasScripture =
+        Array.isArray(sec.scriptures) && sec.scriptures.length > 0;
+  
+      const hasTheology =
+        typeof sec.content === "string" &&
+        /god|jesus|christ|lord|sin|grace|faith|salvation|holy spirit/i.test(sec.content);
+  
+      return hasScripture && hasTheology;
+    });
+  };
 
 
   // SEND MESSAGE
@@ -1180,97 +1242,26 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   
     const finalInput = forcedInput ?? input.trim();
     if (!finalInput) return;
-  
-    // ✅ SINGLE SOURCE OF TRUTH
-    lastInputWasVoiceRef.current = source === "voice";
     
-    if (!finalInput) return;
-
-    const currentModelLang = modelLanguageRef.current;
-    const currentUILang = languageRef.current;
-
-    // STEP 3: detect direct question
-
-    const getFormattingRules = (depth: "SHORT" | "MEDIUM" | "DEEP") => {
-      const isTelugu = currentModelLang === "TE";
-
-      const sectionRules =
-        depth === "SHORT"
-          ? "2 sections, concise, devotional"
-          : depth === "MEDIUM"
-            ? "3 sections, clear teaching flow"
-            : "Up to 4 sections, deep insight without padding";
-
-      return `
-SYSTEM INSTRUCTION (CRITICAL):
-
-${isTelugu ? "మీరు బైబిల్ ఉపాధ్యాయుడు." : "You are a Bible teacher."}
-
-Return ONE valid JSON object ONLY.
-ABSOLUTELY NOTHING may appear before or after <json>.
-
-No markdown.
-No emojis.
-Plain text only.
-
-When listing multiple ideas:
-- You MUST use bullet points starting with "- "
-- Each bullet MUST be on its own line
-- Never write list-like sentences without bullets
-
-When explaining steps or sequences:
-- You MUST use numbered lists starting with "1. ", "2. "
-
-Never place dashes, titles, or labels outside <json>.
-Never place a dash on a line by itself.
-
-
-REQUIRED SCHEMA:
-{
-  "sections": [
-    {
-      "heading": string,
-      "content": string,
-      "scriptures": string[]
-    }
-  ]
-}
-
-RULES:
-- ${sectionRules}
-- Each section must have a clear heading and matching content
-- CRITICAL: JSON string values MUST be valid JSON strings.
-  - Do NOT include raw line breaks inside strings.
-  - If you need a new line inside "content", use "\\n" (two characters) inside the string.
-- Scriptures must SUPPORT the content
-- No verse dumping
-- No repetition
-- When explaining multiple points, ALWAYS use bullets or numbers
-- Never separate a heading and its content with a dash line
-- Natural paragraph flow
-- ${isTelugu ? "పూర్తిగా తెలుగులో మాత్రమే ఇవ్వండి." : "English only."}
-
-Return JSON wrapped EXACTLY like this:
-
-<json>
-{ ... }
-</json>
-
-DO NOT output anything outside <json>.
-`;
-    };
-
+    // ✅ ALWAYS show user message FIRST
     const userMessage: Message = {
       id: crypto.randomUUID(),
       text: finalInput,
       sender: "user",
     };
-
-
+    
     setMessages(prev => [...prev, userMessage].slice(-50));
     setInput("");
-    setIsLoading(true);
+    
 
+    
+    // ✅ CONTINUE NORMAL FLOW
+    lastInputWasVoiceRef.current = source === "voice";
+    
+    const currentModelLang = modelLanguageRef.current;
+    const currentUILang = languageRef.current;
+    
+    setIsLoading(true);
 
     const contextualizedInput = buildContextualInput(finalInput);
 
@@ -1278,16 +1269,44 @@ DO NOT output anything outside <json>.
     // Use modelLanguage for AI instruction (this guarantees Option B)
     const langInstruction = currentModelLang === "TE" ? "సమాధానం తెలుగులో ఇవ్వండి." : "Answer in English.";
     try {
-      const response = await sendMessageToLlama(
-        `${contextualizedInput}
+      const strictInstruction = `
+      STRICT DOMAIN:
+      - Bible only
+      - Christianity only
+      - No secular or scientific explanations
       
-
-
-${langInstruction}
-
-${getFormattingRules(answerDepth)}
-
+      If outside domain → refuse immediately.
+      `;
+      
+      const response = await sendMessageToLlama(
+        `${strictInstruction}
+      
+      ${contextualizedInput}
+      
+      ${langInstruction}
+      
+      OUTPUT FORMAT (MANDATORY):
+      
+      <json>
+      {
+        "sections": [
+          {
+            "heading": "string",
+            "content": "string",
+            "scriptures": ["string"]
+          }
+        ]
+      }
+      </json>
+      
+      Rules:
+      - Return ONLY JSON inside <json> tags
+      - No extra text outside JSON
+      - Each section MUST include at least one scripture reference
+      - No markdown
+      - No explanations outside JSON
       `,
+
         [...messagesRef.current, userMessage],
         currentModelLang,
         answerDepth
@@ -1328,6 +1347,34 @@ ${getFormattingRules(answerDepth)}
             : "",
         scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
       }));
+
+      // 🚫 FINAL OUTPUT GUARD (ANTI-ESCAPE)
+// 🚫 HARD DOMAIN ENFORCEMENT
+if (!parsed.sections || parsed.sections.length === 0) {
+  setIsLoading(false);
+  setFollowUpQs([]);
+
+  showToast(
+    currentModelLang === "TE"
+      ? "ఈ ప్రశ్న బైబిల్ పరిధిలో లేదు"
+      : "Out of Biblical scope"
+  );
+
+  return;
+}
+
+if (!isBibleAnswer(parsed)) {
+  setIsLoading(false);
+  setFollowUpQs([]);
+
+  showToast(
+    currentModelLang === "TE"
+      ? "సమాధానం బైబిల్ ఆధారంగా లేదు"
+      : "Response is not Bible-based"
+  );
+
+  return;
+}
 
       const botMessage: Message = {
         id: crypto.randomUUID(),
@@ -1382,6 +1429,7 @@ ${getFormattingRules(answerDepth)}
 
       setMessages(prev => [...prev, errorMessage].slice(-50));
     } finally {
+      // 🛑 Ensure no stuck loading state
       setIsLoading(false);
     }
   };
@@ -1937,6 +1985,20 @@ w-11 h-11 flex items-center justify-center active:scale-95
       )}
 
 
+{toast.visible && (
+  <div
+    className="
+      fixed bottom-24 left-1/2 -translate-x-1/2
+      px-4 py-2
+      bg-red-500 text-white text-sm
+      rounded-lg shadow-lg
+      z-[9999]
+      animate-fade-in
+    "
+  >
+    {toast.message}
+  </div>
+)}
     </>
   );
 };

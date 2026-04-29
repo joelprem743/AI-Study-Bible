@@ -8,6 +8,7 @@ import { generateVerseImage } from "../utils/verseImage";
 import ModalPortal from "./ModalPortal";
 import VerseImageShare from "./VerseImageShare";
 import { buildVerseShareCaption, buildVerseShareUrl } from "../utils/share";
+import { useAudio } from "../context/AudioContext";
 import {
   GRADIENT_PRESETS,
   NATURE_BACKGROUNDS,
@@ -20,12 +21,11 @@ interface ScriptureDisplayProps {
   verses: Verse[];
   isLoading: boolean;
   error: string | null;
-
   englishVersion: string;
   studyMode: "single" | "parallel";
   leftVersion?: string;
   rightVersion?: string;
-
+  activeVerseIndex?: number;
   onVerseSelect: (verseNum: number) => void;
   selectedVerseRef: VerseReference | null;
 
@@ -174,39 +174,14 @@ const isLongPressActiveRef = useRef(false);
 const pendingHighlightRef = useRef<string | null>(null);
 
 
-
+const { play, stop } = useAudio();
   
   
   const touchStartYRef = useRef<Map<number, number>>(new Map());
 
   const gradientSectionRef = useRef<HTMLDivElement | null>(null);
 
-  // const NATURE_BACKGROUNDS = [
-  //   { id: "1", name: "Mountain Sunrise", url: "/verse-bg/mountain-sunrise.png" },
-  //   { id: "2", name: "Ocean Waves", url: "/verse-bg/ocean-waves.png" },
-  //   { id: "3", name: "Forest Path", url: "/verse-bg/forest-path.png" },
-  //   { id: "4", name: "Desert Dunes", url: "/verse-bg/desert-dunes.png" },
-  //   { id: "5", name: "Mountain Lake", url: "/verse-bg/mountain-lake.png" },
-  //   { id: "6", name: "Sunset Fields", url: "/verse-bg/sunset-fields.png" },
-  //   { id: "7", name: "Coastal Cliffs", url: "/verse-bg/coastal-cliffs.png" },
-  //   { id: "8", name: "Autumn Forest", url: "/verse-bg/autumn-forest.png" },
-  //   { id: "9", name: "Mountain Peak", url: "/verse-bg/mountain-peak.png" },
-  //   { id: "10", name: "Peaceful Meadow", url: "/verse-bg/peaceful-meadow.png" },
-  //   { id: "11", name: "Bible Cross", url: "/verse-bg/bible-cross.png" },
-  //   { id: "12", name: "Blurry Grass", url: "/verse-bg/blurry-grass.png" },
-  //   { id: "13", name: "Blurry River", url: "/verse-bg/blurry-river.png" },
-  //   { id: "14", name: "Calm Horizon Light", url: "/verse-bg/calm-horizon-light.png" },
-  //   { id: "15", name: "Coastal View", url: "/verse-bg/coastal-view.png" },
-  //   { id: "16", name: "Desert Cross (Dark)", url: "/verse-bg/dark-desert-distant-cross.png" },
-  //   { id: "17", name: "Light Gradient Cross", url: "/verse-bg/light-gradient-negative-cross.png" },
-  //   { id: "18", name: "Old Bible", url: "/verse-bg/old-bible.png" },
-  //   { id: "19", name: "Open Bible (Top View)", url: "/verse-bg/openbible-top.png" },
-  //   { id: "20", name: "Soft Desert", url: "/verse-bg/soft-desert.png" },
-  //   { id: "21", name: "Soft Forest Light Rays", url: "/verse-bg/soft-forest-light-rays.png" },
-  //   { id: "22", name: "Implied Light Cross", url: "/verse-bg/soft-light-implied-cross.png" },
-  //   { id: "23", name: "Soft Sky Pastel Gradient", url: "/verse-bg/soft-sky-pastel-gradient.png" },
-  // ];
-  
+
   
 
   // Context
@@ -297,42 +272,7 @@ const pendingHighlightRef = useRef<string | null>(null);
     }, 120);
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
-  // useEffect(() => {
-  //   const version =
-  //     studyMode === "single" ? englishVersion : leftVersion;
 
-  //   if (!isOriginalVersion(version)) {
-  //     setOriginalVerses({});
-  //     return;
-  //   }
-
-  //   const loadOriginal = async () => {
-  //     try {
-  //       const table =
-  //         version === "HEBREW_OT"
-  //           ? "interlinear_words"
-  //           : "nt_interlinear_with_strong";
-
-  //       const res = await fetch(
-  //         `/api/original?book=${encodeURIComponent(bookName)}&chapter=${chapterNum}&table=${table}`
-  //       );
-  //       const json = await res.json();
-
-  //       const map: Record<number, string> = {};
-
-  //       json.data.forEach((row: any) => {
-  //         map[row.verse] = (map[row.verse] ?? "") + row.surface + " ";
-  //       });
-
-  //       setOriginalVerses(map);
-  //     } catch (e) {
-  //       console.error("Failed to load original text", e);
-  //       setOriginalVerses({});
-  //     }
-  //   };
-
-  //   loadOriginal();
-  // }, [bookName, chapterNum, englishVersion, leftVersion, studyMode]);
 
 
   // Scroll handler
@@ -353,20 +293,7 @@ const pendingHighlightRef = useRef<string | null>(null);
     [onScrollDirectionChange]
   );
 
-  // const startAutoScroll = (direction: "up" | "down") => {
-  //   stopAutoScroll(); // prevent multiple intervals
-  
-  //   const step = direction === "down" ? 8 : -8; // ✅ slow smooth speed
-  
-  //   scrollTimerRef.current = window.setInterval(() => {
-  //     if (!scrollRef.current) return;
-  
-  //     scrollRef.current.scrollBy({
-  //       top: step,
-  //       behavior: "auto", // ✅ interval-based smoothness (better than smooth spam)
-  //     });
-  //   }, 16); // ~60fps
-  // };
+
   
   const stopAutoScroll = () => {
     if (scrollTimerRef.current) {
@@ -1014,23 +941,7 @@ opacity-70 hover:opacity-100
 
 
 
-      {/* Header — only ONE title in single mode
-      {isSingle && (
-  <div className="text-center mb-4">
-    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-      {getBookNameByVersion(englishVersion)} {chapterNum}
-    </h2>
-  </div>
-)}
-      {!isSingle && (
-  <div className="text-center mb-4">
-    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-      {getParallelBookHeading()} {chapterNum}
-    </h2>
-  </div>
-)}
 
- */}
 
 
       {/* -------------------------------
@@ -1089,9 +1000,25 @@ opacity-70 hover:opacity-100
                 `}
                 
               >
+
+<button
+  onClick={(e) => {
+    e.stopPropagation(); // prevent verse click interference
+
+    play({
+      text: resolveText(v, englishVersion),
+      lang: englishVersion === TELUGU_VERSION_KEY ? "TE" : "EN",
+    });
+  }}
+>
+  🔊
+</button>
+
+
 <span className="text-[13px] sm:text-[14px] font-semibold text-gray-500 dark:text-gray-400 mr-2">
   {v.verse}
 </span>
+
 
                 <span
   dir="ltr"

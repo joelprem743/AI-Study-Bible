@@ -10,6 +10,11 @@ interface Props {
   selectedChapter: number;
   selectedVerse: number;
 
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  continuousPlay: boolean;
+  onToggleContinuous: () => void;
+
   onNavigateTo: (book: string, chapter: number, verse: number) => void;
 
 
@@ -27,11 +32,16 @@ interface Props {
   onSetLeftVersion: (v: string) => void;
   onSetRightVersion: (v: string) => void;
   versions: readonly string[];
+  onToggleAudioBar?: () => void;
 }
 
 export default function NavigationPane(props: Props) {
   const {
     selectedBook,
+    isPlaying,
+    onTogglePlay,
+    continuousPlay,
+    onToggleContinuous,
     selectedChapter,
     selectedVerse,
     onNavigateTo,
@@ -40,6 +50,7 @@ export default function NavigationPane(props: Props) {
     onPreviousChapter,
     isFirstChapterOfBible,
     isLastChapterOfBible,
+    onToggleAudioBar,
 
     studyMode,
     singleVersion,
@@ -49,6 +60,7 @@ export default function NavigationPane(props: Props) {
     onSetSingleVersion,
     onSetLeftVersion,
     onSetRightVersion,
+    
     versions,
   } = props;
 
@@ -60,6 +72,7 @@ export default function NavigationPane(props: Props) {
   const [isBookModal, setIsBookModal] = useState(false);
   const [selectionStep, setSelectionStep] =
     useState<"BOOK" | "CHAPTER" | "VERSE">("BOOK");
+  
 
   const [tempBook, setTempBook] = useState(selectedBook);
   const [tempChapter, setTempChapter] = useState(selectedChapter);
@@ -262,6 +275,8 @@ export default function NavigationPane(props: Props) {
       {/* UNIFIED BOOK+CHAPTER BUTTON */}
       <div
         id="tour-book-selector"
+
+        
         className={`
     group flex-1 min-w-0 flex items-center rounded-full
     border ring-1 ring-inset
@@ -297,6 +312,25 @@ export default function NavigationPane(props: Props) {
           }
   `}
       >
+
+        {/* ▶️ PLAY / STOP BUTTON
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    onTogglePlay();
+  }}
+  className="
+    w-9 h-9 flex items-center justify-center
+    rounded-xl
+    text-slate-500 dark:text-slate-400
+    hover:bg-slate-100 dark:hover:bg-slate-700
+    hover:text-slate-900 dark:hover:text-white
+    transition-all duration-150
+  "
+  title={isPlaying ? "Stop" : "Play"}
+>
+  <i className={`fas ${isPlaying ? "fa-stop" : "fa-play"}`} />
+</button> */}
 
         <button
           disabled={isFirstChapterOfBible}
@@ -369,6 +403,44 @@ hover:text-slate-900 dark:hover:text-white
           <i className="fas fa-caret-right" />
         </button>
       </div>
+
+      {/* 🔁 CONTINUOUS PLAY TOGGLE
+<button
+  onClick={() => onToggleContinuous()}
+  className={`
+    shrink-0
+    w-10 h-10 flex items-center justify-center
+    rounded-xl
+    border
+    transition-all duration-150
+    ${
+      continuousPlay
+        ? "bg-blue-600 text-white border-blue-500"
+        : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+    }
+  `}
+  title="Continuous Play"
+>
+  <i className="fas fa-sync-alt" />
+</button> */}
+
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    props.onToggleAudioBar?.();
+  }}
+  className="
+    w-9 h-9 flex items-center justify-center
+    rounded-xl
+    text-slate-500 dark:text-slate-400
+    hover:bg-slate-100 dark:hover:bg-slate-700
+    hover:text-slate-900 dark:hover:text-white
+    transition-all duration-150
+  "
+  title="Audio Controls"
+>
+  <i className="fas fa-volume-up" />
+</button>
 
       {/* VERSION PICKER ICON */}
       <button
