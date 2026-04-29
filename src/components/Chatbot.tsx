@@ -445,22 +445,21 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   useEffect(() => {
     return () => {
-      // 🛑 kill speech when component unmounts
-      speechSynthesis.cancel();
+      stopSpeaking();
     };
   }, []);
 
-  useEffect(() => {
-    const loadVoices = () => {
-      speechSynthesis.getVoices();
-    };
+  // useEffect(() => {
+  //   const loadVoices = () => {
+  //     speechSynthesis.getVoices();
+  //   };
   
-    loadVoices();
+  //   loadVoices();
   
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, []);
+  //   if (speechSynthesis.onvoiceschanged !== undefined) {
+  //     speechSynthesis.onvoiceschanged = loadVoices;
+  //   }
+  // }, []);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -492,8 +491,6 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       recognition.stop();
       setIsListening(false);
     
-      console.log("SET LOADING TRUE");
-setIsLoading(true);
       handleSend(transcript, "voice");
     };
   
@@ -503,8 +500,7 @@ setIsLoading(true);
   const startListening = () => {
     if (!recognitionRef.current) return;
   
-    speechSynthesis.cancel();
-    setIsSpeaking(false);
+    stopSpeaking();
   
     try {
       recognitionRef.current.start();
@@ -543,51 +539,169 @@ setIsLoading(true);
       .join(". ");
   };
 
-  const speak = (text: string) => {
+  const chunkText = (text: string, maxLength = 180) => {
+    const words = text.split(" ");
+    const chunks: string[] = [];
+    let current = "";
+  
+    for (const word of words) {
+      if ((current + " " + word).length > maxLength) {
+        chunks.push(current.trim());
+        current = word;
+      } else {
+        current += " " + word;
+      }
+    }
+  
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+  };
+  
+  const isTeluguText = (text: string) => /[\u0C00-\u0C7F]/.test(text);
+
+  const VOWEL_SIGNS: Record<string, string> = {
+    "ా": "aa", "ి": "i", "ీ": "ee",
+    "ు": "u", "ూ": "oo",
+    "ె": "e", "ే": "ae",
+    "ై": "ai",
+    "ొ": "o", "ో": "oa",
+    "ౌ": "au",
+  };
+  
+  const CONSONANTS: Record<string, string> = {
+    "క": "k","ఖ": "kh","గ": "g","ఘ": "gh","ఙ": "ng",
+    "చ": "ch","ఛ": "chh","జ": "j","ఝ": "jh","ఞ": "ny",
+    "ట": "t","ఠ": "th","డ": "d","ఢ": "dh","ణ": "n",
+    "త": "t","థ": "th","ద": "d","ధ": "dh","న": "n",
+    "ప": "p","ఫ": "ph","బ": "b","భ": "bh","మ": "m",
+    "య": "y","ర": "r","ల": "l","వ": "v",
+    "శ": "sh","ష": "sh","స": "s","హ": "h",
+  };
+  
+  const INDEPENDENT_VOWELS: Record<string, string> = {
+    "అ": "a","ఆ": "aa","ఇ": "i","ఈ": "ee",
+    "ఉ": "u","ఊ": "oo","ఎ": "e","ఏ": "ae",
+    "ఐ": "ai","ఒ": "o","ఓ": "oa","ఔ": "au",
+  };
+  
+  const transliterateTeluguToEnglish = (text: string) => {
+    let result = "";
+  
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+      const next2 = text[i + 2];
+  
+      // Independent vowel
+      if (INDEPENDENT_VOWELS[ch]) {
+        result += INDEPENDENT_VOWELS[ch];
+        continue;
+      }
+  
+      // Handle clusters like క్ర, త్ర, శ్ర
+      if (CONSONANTS[ch] && next === "్" && next2 && CONSONANTS[next2]) {
+        result += CONSONANTS[ch] + CONSONANTS[next2];
+        i += 2;
+        continue;
+      }
+  
+      // Consonant
+      if (CONSONANTS[ch]) {
+        const base = CONSONANTS[ch];
+  
+        if (next && VOWEL_SIGNS[next]) {
+          result += base + VOWEL_SIGNS[next];
+          i++;
+        } else if (next === "్") {
+          result += base;
+          i++;
+        } else {
+          result += base + "a"; // implicit vowel
+        }
+  
+        continue;
+      }
+  
+      result += ch;
+    }
+  
+    return result;
+  };
+  
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const stopSpeaking = () => {
+    isCancelledRef.current = true;
+  
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+  
+    setIsSpeaking(false);
+  };
+
+  const isCancelledRef = useRef(false);
+
+
+  
+  const speak = async (text: string) => {
     if (!text) return;
   
-    // 🛑 kill any ongoing speech
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-      speechSynthesis.cancel();
-    }
+    stopSpeaking();
+    isCancelledRef.current = false;
   
-    const utterance = new SpeechSynthesisUtterance(text);
+    const chunks = chunkText(text, 200);
   
-    const voices = speechSynthesis.getVoices();
+    setIsSpeaking(true);
   
-    // 🔍 Find Telugu voice
-    const teluguVoice = voices.find(
-      v =>
-        v.lang?.toLowerCase().includes("te") ||
-        v.name?.toLowerCase().includes("telugu")
-    );
+    try {
+      for (const chunk of chunks) {
+        if (isCancelledRef.current) break;
   
-    // 🔍 Find English fallback
-    const englishVoice = voices.find(
-      v => v.lang?.toLowerCase().includes("en")
-    );
+        const res = await fetch("/api/google-tts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: chunk,
+            lang: modelLanguageRef.current === "TE" ? "te-IN" : "en-US",
+          }),
+        });
   
-    if (language === "TE") {
-      if (teluguVoice) {
-        utterance.voice = teluguVoice;
-        utterance.lang = teluguVoice.lang;
-      } else {
-        // ⚠️ HARD fallback (don't pretend Telugu exists)
-        utterance.voice = englishVoice || voices[0];
-        utterance.lang = "en-US";
+        if (!res.ok) throw new Error("TTS request failed");
   
-        console.warn("⚠️ No Telugu voice found. Falling back to English voice.");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (isCancelledRef.current) {
+  URL.revokeObjectURL(url);
+  return;
+}
+  
+        const audio = new Audio(url);
+        currentAudioRef.current = audio;
+
+  
+        await new Promise<void>((resolve, reject) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            resolve();
+          };
+        
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject();
+          };
+        
+          audio.play().catch(reject);
+        });
       }
-    } else {
-      utterance.voice = englishVoice || voices[0];
-      utterance.lang = "en-US";
+    } catch (err) {
+      console.error("TTS failed:", err);
+    } finally {
+      setIsSpeaking(false);
     }
-  
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-  
-    speechSynthesis.speak(utterance);
   };
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1222,7 +1336,7 @@ setIsLoading(true);
         typeof sec.content === "string" &&
         /god|jesus|christ|lord|sin|grace|faith|salvation|holy spirit/i.test(sec.content);
   
-      return hasScripture && hasTheology;
+        return hasScripture || hasTheology;
     });
   };
 
@@ -1235,8 +1349,8 @@ setIsLoading(true);
     if (isLoading) return;
 
     // 🛑 HARD STOP any ongoing speech
-    speechSynthesis.cancel();
-    setIsSpeaking(false);
+    stopSpeaking();
+
     
     setFollowUpQs([]);
   
@@ -1302,7 +1416,7 @@ setIsLoading(true);
       Rules:
       - Return ONLY JSON inside <json> tags
       - No extra text outside JSON
-      - Each section MUST include at least one scripture reference
+      - Each section SHOULD include at least one scripture reference if possible
       - No markdown
       - No explanations outside JSON
       `,
@@ -1359,7 +1473,6 @@ if (!parsed.sections || parsed.sections.length === 0) {
       ? "ఈ ప్రశ్న బైబిల్ పరిధిలో లేదు"
       : "Out of Biblical scope"
   );
-
   return;
 }
 
@@ -1372,31 +1485,35 @@ if (!isBibleAnswer(parsed)) {
       ? "సమాధానం బైబిల్ ఆధారంగా లేదు"
       : "Response is not Bible-based"
   );
-
   return;
 }
 
-      const botMessage: Message = {
-        id: crypto.randomUUID(),
-        sender: "bot",
-        answer: parsed,
-        sources: response.sources,
-      };
+// ✅ ONLY SUCCESS PATH CONTINUES
+const botMessage: Message = {
+  id: crypto.randomUUID(),
+  sender: "bot",
+  answer: parsed,
+  sources: response.sources,
+};
 
 
+setIsLoading(false);
 
+if (lastInputWasVoiceRef.current) {
+  const firstSection = parsed.sections[0];
 
-      setMessages(prev => [...prev, botMessage].slice(-50));
+  if (firstSection) {
+    const shortContent = firstSection.content.split(".").slice(0, 2).join(".");
+    const speechText = `${firstSection.heading}. ${shortContent}`;
 
+    speak(speechText);
+  }
 
-      if (lastInputWasVoiceRef.current) {
-        const speechText = extractSpeechText(parsed);
-        speak(speechText);
-      
-        // ✅ prevent leakage
-        lastInputWasVoiceRef.current = false;
-      }
-      // generate follow-ups using the same model language
+  lastInputWasVoiceRef.current = false;
+}
+
+setMessages(prev => [...prev, botMessage].slice(-50));
+
       try {
         const aiQs = await generateAIFollowUps(
           parsed,
@@ -1459,8 +1576,7 @@ if (!isBibleAnswer(parsed)) {
         id="tour-chatbot-fab"
         ref={toggleButtonRef}
         onClick={() => {
-          speechSynthesis.cancel(); // 🛑 stop voice when closing
-          setIsSpeaking(false);
+          stopSpeaking();
           onToggle();
         }}
 
@@ -1535,8 +1651,7 @@ text-slate-900 dark:text-slate-200
 
               <button
                 onClick={() => {
-                  speechSynthesis.cancel();
-                  setIsSpeaking(false);
+                  stopSpeaking();
                   onToggle();
                 }}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors"
@@ -1764,8 +1879,7 @@ onClick={() => {
     recognitionRef.current?.stop();
     setIsListening(false);
   } else {
-    speechSynthesis.cancel();
-    setIsSpeaking(false);
+    stopSpeaking();
 
     try {
       recognitionRef.current?.start();
@@ -1817,8 +1931,6 @@ className={`
     type="text"
     value={input}
     onChange={(e) => {
-      speechSynthesis.cancel();
-      setIsSpeaking(false);
       setInput(e.target.value);
     }}
     onKeyDown={(e) => e.key === "Enter" && handleSend(undefined, "text")}
@@ -1835,15 +1947,15 @@ className={`
   />
 
 <button
-  onClick={() => {
-    if (isSpeaking) {
-      speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
+onClick={() => {
+  // ALWAYS stop first
+  if (isSpeaking) {
+    stopSpeaking();
+  }
   
-    handleSend(undefined, "text");
-  }}
+  handleSend(undefined, "text");
+
+}}
   disabled={isLoading}
   className={`
     absolute right-2 top-1/2 -translate-y-1/2
