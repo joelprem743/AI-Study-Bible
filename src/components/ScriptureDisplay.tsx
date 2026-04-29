@@ -1001,18 +1001,6 @@ opacity-70 hover:opacity-100
                 
               >
 
-<button
-  onClick={(e) => {
-    e.stopPropagation(); // prevent verse click interference
-
-    play({
-      text: resolveText(v, englishVersion),
-      lang: englishVersion === TELUGU_VERSION_KEY ? "TE" : "EN",
-    });
-  }}
->
-  🔊
-</button>
 
 
 <span className="text-[13px] sm:text-[14px] font-semibold text-gray-500 dark:text-gray-400 mr-2">
