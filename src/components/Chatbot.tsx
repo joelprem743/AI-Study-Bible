@@ -539,7 +539,8 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   
       // 🔥 ADD SCRIPTURES READING
       for (const ref of sec.scriptures || []) {
-        fullText += `From ${ref}. `;
+        const spokenRef = formatReferenceForSpeech(ref);
+        fullText += `From ${spokenRef}. `;
   
         const verseText = await loadReferenceText(ref);
   
@@ -664,14 +665,14 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     stopSpeaking();
     isCancelledRef.current = false;
   
-    const chunks = chunkText(text, 200);
-  
+    const chunks = chunkText(text, 300);
     setIsSpeaking(true);
   
     try {
-      for (const chunk of chunks) {
-        if (isCancelledRef.current) break;
+      // ✅ STEP 1: fetch all audio first
+      const audioUrls: string[] = [];
   
+      for (const chunk of chunks) {
         const res = await fetch("/api/google-tts", {
           method: "POST",
           headers: {
@@ -683,35 +684,31 @@ export const Chatbot: React.FC<ChatbotProps> = ({
           }),
         });
   
-        if (!res.ok) throw new Error("TTS request failed");
+        if (!res.ok) throw new Error("TTS failed");
   
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        if (isCancelledRef.current) {
-  URL.revokeObjectURL(url);
-  return;
-}
+        audioUrls.push(url);
+      }
+  
+      // ✅ STEP 2: play without gaps
+      for (const url of audioUrls) {
+        if (isCancelledRef.current) break;
   
         const audio = new Audio(url);
         currentAudioRef.current = audio;
-
   
         await new Promise<void>((resolve, reject) => {
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            resolve();
-          };
-        
-          audio.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject();
-          };
-        
+          audio.onended = () => resolve();   // ✅ FIX
+          audio.onerror = () => reject();    // ✅ FIX
           audio.play().catch(reject);
         });
+  
+        URL.revokeObjectURL(url);
       }
+  
     } catch (err) {
-      console.error("TTS failed:", err);
+      console.error(err);
     } finally {
       setIsSpeaking(false);
     }
@@ -1341,7 +1338,22 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   };
 
 
-
+  const formatReferenceForSpeech = (ref: string) => {
+    const match = ref.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
+  
+    if (!match) return ref;
+  
+    const book = match[1];
+    const chapter = match[2];
+    const verseStart = match[3];
+    const verseEnd = match[4];
+  
+    if (verseEnd) {
+      return `${book} chapter ${chapter} verses ${verseStart} to ${verseEnd}`;
+    }
+  
+    return `${book} chapter ${chapter} verse ${verseStart}`;
+  };
 
 
   const buildContextualInput = (input: string) => {

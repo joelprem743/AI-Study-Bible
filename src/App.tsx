@@ -1188,7 +1188,7 @@
                     <div className="flex items-center gap-1 whitespace-nowrap">
 
                     <span className="
-  text-base md:text-2xl font-bold text-[#f1e3b0] leading-none
+  text-base md:text-2xl font-bold text-white leading-none
   hover:text-[#ffd700]transition-colors
 ">
                         Bible Companion
