@@ -156,7 +156,7 @@ src/
     supabaseClient.ts
     dailyVerseService.ts
     bibleVersesService.ts
-
+```
 ---
 
 
