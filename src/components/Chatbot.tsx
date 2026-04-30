@@ -526,17 +526,30 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     setIsListening(false);
   };
   
-  const extractSpeechText = (answer: ChatbotAnswer) => {
-    return answer.sections
-      .map(sec => {
-        const clean = sec.content
-          .replace(/\n/g, " ")
-          .replace(/[-•]\s*/g, "") // remove bullet markers
-          .trim();
+  const extractSpeechWithScriptures = async (answer: ChatbotAnswer) => {
+    let fullText = "";
   
-        return `${sec.heading}. ${clean}`;
-      })
-      .join(". ");
+    for (const sec of answer.sections) {
+      const clean = sec.content
+        .replace(/\n/g, " ")
+        .replace(/[-•]\s*/g, "")
+        .trim();
+  
+      fullText += `${sec.heading}. ${clean}. `;
+  
+      // 🔥 ADD SCRIPTURES READING
+      for (const ref of sec.scriptures || []) {
+        fullText += `From ${ref}. `;
+  
+        const verseText = await loadReferenceText(ref);
+  
+        if (verseText) {
+          fullText += `${verseText}. `;
+        }
+      }
+    }
+  
+    return fullText;
   };
 
   const chunkText = (text: string, maxLength = 180) => {
@@ -1190,7 +1203,10 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     const text = normalizePlainText(raw);
 
     // Split on blank lines before Title-like lines
-    const blocks = text.split(/\n{2,}(?=[A-Z][^\n]{0,80}\n)/);
+    const blocks =
+  text.split(/\n{2,}/).length > 1
+    ? text.split(/\n{2,}/)
+    : text.split(/(?<=[.!?])\s+(?=[A-Z])/);
 
     return blocks
       .map((block, i) => {
@@ -1206,6 +1222,41 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       .filter(Boolean) as ChatbotAnswer["sections"];
   };
 
+
+  const forceSplitIntoSections = (sections: ChatbotAnswer["sections"]) => {
+    const fullText = sections.map(s => s.content).join("\n");
+  
+    if (!fullText.trim()) {
+      return [
+        { heading: "Explanation", content: "", scriptures: [] },
+        { heading: "Meaning", content: "", scriptures: [] },
+        { heading: "Application", content: "", scriptures: [] },
+      ];
+    }
+  
+    const sentences = fullText.split(/(?<=[.!?])\s+/);
+  
+    const chunkSize = Math.ceil(sentences.length / 3);
+  
+    const newSections: ChatbotAnswer["sections"] = [];
+  
+    for (let i = 0; i < 3; i++) {
+      const chunk = sentences
+        .slice(i * chunkSize, (i + 1) * chunkSize)
+        .join(" ")
+        .trim();
+  
+      if (!chunk) continue;
+  
+      newSections.push({
+        heading: `Section ${i + 1}`,
+        content: chunk,
+        scriptures: [],
+      });
+    }
+  
+    return newSections.length ? newSections : sections;
+  };
 
 
   const handleClickReference = async (reference: string) => {
@@ -1391,6 +1442,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       
       If outside domain → refuse immediately.
       `;
+
+      const effectiveDepth =
+        source === "voice" ? "DEEP" : answerDepth;
       
       const response = await sendMessageToLlama(
         `${strictInstruction}
@@ -1416,14 +1470,19 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       Rules:
       - Return ONLY JSON inside <json> tags
       - No extra text outside JSON
-      - Each section SHOULD include at least one scripture reference if possible
+      STRICT STRUCTURE RULES:
+      - You MUST return at least 3 sections
+      - Each section MUST have a unique heading
+      - Each section MUST include at least one scripture reference
+      - Do NOT merge all content into one section
+      - Do NOT return a single section
       - No markdown
       - No explanations outside JSON
       `,
 
         [...messagesRef.current, userMessage],
         currentModelLang,
-        answerDepth
+        effectiveDepth
       );
 
 
@@ -1437,7 +1496,11 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       
       const attempt = safeJsonParse<ChatbotAnswer>(repaired);
       
-      if (attempt.ok && Array.isArray(attempt.value.sections)) {
+      if (
+        attempt.ok &&
+        Array.isArray(attempt.value.sections) &&
+        attempt.value.sections.length >= 3
+      ) {
         parsed = attempt.value;
       } else {
         parsed = {
@@ -1461,6 +1524,15 @@ export const Chatbot: React.FC<ChatbotProps> = ({
             : "",
         scriptures: Array.isArray(sec.scriptures) ? sec.scriptures : [],
       }));
+
+      // 🔥 HARD ENFORCEMENT: minimum 3 sections
+if (parsed.sections.length < 3) {
+  parsed.sections = forceSplitIntoSections(parsed.sections);
+}
+
+      if (!parsed.sections || parsed.sections.length < 3) {
+        parsed.sections = forceSplitIntoSections(parsed.sections || []);
+      }
 
       // 🚫 FINAL OUTPUT GUARD (ANTI-ESCAPE)
 // 🚫 HARD DOMAIN ENFORCEMENT
@@ -1500,14 +1572,10 @@ const botMessage: Message = {
 setIsLoading(false);
 
 if (lastInputWasVoiceRef.current) {
-  const firstSection = parsed.sections[0];
-
-  if (firstSection) {
-    const shortContent = firstSection.content.split(".").slice(0, 2).join(".");
-    const speechText = `${firstSection.heading}. ${shortContent}`;
-
+  (async () => {
+    const speechText = await extractSpeechWithScriptures(parsed);
     speak(speechText);
-  }
+  })();
 
   lastInputWasVoiceRef.current = false;
 }
