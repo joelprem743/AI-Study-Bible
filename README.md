@@ -183,7 +183,7 @@ VITE_GEMINI_API_KEY=your_ai_key
 
 If AI keys are missing, the Bible reading features can still work, but AI features may fail.
 
-##✅ Supported Bible Versions
+✅ Supported Bible Versions
 
 Example versions included in the UI:
 
@@ -206,7 +206,7 @@ Example versions included in the UI:
 .Aramaic Bible (Plain English - NT)
 
 
-##👤 Author
+👤 Author
 
 Built by Joel Prem Tej
 GitHub: https://github.com/joelprem743
