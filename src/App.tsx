@@ -1155,12 +1155,12 @@
 
                 {/* HEADER - unchanged layout; overlay search will cover it on mobile when open */}
                 <header className="
-        bg-slate-900 dark:bg-slate-950
-        px-3 py-2 md:px-4 md:py-3
-        shadow-md z-40
-        border-b border-white/10
-        flex items-center justify-between
-      ">
+  bg-gradient-to-b from-[#1a2a44] via-[#142033] to-[#0b1220]
+  px-3 py-2 md:px-4 md:py-3
+  shadow-md z-40
+  border-b border-[#d4af37]/40
+  flex items-center justify-between
+">
 
                   {/* Left: Logo + Title (single source of truth) */}
                   <button
@@ -1177,7 +1177,7 @@
           active:scale-[0.98]
         "
                   >
-                    <div className="w-8 h-8 shrink-0">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-[#0b1220] p-1">
                       <img
                         src="/logo.png"
                         alt="Bible Companion Logo"
@@ -1187,14 +1187,14 @@
 
                     <div className="flex items-center gap-1 whitespace-nowrap">
 
-                      <span className="
-            text-base md:text-2xl font-bold text-white leading-none
-            hover:text-blue-400 transition-colors
-          ">
+                    <span className="
+  text-base md:text-2xl font-bold text-[#f1e3b0] leading-none
+  hover:text-[#ffd700]transition-colors
+">
                         Bible Companion
                       </span>
 
-                      <span className="hidden sm:inline text-xs md:text-sm text-slate-300">
+                      <span className="hidden sm:inline text-xs md:text-sm text-[#d4af37]/80">
                         by Joel Prem
                       </span>
 
@@ -1241,7 +1241,7 @@
         shadow-sm
         hover:bg-white/15
         hover:border-white/15
-        hover:shadow-[0_0_10px_rgba(59,130,246,0.35)]
+        hover:shadow-[0_0_10px_rgba(212,175,55,0.4)]
         transition-all duration-150
       "
 
@@ -1287,7 +1287,7 @@
                               className="
         w-10 h-10 flex items-center justify-center
         rounded-2xl
-        bg-gradient-to-r from-blue-600 to-indigo-600
+        bg-gradient-to-r from-[#d4af37] to-[#b8962e]
         text-white
         shadow-md
         hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
@@ -1319,7 +1319,6 @@
                         </div>
                       )}
 
-                      {/* MOBILE: fixed overlay that covers header/title when search is open */}
                       {/* MOBILE SEARCH OVERLAY */}
                       {searchOpen && (
                         <div
@@ -1366,7 +1365,7 @@
                               type="submit"
                               className="
         w-10 h-10 flex items-center justify-center rounded-lg 
-        bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md
+        bg-gradient-to-r from-[#d4af37] to-[#b8962e] text-white shadow-md
         hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
         dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
       "
@@ -1607,8 +1606,6 @@
                       englishVersion={englishVersionForLogic}
                       onNavigate={navigateTo}
                     />
-
-
                   ) : (
                     <>
                       {/* LEFT: Navigation (fixed/sticky) + Scripture (scrollable) */}
@@ -1673,7 +1670,7 @@
 
       <div className="w-full max-w-md h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
         <div
-          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-200"
+          className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8962e] transition-all duration-200"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
@@ -1708,7 +1705,7 @@
             w-10 h-10
             flex items-center justify-center
             rounded-full
-            bg-gradient-to-r from-blue-600 to-indigo-600
+            bg-gradient-to-r from-[#d4af37] to-[#b8962e]
             text-white
             shadow-lg
             hover:scale-105 
@@ -1770,7 +1767,7 @@
                       {/* RIGHT PANEL */}
                       <div className="
         w-full md:w-1/3 hidden md:block
-        bg-white dark:bg-slate-900
+        bg-white dark:bg-[#0b1220]
         border-l border-slate-200 dark:border-white/10
         overflow-y-auto
       ">
