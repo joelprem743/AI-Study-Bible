@@ -23,7 +23,7 @@ app.post("/api/tts", async (req, res) => {
     return res.status(400).send("Missing text");
   }
 
-  console.log("🔊 TTS request:", text.slice(0, 50));
+
 
   try {
     const formattedText = text
@@ -50,10 +50,7 @@ app.post("/api/tts", async (req, res) => {
   });
 
     const contentType = response.headers["content-type"] || "";
-    console.log("CONTENT TYPE:", contentType);  
-    console.log("STATUS:", response.status);
-    console.log("TYPE:", contentType);
-    console.log("RESPONSE SIZE:", response.data.length);
+
 
     // ❌ Request failed
     if (response.status !== 200) {
@@ -106,7 +103,7 @@ app.post("/api/tts", async (req, res) => {
           return res.status(500).send("Invalid TTS response");
         }
       
-        console.log("✅ Base64 audio extracted (robust)");
+
       
         const audioBuffer = Buffer.from(base64, "base64");
       
@@ -115,7 +112,7 @@ app.post("/api/tts", async (req, res) => {
       }
 
     // ✅ CASE 2: Raw audio
-    console.log("✅ Direct audio stream");
+
 
     res.set("Content-Type", "audio/mpeg");
     res.send(response.data);
@@ -127,5 +124,5 @@ app.post("/api/tts", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 TTS server running at http://localhost:${PORT}`);
+
 });

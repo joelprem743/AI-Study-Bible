@@ -19,6 +19,7 @@ interface ScriptureDisplayProps {
   bookName: string;
   chapterNum: number;
   verses: Verse[];
+  playingVerse?: number | null;
   isLoading: boolean;
   error: string | null;
   englishVersion: string;
@@ -56,7 +57,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   verses,
   isLoading,
   error,
-
+  playingVerse,
   englishVersion,
   studyMode,
   leftVersion,
@@ -121,6 +122,7 @@ export const ScriptureDisplay: React.FC<ScriptureDisplayProps> = ({
   
   // Refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoCenteredVerse = useRef<number | null>(null);
   const scrollTimerRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const accumulatedScrollRef = useRef(0);
@@ -273,6 +275,32 @@ const { play, stop } = useAudio();
   }, [selectedVerseRef, bookName, chapterNum, verses]);
 
 
+
+  useEffect(() => {
+    if (playingVerse == null) return;
+  
+    // don't repeatedly scroll to the same verse
+    if (lastAutoCenteredVerse.current === playingVerse) return;
+    lastAutoCenteredVerse.current = playingVerse;
+  
+    const container = scrollRef.current;
+    const verseEl = document.getElementById(`verse-${playingVerse}`);
+  
+    if (!container || !verseEl) return;
+  
+    const containerRect = container.getBoundingClientRect();
+    const verseRect = verseEl.getBoundingClientRect();
+  
+    const isAbove = verseRect.top < containerRect.top + 20;
+    const isBelow = verseRect.bottom > containerRect.bottom - 20;
+  
+    if (isAbove || isBelow) {
+      verseEl.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [playingVerse]);
 
 
   // Scroll handler
@@ -836,6 +864,7 @@ const handleAddToNotes = useCallback(() => {
   className="
   relative h-full w-full overflow-y-auto overflow-x-hidden
   p-2 md:p-3
+  pb-12 md:pb-8
   bg-slate-50 dark:bg-[#0B0F14]
 "
 
@@ -960,6 +989,16 @@ opacity-70 hover:opacity-100
       >
       
           {verses.map((v) => {
+            const isPlayingVerse =
+            Number(playingVerse) === Number(v.verse);
+            // if (v.verse === 1) {
+            //   console.log(
+            //     "playingVerse =",
+            //     playingVerse,
+            //     "type =",
+            //     typeof playingVerse
+            //   );
+            // }
             const isSel =
               selectedVerseRef?.verse === v.verse &&
               selectedVerseRef?.chapter === chapterNum &&
@@ -992,8 +1031,8 @@ opacity-70 hover:opacity-100
                   ${
                     isMultiSelected
                       ? "border-blue-600 bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500"
-                      : isSel
-                      ? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/30"
+                      : isSel || isPlayingVerse
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-400"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
                   ${getHighlightClass(effectiveHighlight)}
@@ -1052,9 +1091,12 @@ opacity-70 hover:opacity-100
       
           {verses.map((v) => {
             const isSel =
+            
               selectedVerseRef?.verse === v.verse &&
               selectedVerseRef?.chapter === chapterNum &&
               !isSelectionMode;
+              const isPlayingVerse =
+  Number(playingVerse) === Number(v.verse);
             const isMultiSelected = isSelectionMode && selectedVerses.has(v.verse);
             const baseHighlight = highlights[v.verse];
             const effectiveHighlight =
@@ -1083,8 +1125,8 @@ opacity-70 hover:opacity-100
                   ${
                     isMultiSelected
                       ? "border-blue-600 bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500"
-                      : isSel
-                      ? "border-blue-500/50 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/40"
+                      : (isSel || isPlayingVerse)
+? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500"
                       : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40"
                   }
                   ${getHighlightClass(effectiveHighlight)}

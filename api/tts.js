@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(500).send("Server misconfigured");
   }
 
-  console.log("🔊 TTS request:", text.slice(0, 50));
+
 
   try {
     // 🔥 TEXT FORMATTING (KEEPED FROM YOUR VERSION)
@@ -47,8 +47,7 @@ export default async function handler(req, res) {
 
     const contentType = response.headers["content-type"] || "";
 
-    console.log("STATUS:", response.status);
-    console.log("TYPE:", contentType);
+
 
     // ❌ Request failed
     if (response.status !== 200) {
@@ -100,7 +99,6 @@ export default async function handler(req, res) {
         return res.status(500).send("Invalid TTS response");
       }
 
-      console.log("✅ Base64 audio extracted");
 
       const audioBuffer = Buffer.from(base64, "base64");
 
@@ -109,7 +107,7 @@ export default async function handler(req, res) {
     }
 
     // ✅ CASE 2: Raw audio
-    console.log("✅ Direct audio stream");
+
 
     res.setHeader("Content-Type", "audio/mpeg");
     return res.send(response.data);

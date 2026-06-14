@@ -800,6 +800,7 @@ export const VerseTools: React.FC<{
   verseRef: VerseReference;
   verseData: Verse;
   uiLanguage: "EN" | "TE";
+  demoTriggerShareImage?: boolean;
   bibleVersion: string;
   onClose?: () => void;
   currentHighlight?: string;
@@ -816,6 +817,7 @@ export const VerseTools: React.FC<{
   onHighlightChange,
   demoTriggerShare,
   demoTriggerHighlight,
+  demoTriggerShareImage,   
 }) => {
 
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
@@ -850,21 +852,51 @@ export const VerseTools: React.FC<{
 
 const [shareStep, setShareStep] = useState<ShareStep>(null);
 
+const demoBanner =
+  demoTriggerShare &&
+  shareStep === "background";
+
 useEffect(() => {
   if (!demoTriggerShare) return;
 
-  // Automatically select first background
-  const firstBg = NATURE_BACKGROUNDS?.[0];
+  // Guided demo starts at background selection
+  setShareStep("background");
 
-  if (firstBg) {
-    setSelectedBackground(firstBg.url);
-  }
+  // Smooth scroll to backgrounds
+  setTimeout(() => {
+    gradientSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, 300);
 
-  // Skip background picker completely
-  setShareStep("content");
+  // Pulse CTA
+  setHighlightShareCTA(true);
+
+  setTimeout(() => {
+    setHighlightShareCTA(false);
+  }, 4000);
 
 }, [demoTriggerShare]);
 
+
+useEffect(() => {
+  if (!demoTriggerShareImage) return;
+
+  // Default verse
+  setShareVerses([
+    language === "TE"
+      ? displayTeluguVerse || displayEnglishVerse
+      : displayEnglishVerse,
+  ]);
+
+  // 🔥 Use first background image for demo
+  setSelectedBackground(NATURE_BACKGROUNDS[0].url);
+  setSelectedGradient(null);
+
+  // Open image preview directly
+  setShareStep("content");
+}, [demoTriggerShareImage]);
 
 
   // Optional church attribution (VerseTools only)
@@ -1287,9 +1319,12 @@ const handleWordSelect = (idx: number) => {
           : v.text[bibleVersion] || v.text.KJV || ""
       );
   
-    setShareVerses(verses);
-  
-    setShareStep("background");
+setShareVerses(verses);
+
+setSelectedBackground(null);
+setSelectedGradient(null);
+
+setShareStep("background");
   };
 
   
@@ -3099,7 +3134,7 @@ backdrop-blur-xl
     <LoadingSkeleton />
   ) : compareVerses.length === 0 ? (
     <p className="text-sm text-gray-500">
-      No alternate versions available for this verse.
+      Please check your network and try again.
     </p>
   ) : (
     <div className="space-y-4">
@@ -3683,6 +3718,28 @@ className="
 
               {/* Gradient presets row (only when using gradient) */}
               <div ref={gradientSectionRef} className="mt-2">
+              {demoBanner && (
+  <div
+    className="
+      mb-4
+      rounded-xl
+      border
+      border-blue-200
+      bg-blue-50
+      dark:bg-blue-900/20
+      dark:border-blue-700
+      p-3
+    "
+  >
+    <div className="font-semibold text-sm">
+      ✨ Step 1 of 2
+    </div>
+
+    <div className="text-xs mt-1">
+      Choose any background to create your verse image.
+    </div>
+  </div>
+)}
                 <p className="text-xs font-semibold mb-2 text-slate-600 dark:text-slate-300">
                   {language === "TE"
                     ? "గ్రాడియెంట్ రంగులు"
@@ -3754,7 +3811,11 @@ className="
     >
       <VerseImageShare
         verseRef={verseRef}
-        verseText={displayVerseText}
+        verseText={
+          shareVerses.length
+              ? shareVerses
+              : [displayVerseText]
+      }
         language={language}
         layout={shareLayout}   // keep this
         setLayout={setShareLayout}

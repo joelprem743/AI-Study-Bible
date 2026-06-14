@@ -559,11 +559,13 @@ Close
     Select a note to add the Verse:
     <strong className="ml-1">
   {(incomingVerse.ref.displayBook || incomingVerse.ref.book)}{" "}
-  {incomingVerse.ref.chapter}:{incomingVerse.ref.verseStart +
-  (incomingVerse.ref.verseEnd
+  {incomingVerse.ref.chapter}:
+  {incomingVerse.ref.verseStart ??
+    (incomingVerse.ref as any).verse ??
+    ""}
+  {incomingVerse.ref.verseEnd
     ? `-${incomingVerse.ref.verseEnd}`
-    : "")
-}
+    : ""}
 </strong>
 
   </div>
@@ -594,6 +596,8 @@ text-slate-900 dark:text-slate-100
   onClick={async () => {
     // MODE 1: Adding a verse to an existing note
     if (incomingVerse && isAddingVerse) {
+      console.log("incomingVerse =", incomingVerse);
+      console.log("incomingVerse.ref =", incomingVerse.ref);
       await appendVerseToTopicalNote(
         note.id,
         incomingVerse.ref,
@@ -754,19 +758,21 @@ text-slate-900 dark:text-slate-100
       const bookLabel =
   incomingVerse.ref.displayBook || incomingVerse.ref.book;
 
-setDraftTitle(
-  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verseStart +
-    (incomingVerse.ref.verseEnd
-      ? `-${incomingVerse.ref.verseEnd}`
-      : "")
-  }`
-);
+  const verseNumber =
+  incomingVerse.ref.verseStart ??
+  (incomingVerse.ref as any).verse ??
+  "";
+
+const verseReference =
+  `${bookLabel} ${incomingVerse.ref.chapter}:${verseNumber}` +
+  (incomingVerse.ref.verseEnd
+    ? `-${incomingVerse.ref.verseEnd}`
+    : "");
+
+setDraftTitle(verseReference);
+
 setDraftBody(
-  `${bookLabel} ${incomingVerse.ref.chapter}:${incomingVerse.ref.verseStart +
-    (incomingVerse.ref.verseEnd
-      ? `-${incomingVerse.ref.verseEnd}`
-      : "")
-  }\n${incomingVerse.text}`
+  `${verseReference}\n${incomingVerse.text}`
 );
 
     } else {

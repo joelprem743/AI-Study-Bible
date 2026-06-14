@@ -103,22 +103,15 @@ ctx.clip();
   if (bgBitmap) {
     const imgRatio = bgBitmap.width / bgBitmap.height;
     const canvasRatio = width / height;
+
     
-    let drawWidth, drawHeight, offsetX, offsetY;
+    const scale = Math.max(width / bgBitmap.width, height / bgBitmap.height);
+
+    const drawWidth = bgBitmap.width * scale;
+    const drawHeight = bgBitmap.height * scale;
     
-    if (imgRatio > canvasRatio) {
-      // image is wider → crop sides
-      drawHeight = height;
-      drawWidth = imgRatio * height;
-      offsetX = -(drawWidth - width) / 2;
-      offsetY = 0;
-    } else {
-      // image is taller → crop top/bottom
-      drawWidth = width;
-      drawHeight = width / imgRatio;
-      offsetX = 0;
-      offsetY = -(drawHeight - height) / 2;
-    }
+    const offsetX = (width - drawWidth) / 2;
+    const offsetY = (height - drawHeight) / 2;
     
     ctx.drawImage(bgBitmap, offsetX, offsetY, drawWidth, drawHeight);
   

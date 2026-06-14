@@ -84,6 +84,7 @@
         const [continuousPlay, setContinuousPlay] = useState(false);
         const [audioProgress, setAudioProgress] = useState(0);
         const [audioDuration, setAudioDuration] = useState(0);
+        const [demoTriggerShareImage, setDemoTriggerShareImage] = useState(false);
 
         // Core state
         const [verses, setVerses] = useState<Verse[]>([]);
@@ -591,6 +592,68 @@
           window.location.hash = "#/Genesis/1";
         };
 
+        const handleTryAIExplanation = () => {
+          handleWelcomeDismiss();
+        
+          setIsHomePage(false);
+          window.location.hash = "#/John/3/16";
+        
+          setChatInitialLanguage("EN");
+          setChatInitialMessage("Explain John 3:16.");
+        
+          setTimeout(() => {
+            setIsChatOpen(true);
+          }, 300);
+        };
+        
+        const handleTryParallelStudy = () => {
+          handleWelcomeDismiss();
+        
+          setIsHomePage(false);
+          window.location.hash = "#/John/3/16";
+        
+          setStudyMode("parallel");
+          setLeftVersion("ESV");
+          setRightVersion("TELUGU_COMMUNITY_V1");
+        
+          setIsChatOpen(false);
+          setIsToolsModalOpen(false);
+        };
+        
+        const handleTryVerseImages = () => {
+          handleWelcomeDismiss();
+        
+          setIsHomePage(false);
+        
+          window.location.hash = "#/John/3/16";
+        
+          setIsChatOpen(false);
+        
+          setSelectedVerseRef({
+            book: "John",
+            chapter: 3,
+            verse: 16,
+        });
+        
+        setDemoTriggerShareImage(true);
+        
+        setTimeout(() => {
+            setIsToolsModalOpen(true);
+        }, 600);
+
+        };
+        
+        const handleTrySmartSearch = () => {
+          handleWelcomeDismiss();
+        
+          setIsHomePage(false);
+        
+          setSearchQuery("John 3:16");
+        
+          setTimeout(() => {
+            setSearchOpen(true);
+          }, 300);
+        };
 
 
         const handleGoHome = useCallback(() => {
@@ -1104,6 +1167,11 @@
         const totalVerses = verses.length;
         const currentPosition = currentVerseIndex + 1;
 
+        const playingVerseNumber =
+  isPlaying && verses[currentVerseIndex]
+    ? verses[currentVerseIndex].verse
+    : null;
+
         // Render
         return (
 
@@ -1127,6 +1195,10 @@
 
               <WelcomeScreen
                 onDismiss={handleWelcomeDismiss}
+                onTryAIExplanation={handleTryAIExplanation}
+                onTryParallelStudy={handleTryParallelStudy}
+                onTryVerseImages={handleTryVerseImages}
+                onTrySmartSearch={handleTrySmartSearch}              
                 onExplainVerse={({ book, chapter, verse, language }) => {
 
                   handleWelcomeDismiss();
@@ -1517,76 +1589,95 @@
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl text-sm">
 
                         {/* Box 1 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            AI Explanation
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Understand instantly
-                          </div>
-                        </div>
+                        <div
+  onClick={handleTryAIExplanation}
+  className="
+    cursor-pointer
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  "
+>
+  <div className="font-semibold text-slate-900 dark:text-white">
+    AI Explanation
+  </div>
+
+  <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+    Understand instantly
+  </div>
+</div>
 
                         {/* Box 2 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Telugu + English
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Side-by-side study
-                          </div>
-                        </div>
+                        <div
+  onClick={handleTryParallelStudy}
+  className="
+    cursor-pointer
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  "
+>
+  <div className="font-semibold text-slate-900 dark:text-white">
+    Telugu + English
+  </div>
+
+  <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+    Side-by-side study
+  </div>
+</div>
 
                         {/* Box 3 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Share Verse Images
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Beautiful & ready
-                          </div>
-                        </div>
+                        <div
+  onClick={handleTryVerseImages}
+  className="
+    cursor-pointer
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  "
+>
+  <div className="font-semibold text-slate-900 dark:text-white">
+    Share Verse Images
+  </div>
 
+  <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+    Beautiful & ready
+  </div>
+</div>
                         {/* Box 4 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Smart Search
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Find anything fast
-                          </div>
-                        </div>
+                        <div
+  onClick={handleTrySmartSearch}
+  className="
+    cursor-pointer
+    bg-white dark:bg-slate-900
+    border border-slate-200 dark:border-slate-700
+    rounded-xl p-4
+    shadow-sm
+    hover:shadow-md
+    hover:scale-[1.02]
+    transition-all duration-200
+  "
+>
+  <div className="font-semibold text-slate-900 dark:text-white">
+    Smart Search
+  </div>
+
+  <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+    Find anything fast
+  </div>
+</div>
 
                       </div>
 
@@ -1744,6 +1835,7 @@
                           <ScriptureDisplay
                             bookName={selectedBook}
                             chapterNum={selectedChapter}
+                            playingVerse={playingVerseNumber}
                             verses={verses}
                             isLoading={isLoadingVerses}
                             error={verseError}
@@ -1760,6 +1852,7 @@
                             readerSettings={readerSettings}
                             onHighlightVerse={handleHighlightVerse}
                             activeVerseIndex={currentVerseIndex}
+                            
                           />
                         </div>
                       </div>
@@ -1777,6 +1870,7 @@
                             verseRef={selectedVerseRef}
                             verseData={selectedVerseData}
                             uiLanguage={verseToolsLanguage}
+                            demoTriggerShareImage={demoTriggerShareImage}
                             bibleVersion={
                               verseToolsLanguage === "TE"
                                 ? "TELUGU_COMMUNITY_V1"
