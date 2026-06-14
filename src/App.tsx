@@ -636,9 +636,12 @@
         });
         
         setDemoTriggerShareImage(true);
-        
+
         setTimeout(() => {
             setIsToolsModalOpen(true);
+        
+            // ✅ Reset so it only runs once
+            setDemoTriggerShareImage(false);
         }, 600);
 
         };
@@ -1835,7 +1838,7 @@
                           <ScriptureDisplay
                             bookName={selectedBook}
                             chapterNum={selectedChapter}
-                            playingVerse={playingVerseNumber}
+                            playingVerse={playingVerseNumber} 
                             verses={verses}
                             isLoading={isLoadingVerses}
                             error={verseError}

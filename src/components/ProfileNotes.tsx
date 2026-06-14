@@ -395,11 +395,18 @@ Clear Filters
 </div>
 
 <button
-onClick={() => {
-if (editorMode === "view") onClose();
-}}
+  onClick={() => {
+    if (editorMode !== "view") {
+      setEditorMode("view");
+      setActiveNoteId(null);
+      setIsAddingVerse(false);
+      return;
+    }
+
+    onClose();
+  }}
 >
-Close
+  Close
 </button>
 
 </div>
