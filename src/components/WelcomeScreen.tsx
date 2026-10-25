@@ -18,18 +18,14 @@
 
   interface WelcomeScreenProps {
     onDismiss: () => void;
-  
+
+    // ✅ NEW: Used to open chatbot + auto explain this verse
     onExplainVerse: (payload: {
       book: string;
       chapter: number;
       verse: number;
       language: "EN" | "TE";
     }) => void;
-  
-    onTryAIExplanation: () => void;
-    onTryParallelStudy: () => void;
-    onTryVerseImages: () => void;
-    onTrySmartSearch: () => void;
   }
 
   type UILang = "EN" | "TE";
@@ -135,13 +131,10 @@ function getDynamicVerseBackground(
     }
     return book;
   };
+
   export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onDismiss,
     onExplainVerse,
-    onTryAIExplanation,
-    onTryParallelStudy,
-    onTryVerseImages,
-    onTrySmartSearch,
   }) => {
     const [language, setLanguage] = useState<UILang>("EN");
     const [refreshKey, setRefreshKey] = useState(0);
@@ -151,8 +144,6 @@ function getDynamicVerseBackground(
     const [loadingDevotional, setLoadingDevotional] = useState(true);
 
     type BgMode = "none" | "gradient" | "image";
-
-    const [showBottomFade, setShowBottomFade] = useState(true);
 
     const [bgMode, setBgMode] = useState<BgMode>("none");
 
@@ -532,30 +523,21 @@ overflow-hidden
   </p>
 </div>
 
-{/* ✅ Body scroll area */}
-<div className="relative flex-1 min-h-0 overflow-hidden">
+          {/* ✅ Body scroll area */}
+          <div className="
+relative
+flex-1 min-h-0
+p-4 sm:p-5
+pb-6
+overflow-y-auto
 
-<div
-  className="
-      h-full
-      overflow-y-auto
-      p-4 sm:p-5
-      pb-10
-      bg-gradient-to-br
-      from-white/30 via-slate-100/20 to-slate-200/30
-      dark:bg-white/[0.02]
-      backdrop-blur-xl
-      space-y-4
-  "
-  onScroll={(e) => {
-    const el = e.currentTarget;
+bg-gradient-to-br
+from-white/30 via-slate-100/20 to-slate-200/30
+dark:bg-white/[0.02]
 
-    const atBottom =
-      el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
-
-    setShowBottomFade(!atBottom);
-  }}
->
+backdrop-blur-xl
+space-y-4
+">
   
             
 {/* Verse Card */}
@@ -728,30 +710,14 @@ transition-all duration-300">
 
 {/* ✅ Buttons (scroll with content) */}
 <div className="pt-2">
-  <div className="flex gap-3">
-
+  <div className="flex flex-col sm:flex-row gap-3 justify-center">
     <button
       onClick={onDismiss}
       className="
-        flex-1
-        h-11
-        px-3
-        flex items-center justify-center
-
-        bg-blue-600
-        text-white
-
-        text-sm
-        font-semibold
-        leading-none
-
-        rounded-xl
-        shadow-md
-
-        hover:bg-blue-700
-        transition
-
-        whitespace-nowrap
+        w-full px-8 py-4
+        bg-blue-600 text-white font-semibold
+        rounded-2xl shadow-md
+        hover:bg-blue-700 transition
       "
     >
       {language === "TE" ? "బైబిల్ తెరవండి" : "Open Bible"}
@@ -761,66 +727,24 @@ transition-all duration-300">
       onClick={handleExplainVerse}
       disabled={!verseRow}
       className="
-        flex-1
-        h-11
-        px-3
-        flex items-center justify-center
-
-        bg-white/80
-        dark:bg-white/[0.04]
-        backdrop-blur-md
-
-        text-slate-900
-        dark:text-white
-
-        text-sm
-        font-semibold
-        leading-none
-
-        rounded-xl
-        border border-slate-200
-        dark:border-slate-700
-
-        hover:bg-slate-50
-        dark:hover:bg-slate-800
-
+        w-full px-8 py-4
+        bg-white/80 dark:bg-white/[0.04]
+backdrop-blur-md
+        text-slate-900 dark:text-white
+        font-semibold rounded-2xl
+        border border-slate-200 dark:border-slate-700
+        hover:bg-slate-50 dark:hover:bg-slate-800
         transition
-        disabled:opacity-50
-        disabled:cursor-not-allowed
-
-        whitespace-nowrap
+        disabled:opacity-50 disabled:cursor-not-allowed
       "
     >
-      {language === "TE"
-        ? "ఈ వాక్యం వివరించండి"
-        : "Explain this verse"}
+      {language === "TE" ? "ఈ వాక్యం వివరించండి" : "Explain this verse"}
     </button>
-
   </div>
 </div>
 
-        </div>
-        </div>
 
-{/* Bottom cinematic fade */}
-{showBottomFade && (
-  <div
-    className="
-      pointer-events-none
-      absolute
-      inset-x-0
-      bottom-0
-      h-32
-      transition-opacity
-      duration-300
-    "
-    style={{
-      background:
-        "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 35%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0) 100%)",
-    }}
-  />
-)}
-
+        </div>
         </div>
 {/* STEP 2 — Verse / Reflection selector */}
 {shareStep === "content" && verseRow && (
@@ -971,7 +895,7 @@ transition-all duration-300">
   <button
     key={bg.id}
     onClick={() => {
-
+      console.log("CLICKED BG:", bg.url);
       setBgMode("image");
       setSelectedBackground(bg.url);
       setSelectedGradient(null);
