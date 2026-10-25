@@ -1,14 +1,10 @@
+// src/components/ModalPortal.tsx
 import { createPortal } from "react-dom";
-import type { ReactNode } from "react";
 
-interface ModalPortalProps {
-  children: ReactNode;
-}
-
-export default function ModalPortal({ children }: ModalPortalProps) {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
+export default function ModalPortal({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return createPortal(children, document.body);
 }
