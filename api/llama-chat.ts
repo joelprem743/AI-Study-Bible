@@ -134,7 +134,7 @@ export default async function handler(req: any, res: any) {
   let completion: any;
   try {
     completion = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+      model: "llama-3.3-70b-versatile",
       messages,
       temperature: 0.2,
     });
