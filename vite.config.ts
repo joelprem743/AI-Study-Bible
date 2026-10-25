@@ -6,6 +6,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
 
   return {
+    build: {
+      sourcemap: true,
+    },
     server: {
       port: 3000,
       strictPort: true,        // 🔴 DO NOT allow port hopping
