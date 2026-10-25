@@ -168,8 +168,7 @@ const BotMessage: React.FC<{
         return acc;
       }, {} as Record<number, boolean>)
   );
-  console.log("BOTMESSAGE RENDER", answer);
-  console.log("SECTIONS", answer.sections, Array.isArray(answer.sections));
+
 
   const toggle = (i: number) =>
     setOpenSections((prev) => ({ ...prev, [i]: !prev[i] }));
@@ -673,14 +672,14 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       const audioUrls: string[] = [];
   
       for (const chunk of chunks) {
-        const res = await fetch("/api/google-tts", {
+        const res = await fetch("/api/tts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             text: chunk,
-            lang: modelLanguageRef.current === "TE" ? "te-IN" : "en-US",
+            lang: modelLanguageRef.current === "TE" ? "TE" : "EN",
           }),
         });
   
