@@ -409,7 +409,27 @@ const cache = new Map<string, string>();
    MAIN HANDLER
 ------------------------------ */
 
+// Allow the Android app (UI served from https://localhost in a WebView) to call this API.
+const APP_ORIGINS = new Set(["https://localhost", "http://localhost", "capacitor://localhost"]);
+function handleCors(req: any, res: any): boolean {
+  const origin = req.headers?.origin;
+  if (origin && APP_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "86400");
+  }
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+  return false;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handleCors(req, res)) return;
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method Not Allowed" });

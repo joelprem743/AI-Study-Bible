@@ -9,6 +9,7 @@ import {
 } from "..";
 
 import { sendMessageToLlama } from "../services/geminiService";
+import { apiUrl } from "../lib/platform";
 
 
 import ModalPortal from "./ModalPortal";
@@ -673,7 +674,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
       const audioUrls: string[] = [];
   
       for (const chunk of chunks) {
-        const res = await fetch("/api/google-tts", {
+        const res = await fetch(apiUrl("/api/google-tts"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

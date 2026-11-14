@@ -2,6 +2,7 @@
 // All AI calls now go through backend APIs; no keys on the frontend.
 
 import { VerseReference } from "..";
+import { apiUrl } from "../lib/platform";
 
 /* ============================================================
   TESTAMENT HELPER (used by VerseTools.tsx for Interlinear)
@@ -78,7 +79,7 @@ export const getVerseAnalysis = async (
       ? "historical"
       : "interlinear";
 
-  const res = await fetch("/api/verse-tools", {
+  const res = await fetch(apiUrl("/api/verse-tools"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -127,7 +128,7 @@ export const sendMessageToLlama = async (
   depth: "SHORT" | "MEDIUM" | "DEEP" = "MEDIUM"
 ) => {
 
-  const res = await fetch("/api/llama-chat", {
+  const res = await fetch(apiUrl("/api/llama-chat"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -170,7 +171,7 @@ export const sendMessageToLlama = async (
 ============================================================ */
 
 export const flashGenerate = async (prompt: string) => {
-  const res = await fetch("/api/gemini-generic", {
+  const res = await fetch(apiUrl("/api/gemini-generic"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
@@ -213,7 +214,7 @@ Rules:
 • No extra text.
 `.trim();
 
-    const res = await fetch("/api/gemini-generic", {
+    const res = await fetch(apiUrl("/api/gemini-generic"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -1,4 +1,13 @@
     //src/constants/shareBackgrounds.ts
+    import { isNativeApp } from "../lib/platform";
+
+    /**
+     * The Android app ships compressed .webp copies of the backgrounds
+     * (see scripts/optimize-android-assets.mjs); the website keeps the PNGs.
+     */
+    export const verseBgAsset = (url: string) =>
+        isNativeApp ? url.replace(/^(\/verse-bg\/.+)\.png$/i, "$1.webp") : url;
+
     export const GRADIENT_PRESETS = [
         { id: "slate", from: "#f8fafc", to: "#e5e7eb" },
         { id: "sky", from: "#e0f2fe", to: "#bae6fd" },
@@ -45,4 +54,4 @@
         { id: "36", name: "river-2", url: "/verse-bg/river-2.png" },
         { id: "37", name: "foggy-river", url: "/verse-bg/foggy-river.png" },
         { id: "38", name: "dandelions", url: "/verse-bg/dandelions.png" },
-    ];
+    ].map((bg) => ({ ...bg, url: verseBgAsset(bg.url) }));

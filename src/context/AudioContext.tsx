@@ -1,4 +1,5 @@
 import { createContext, useContext, useRef } from "react";
+import { apiUrl } from "../lib/platform";
 
 type AudioItem = {
   text: string;
@@ -40,7 +41,7 @@ const listenersRef = useRef<((p: number, d: number) => void)[]>([]);
       return cacheRef.current.get(key)!;
     }
 
-    const res = await fetch("/api/tts", {
+    const res = await fetch(apiUrl("/api/tts"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

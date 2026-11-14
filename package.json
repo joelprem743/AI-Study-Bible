@@ -7,11 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "backend": "node server/index.js"
+    "backend": "node server/index.js",
+    "android:sync": "npm run build && npx cap copy android && node scripts/optimize-android-assets.mjs",
+    "android:apk": "npm run android:sync && node scripts/build-apk.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
-    "@capacitor/cli": "^7.4.4",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.0.0",
     "@google-cloud/text-to-speech": "^6.4.0",
     "@google/genai": "^1.29.1",
@@ -41,6 +44,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@tailwindcss/vite": "^4.1.18",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.2",
@@ -49,6 +53,7 @@
     "autoprefixer": "^10.4.23",
     "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",

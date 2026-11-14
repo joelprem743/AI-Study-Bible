@@ -12,7 +12,9 @@
   import {
     GRADIENT_PRESETS,
     NATURE_BACKGROUNDS,
+    verseBgAsset,
   } from "../constants/shareBackgrounds";
+  import { buildVerseShareUrl } from "../utils/share";
 
   import ModalPortal from "./ModalPortal";
 
@@ -178,8 +180,9 @@ function getDynamicVerseBackground(
     Math.abs(hash) % NATURE_BACKGROUNDS.length
   ].url;
 }
+  // Always link to the public site (inside the app, window.location is https://localhost)
   const buildVerseUrl = (book: string, chapter: number, verse: number) =>
-    `${window.location.origin}/#/${book}/${chapter}/${verse}`;
+    buildVerseShareUrl(book, chapter, verse);
   
   const extractJsonSmart = (text: string) => {
     const sentinel = text.match(/<json>([\s\S]*?)<\/json>/i);
@@ -216,7 +219,7 @@ function getDynamicVerseBackground(
     // PRIORITY 2 — hardcoded daily override
     const today = getTodayKey();
     if (DAILY_BACKGROUND_OVERRIDE[today]) {
-      return DAILY_BACKGROUND_OVERRIDE[today];
+      return verseBgAsset(DAILY_BACKGROUND_OVERRIDE[today]);
     }
   
     // PRIORITY 3 — default dynamic system
