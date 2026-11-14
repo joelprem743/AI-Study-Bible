@@ -714,8 +714,15 @@ export const Chatbot: React.FC<ChatbotProps> = ({
     }
   };
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(scrollToBottom, [messages, followUpQs]);
+  // Block body on purpose: newer browsers make scrollIntoView() return a Promise,
+  // and an effect must return nothing (or a cleanup fn) — returning the Promise
+  // makes React crash with "destroy is not a function" and blanks the screen.
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, followUpQs]);
 
   useEffect(() => {
     if (!isOpen) return;
