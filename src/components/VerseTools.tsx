@@ -796,6 +796,104 @@ const STRONG_REF_REGEX =
 /* -------------------------
   Component
 ---------------------------*/
+/* -------------------------
+  AI SUMMARY PROMPT + OUTPUT CLEANUP
+---------------------------*/
+const buildSummaryPrompt = (
+  lang: "EN" | "TE",
+  refLabel: string,
+  verseText: string
+) => {
+  if (lang === "TE") {
+    return `
+క్రింది బైబిల్ వచనాన్ని బైబిల్ అధ్యయనం చేసే పాఠకుడికి వివరించండి.
+
+వచనం: ${refLabel}
+పాఠం: "${verseText}"
+
+పూర్తిగా సరళమైన, స్పష్టమైన తెలుగులో మాత్రమే రాయండి (ఇంగ్లీష్ వాక్యాలు వద్దు).
+ఖచ్చితంగా ఈ Markdown నిర్మాణాన్ని మాత్రమే పాటించండి:
+
+## సారాంశం
+ఈ వచనం ఏమి చెబుతుందో ఒకటి లేదా రెండు వాక్యాల్లో.
+
+## నేపథ్యం
+ఎవరు మాట్లాడుతున్నారు, ఎవరితో, ఏ పరిస్థితిలో — 2–3 వాక్యాలు.
+
+## ముఖ్యమైన అర్థం
+3–4 బుల్లెట్ పాయింట్లు. ప్రతి బుల్లెట్ **బోల్డ్ కీలక పదం**తో మొదలై, చిన్న వివరణతో ముగియాలి.
+
+## ప్రాముఖ్యత
+బైబిల్ మొత్తం సందేశంలో ఈ వచనం స్థానం — 2–3 వాక్యాలు.
+
+## అన్వయం
+నేటి జీవితానికి 2–3 ఆచరణాత్మక బుల్లెట్ పాయింట్లు.
+
+నియమాలు:
+- మొత్తం 250 పదాల లోపు.
+- చిన్న వాక్యాలు. అనవసర మాటలు, పునరావృతం వద్దు.
+- ఇతర వచనాలను పొడవుగా కోట్ చేయకండి; రిఫరెన్స్ మాత్రమే ఇవ్వండి (ఉదా: యోహాను 3:16).
+- విభాగాల బయట పరిచయం లేదా ముగింపు వాక్యాలు వద్దు. ఎమోజీలు, టేబుల్స్ వద్దు.
+`.trim();
+  }
+
+  return `
+Explain the Bible verse below for a Bible study reader.
+
+Verse: ${refLabel}
+Text: "${verseText}"
+
+Write in clear, simple English only. Use EXACTLY this Markdown structure and nothing else:
+
+## Overview
+One or two sentences on what the verse says.
+
+## Context
+2–3 sentences on who is speaking, to whom, and in what situation.
+
+## Key Meaning
+3–4 bullet points. Each bullet starts with a **bold key phrase**, then a short explanation.
+
+## Why It Matters
+2–3 sentences on the verse's place in the wider message of Scripture.
+
+## Application
+2–3 bullet points with practical steps for today.
+
+Rules:
+- Under 250 words in total.
+- Short sentences. No filler, no repetition.
+- Don't quote other verses at length; cite them as references only (e.g. John 3:16).
+- No introduction or closing remarks outside the sections. No emojis. No tables.
+`.trim();
+};
+
+/** Tidy model Markdown so it renders cleanly. */
+const cleanAiMarkdown = (raw: string): string => {
+  let s = (raw || "").replace(/\r\n/g, "\n").trim();
+
+  // Unwrap ```markdown ... ``` fences around the whole answer
+  s = s.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i, "$1").trim();
+
+  // Drop chatty preambles like "Sure! Here is the explanation:" before the first heading
+  const firstHeading = s.search(/^#{1,3}\s/m);
+  if (firstHeading > 0) {
+    const preamble = s.slice(0, firstHeading).trim();
+    if (/^(sure|here|certainly|of course|below|okay|ok)\b/i.test(preamble) || /:\s*$/.test(preamble)) {
+      s = s.slice(firstHeading);
+    }
+  }
+
+  s = s
+    .replace(/^#\s+/gm, "## ")                // top-level titles → section headings
+    .replace(/^\s*[•●▪]\s*/gm, "- ")          // odd bullet glyphs → Markdown bullets
+    .replace(/\n\s*-{3,}\s*\n(?=\s*#)/g, "\n\n") // rules right before a heading are noise
+    .replace(/^\s*END\.?\s*$/gim, "")         // stray "END." from strict prompts
+    .replace(/\n{3,}/g, "\n\n");
+
+  return s.trim();
+};
+
 export const VerseTools: React.FC<{
   verseRef: VerseReference;
   verseData: Verse;
@@ -1578,46 +1676,13 @@ setShareStep("background");
         ? `${TELUGU_BOOK_NAMES[verseRef.book] || verseRef.book} ${verseRef.chapter}:${verseRef.verse}`
         : `${verseRef.book} ${verseRef.chapter}:${verseRef.verse}`;
   
-    const langInstruction =
-      language === "TE"
-        ? "సంక్షిప్తంగా, స్పష్టంగా తెలుగులో వివరణ ఇవ్వండి."
-        : "Give a clear, concise explanation in English.";
-  
-        const prompt = `
-        Provide a deep, structured explanation of the following Bible verse.
-        
-        Requirements:
-        - Explain the verse in DETAIL
-        - Cover cultural background
-        - Explain theological meaning
-        - Explain why this verse is important in Scripture
-        - End with practical or spiritual implications
-        
-        Formatting rules (MANDATORY):
-        - Use Markdown headings with ## for section titles
-        - DO NOT write section titles as plain text
-        - Example (Telugu):
-          ## పరిచయం
-          ## సారాంశం
-          ## దైవశాస్త్ర అర్థం
-          ## ప్రాముఖ్యత
-        - Use bullet points where helpful
-        - Do NOT quote long passages from other verses
-        - Do NOT invent doctrine
-        
-        Verse Reference: ${refLabel}
-        Verse Text:
-        "${verseText}"
-        
-        Language instruction:
-        ${langInstruction}
-        `.trim();
+    const prompt = buildSummaryPrompt(language, refLabel, verseText);
         
   
         let output = "";
         try {
           const response = await sendMessageToLlama(prompt, [], language);
-          output = response.text?.trim() || "";
+          output = cleanAiMarkdown(response.text || "");
         } catch (e) {
           console.error("LLaMA summary failed", e);
           output = "";
@@ -1821,9 +1886,11 @@ setShareStep("background");
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [highlightOpen]);
   
+  // Start in the UI language (English by default). Don't reset on verse change,
+  // so a user who switched to Telugu stays in Telugu while browsing verses.
   useEffect(() => {
     setLanguage(uiLanguage);
-  }, [uiLanguage, verseRef]);
+  }, [uiLanguage]);
   
 
   useEffect(() => {
@@ -2036,7 +2103,7 @@ setShareStep("background");
       if (isAiTab(activeTab)) {
         setAnalysis(prev => ({
           ...prev,
-          [activeTab]: text && text.trim() ? text : "__EMPTY__",
+          [activeTab]: text && text.trim() ? cleanAiMarkdown(text) : "__EMPTY__",
         }));
       }
       
@@ -3465,46 +3532,96 @@ className="
         {getAiActionText(activeTab, language)}
       </button>
     </div>
+  ) : isAiTab(activeTab) && analysis[activeTab] === "__EMPTY__" ? (
+    <div className="flex flex-col items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+      <p>
+        {language === "TE"
+          ? "ఇప్పుడు సమాధానం రాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి."
+          : "No answer came back this time. Please try again."}
+      </p>
+      <button
+        onClick={handleGenerateClick}
+        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
+      >
+        {language === "TE" ? "మళ్లీ ప్రయత్నించండి" : "Try again"}
+      </button>
+    </div>
   ) : (
+    <div
+      className={`
+        not-prose space-y-4 text-[14px] leading-7
+        text-slate-700 dark:text-slate-300
+        ${isTeluguUI ? "leading-[1.95] tracking-[0.2px]" : ""}
+      `}
+    >
     <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // Process raw text nodes to make references clickable
-          text({ children }) {
-            // ReactMarkdown passes text as string, but handle all cases
-            return <>{renderNodeWithRefs(children)}</>;
-          },
           h1({ children }) {
             return (
-              <h1 className="text-xl font-bold mt-4 mb-2">
-                {renderNodeWithRefs(children)}
-              </h1>
-            );
-          },
-          h2({ children }) {
-            return (
-              <h2 className="text-lg font-bold mt-4 mb-2">
+              <h2 className="flex items-center gap-2 pt-1 text-[15px] font-semibold text-slate-900 dark:text-white">
+                <span className="h-4 w-1 rounded-full bg-blue-500" aria-hidden />
                 {renderNodeWithRefs(children)}
               </h2>
             );
           },
-
-          p({ children }) {
-            // Let ReactMarkdown handle headings via # syntax
-            // Don't auto-bold short paragraphs - too aggressive
-            return <p>{renderNodeWithRefs(children)}</p>;
+          h2({ children }) {
+            return (
+              <h2 className="flex items-center gap-2 pt-1 text-[15px] font-semibold text-slate-900 dark:text-white first:pt-0">
+                <span className="h-4 w-1 rounded-full bg-blue-500" aria-hidden />
+                {renderNodeWithRefs(children)}
+              </h2>
+            );
           },
-          
-          // Also handle list items
+          h3({ children }) {
+            return (
+              <h3 className="text-[13px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {renderNodeWithRefs(children)}
+              </h3>
+            );
+          },
+          p({ children }) {
+            return <p className="-mt-1">{renderNodeWithRefs(children)}</p>;
+          },
+          ul({ children }) {
+            return (
+              <ul className="-mt-1 space-y-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/[0.03] px-4 py-3 [&>li]:relative [&>li]:pl-4 [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:top-[0.7em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-blue-500 [&>li]:before:content-['']">
+                {children}
+              </ul>
+            );
+          },
+          ol({ children }) {
+            return (
+              <ol className="-mt-1 list-decimal space-y-2 pl-5 marker:font-semibold marker:text-blue-500">
+                {children}
+              </ol>
+            );
+          },
           li({ children }) {
             return <li>{renderNodeWithRefs(children)}</li>;
-          }
-          
+          },
+          strong({ children }) {
+            return <strong className="font-semibold text-slate-900 dark:text-white">{children}</strong>;
+          },
+          em({ children }) {
+            return <em className="text-slate-500 dark:text-slate-400">{children}</em>;
+          },
+          hr() {
+            return <hr className="border-slate-200 dark:border-white/10" />;
+          },
+          blockquote({ children }) {
+            return (
+              <blockquote className="border-l-2 border-blue-400 pl-3 italic text-slate-600 dark:text-slate-400">
+                {children}
+              </blockquote>
+            );
+          },
         }}
       >
 {isAiTab(activeTab) ? analysis[activeTab] ?? "" : ""}
 
       </ReactMarkdown>
+    </div>
     )}
   </div>
 )}

@@ -197,10 +197,6 @@
           text: string;
         } | null>(null);
 
-        const verseToolsLanguage =
-          studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1"
-            ? "TE"
-            : "EN";
 
 
         // UI
@@ -1776,12 +1772,8 @@
                           <VerseTools
                             verseRef={selectedVerseRef}
                             verseData={selectedVerseData}
-                            uiLanguage={verseToolsLanguage}
-                            bibleVersion={
-                              verseToolsLanguage === "TE"
-                                ? "TELUGU_COMMUNITY_V1"
-                                : englishVersionForLogic
-                            }
+                            uiLanguage="EN"
+                            bibleVersion={englishVersionForLogic}
                             currentHighlight={highlights[selectedVerseRef.verse] || null}
                             onHighlightChange={(color) => {
                               if (!user) {
@@ -1809,12 +1801,8 @@
                       <VerseTools
                         verseRef={selectedVerseRef}
                         verseData={selectedVerseData}
-                        uiLanguage={verseToolsLanguage}
-                        bibleVersion={
-                          verseToolsLanguage === "TE"
-                            ? "TELUGU_COMMUNITY_V1"
-                            : englishVersionForLogic
-                        }
+                        uiLanguage="EN"
+                        bibleVersion={englishVersionForLogic}
                         currentHighlight={highlights[selectedVerseRef.verse] || null}
                         onHighlightChange={(color) => {
                           if (!user) {

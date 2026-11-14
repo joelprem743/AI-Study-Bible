@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 
 /* -----------------------------
    INIT & LOW-LEVEL HELPERS
@@ -22,7 +23,7 @@ function getAi() {
   return ai;
 }
 
-async function safeGenerate(prompt: string, model = "gemini-2.5-flash-lite") {
+async function generateWithGemini(prompt: string, model = "gemini-2.5-flash-lite") {
   const aiInstance = getAi();
   const response = await aiInstance.models.generateContent({
     model,
@@ -30,6 +31,42 @@ async function safeGenerate(prompt: string, model = "gemini-2.5-flash-lite") {
     config: { temperature: 0.25 },
   });
   return (response as any)?.text?.trim?.() ?? "";
+}
+
+let groq: Groq | null = null;
+
+async function generateWithGroq(prompt: string) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY missing");
+  }
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+  const completion = await groq.chat.completions.create({
+    model: "openai/gpt-oss-120b",
+    temperature: 0.25,
+    messages: [{ role: "user", content: prompt }],
+  });
+  return completion?.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
+/**
+ * Try Gemini first; if it has no key, rejects the key, is rate-limited or
+ * returns nothing, fall back to Groq so the tab still works.
+ */
+async function safeGenerate(prompt: string) {
+  if (getApiKey()) {
+    try {
+      const text = await generateWithGemini(prompt);
+      if (text) return text;
+      console.warn("VerseTools: Gemini returned empty text, using Groq");
+    } catch (err: any) {
+      console.warn(
+        "VerseTools: Gemini failed, using Groq:",
+        String(err?.message || err).slice(0, 160)
+      );
+    }
+  }
+  return generateWithGroq(prompt);
 }
 
 /* -----------------------------
@@ -421,7 +458,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const output = await safeGenerate(prompt);
-    cache.set(key, output);
+    if (output) cache.set(key, output);
 
     return res.status(200).json({ text: output });
   } catch (err: any) {

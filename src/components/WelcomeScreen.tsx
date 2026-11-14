@@ -57,6 +57,104 @@ const classifyVerseTone = (
   return "COMFORT";
 };
 
+// -----------------------------
+// Devotional text helpers
+// -----------------------------
+const TELUGU_CHARS = /[ఀ-౿]/g;
+
+/** True when the text is written in the requested language (by script). */
+const isInLanguage = (text: string, lang: "EN" | "TE") => {
+  const letters = text.replace(/[^\p{L}]/gu, "").length;
+  if (!letters) return false;
+  const telugu = (text.match(TELUGU_CHARS) || []).length;
+  const ratio = telugu / letters;
+  return lang === "TE" ? ratio > 0.6 : ratio < 0.05;
+};
+
+/** Trim whitespace/markdown noise and keep at most `max` sentences. */
+const tidySentences = (text: string, max: number) =>
+  text
+    .replace(/[*_`#>]/g, "")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?।])\s+/)
+    .slice(0, max)
+    .join(" ")
+    .trim();
+
+/** Split stored application text into steps (one per line, or by sentence for older rows). */
+const splitSteps = (text: string): string[] => {
+  const t = text.trim();
+  if (!t) return [];
+  const byLine = t.split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  if (byLine.length > 1) return byLine;
+  return t
+    .split(/(?<=[.!?।])\s+/)
+    .map((x) => x.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter(Boolean);
+};
+
+const buildDevotionalPrompt = ({
+  language,
+  reference,
+  verseText,
+  toneRules,
+}: {
+  language: "EN" | "TE";
+  reference: string;
+  verseText: string;
+  toneRules: string;
+}) => {
+  if (language === "TE") {
+    return `
+SYSTEM:
+చెల్లుబాటు అయ్యే JSON మాత్రమే ఇవ్వండి. Markdown లేదా అదనపు వాక్యాలు వద్దు.
+
+Schema:
+{
+  "meaning": "string",
+  "application": ["string", "string", "string"]
+}
+
+వచనం:
+"${verseText}"
+రిఫరెన్స్: ${reference}
+
+నియమాలు:
+- meaning: ఈ వచనం అర్థం 2–3 సరళమైన వాక్యాల్లో.
+- application: ఈ రోజు చేయగలిగే 2–3 చిన్న, ఆచరణాత్మక అడుగులు. ప్రతి అడుగు ఒకే వాక్యం.
+- పూర్తిగా సహజమైన, సరళమైన తెలుగులో మాత్రమే రాయండి. ఇంగ్లీష్ పదాలు వద్దు.
+- "మనము, మన, మనకి, మనలో" వంటి బహువచన పదాలు మాత్రమే వాడండి.
+- "నీవు, నీ, నిన్ను, నువ్వు, నీకు" వంటి పదాలు వాడకండి.
+- ఎమోజీలు వద్దు.
+${toneRules}
+`.trim();
+  }
+
+  return `
+SYSTEM:
+Return ONLY valid JSON. No markdown. No extra text.
+
+Schema:
+{
+  "meaning": "string",
+  "application": ["string", "string", "string"]
+}
+
+Verse:
+"${verseText}"
+Reference: ${reference}
+
+Rules:
+- meaning: what the verse means, in 2–3 clear, simple sentences.
+- application: 2–3 short, practical steps for today. One sentence each, starting with a verb.
+- Write in natural, plain English only. No Telugu or other languages.
+- Speak to the reader warmly but directly. No clichés, no emojis.
+${toneRules}
+`.trim();
+};
+
 // Dynamic verse background resolver
 
 const DAILY_BACKGROUND_OVERRIDE: Record<string, string> = {
@@ -205,6 +303,7 @@ try {
 
 
         const bibleVersion = language === "TE" ? "TELUGU_COMMUNITY_V1" : "ESV";
+        let fetchedVerseText = "";
 
         try {
           const v = await fetchVerseByRef(
@@ -213,6 +312,7 @@ try {
             daily.verse,
             bibleVersion
           );
+          fetchedVerseText = v?.text || "";
           if (!cancelled) setVerseRow(v);
         } catch (err) {
           console.warn("Verse fetch failed, fallback to ESV:", err);
@@ -224,6 +324,7 @@ try {
               daily.verse,
               "ESV"
             );
+            fetchedVerseText = fallback?.text || "";
             if (!cancelled) setVerseRow(fallback);
           } catch (err2) {
             console.error("Verse fetch failed for both versions:", err2);
@@ -242,7 +343,12 @@ try {
         const storedApplication =
           language === "TE" ? daily.application_te : daily.application_en;
 
-        if (storedMeaning && storedApplication) {
+        if (
+          storedMeaning &&
+          storedApplication &&
+          isInLanguage(storedMeaning, language) &&
+          isInLanguage(storedApplication, language)
+        ) {
           if (!cancelled) {
             setMeaning(storedMeaning);
             setApplication(storedApplication);
@@ -259,7 +365,7 @@ try {
 
         try {
           const verseTextForPrompt =
-            verseRow?.text || `${daily.book} ${daily.chapter}:${daily.verse}`;
+            fetchedVerseText || `${daily.book} ${daily.chapter}:${daily.verse}`;
         
             const toneRules =
             verseTone === "WARNING"
@@ -276,80 +382,53 @@ try {
           - Do NOT use clichés or vague reassurance
           `;
           
-          const prompt = `
-          SYSTEM:
-          Return ONLY valid JSON. No markdown. No extra text.
-          
-          Schema:
-          {
-            "meaning": "string",
-            "application": "string"
-          }
-          
-          Verse:
-          "${verseTextForPrompt}"
-          Reference: ${daily.book} ${daily.chapter}:${daily.verse}
-          
-          Rules:
-          - meaning: 2–3 simple sentences
-          - application: 2–3 short practical steps
-          - NO emojis
-          
-          TELUGU LANGUAGE RULES (VERY IMPORTANT):
-          - Use ONLY first-person plural Telugu (మనము, మన, మనకి, మనలో, మన జీవితంలో)
-          - DO NOT use second-person words like:
-            నీవు, నీ, నిన్ను, నువ్వు, నీకు, మాకు, మా,
-          - Write as a shared reflection ("we / us"), never addressing the reader directly
-          
-          Language: ${language === "TE" ? "Telugu" : "English"}
-          `.trim();
-          
-          
-          
-            const ai = await sendMessageToLlama(prompt, [], language, "MEDIUM");
+          const prompt = buildDevotionalPrompt({
+            language,
+            reference: `${daily.book} ${daily.chapter}:${daily.verse}`,
+            verseText: verseTextForPrompt,
+            toneRules,
+          });
+
+          const ai = await sendMessageToLlama(prompt, [], language, "MEDIUM");
 
           const jsonText = extractJsonSmart(ai.text);
           if (!jsonText) throw new Error("AI did not return JSON.");
 
           const parsed = JSON.parse(jsonText);
 
-          const aiMeaning = String(parsed.meaning ?? "").trim();
-          const aiApplication = String(parsed.application ?? "").trim();
+          const normalizedMeaning = tidySentences(String(parsed.meaning ?? ""), 3);
 
+          const rawSteps: string[] = Array.isArray(parsed.application)
+            ? parsed.application.map((x: unknown) => String(x ?? ""))
+            : splitSteps(String(parsed.application ?? ""));
+          const steps = rawSteps
+            .map((x) => tidySentences(x, 2).replace(/^[-•*\d.)\s]+/, "").trim())
+            .filter(Boolean)
+            .slice(0, 3);
+          // Stored as one step per line; the UI renders it as a list.
+          const normalizedApplication = steps.join("\n");
 
-          if (!aiMeaning || !aiApplication) {
+          if (!normalizedMeaning || !normalizedApplication) {
             throw new Error("AI returned empty meaning/application.");
           }
-          let normalizedMeaning = aiMeaning;
-          let normalizedApplication = aiApplication;
-          
-          // Trim excessive verbosity safely
-          normalizedMeaning = normalizedMeaning
-            .split(/(?<=[.!?])\s+/)
-            .slice(0, 3)
-            .join(" ");
-          
-          normalizedApplication = normalizedApplication
-            .split(/(?<=[.!?])\s+/)
-            .slice(0, 3)
-            .join(" ");
-          
-          // Final safety trim
-          normalizedMeaning = normalizedMeaning.trim();
-          normalizedApplication = normalizedApplication.trim();
 
-          
+          if (
+            !isInLanguage(normalizedMeaning, language) ||
+            !isInLanguage(normalizedApplication, language)
+          ) {
+            throw new Error("AI answered in the wrong language.");
+          }
 
           const patch =
             language === "TE"
-              ? { meaning_te: aiMeaning, application_te: aiApplication }
-              : { meaning_en: aiMeaning, application_en: aiApplication };
+              ? { meaning_te: normalizedMeaning, application_te: normalizedApplication }
+              : { meaning_en: normalizedMeaning, application_en: normalizedApplication };
 
           await updateDailyVerse(daily.day, patch);
 
           if (!cancelled) {
-            setMeaning(aiMeaning);
-            setApplication(aiApplication);
+            setMeaning(normalizedMeaning);
+            setApplication(normalizedApplication);
           }
         } catch (err) {
           console.warn("AI devotional normalized:", err);
@@ -358,20 +437,20 @@ try {
             setMeaning(
               verseTone === "WARNING"
                 ? language === "TE"
-                  ? "నీవు నీ ప్రాధాన్యాలను పరిశీలించవలసి ఉంది."
+                  ? "మనము మన ప్రాధాన్యాలను పరిశీలించుకోవాలి."
                   : "You are called to examine your priorities."
                 : language === "TE"
-                  ? "ఈ వాక్యం నీ విశ్వాసాన్ని స్థిరపరుస్తుంది."
+                  ? "ఈ వాక్యం మన విశ్వాసాన్ని స్థిరపరుస్తుంది."
                   : "This verse offers steady guidance."
             );
           
             setApplication(
               verseTone === "WARNING"
                 ? language === "TE"
-                  ? "ఈ రోజు ఒక నిర్ణయంలో నిజాయితీని ఎంచుకో."
+                  ? "ఈ రోజు ఒక నిర్ణయంలో మనము నిజాయితీని ఎంచుకుందాం."
                   : "Choose honesty over advantage in one decision today."
                 : language === "TE"
-                  ? "ఈ రోజు ప్రార్థనతో ప్రారంభించు."
+                  ? "ఈ రోజును ప్రార్థనతో ప్రారంభిద్దాం."
                   : "Begin today with prayer."
             );
           }
@@ -694,16 +773,27 @@ transition-all duration-300">
       {language === "TE" ? "సిద్ధమవుతోంది..." : "Preparing..."}
     </p>
   ) : (
-    <p
-  className={`
-    mt-3 text-sm text-slate-800 dark:text-slate-200
-    leading-relaxed
-    ${teluguUiClass}
-    ${isTeluguUI ? "tracking-[0.2px] leading-[1.85]" : ""}
-  `}
->
-  {application}
-</p>
+    <ol
+      className={`
+        relative mt-3 space-y-2.5 text-sm text-slate-800 dark:text-slate-200
+        leading-relaxed
+        ${teluguUiClass}
+        ${isTeluguUI ? "tracking-[0.2px] leading-[1.85]" : ""}
+      `}
+    >
+      {splitSteps(application).map((step, i) => (
+        <li key={i} className="flex gap-3">
+          <span
+            className="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                       bg-blue-600/90 text-[11px] font-semibold text-white"
+            aria-hidden
+          >
+            {i + 1}
+          </span>
+          <span>{step}</span>
+        </li>
+      ))}
+    </ol>
 
   )}
 </div>
