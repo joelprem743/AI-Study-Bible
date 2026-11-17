@@ -17,6 +17,12 @@ import {
 } from "../services/geminiService";
 import { Verse, VerseReference } from "..";
 import { findBookMetadata, fetchChapter } from "../services/bibleService";
+import {
+  findScriptureRefs,
+  formatScriptureRef,
+  loadScriptureRefText,
+  parseScriptureRef,
+} from "../utils/scriptureRefs";
 import ModalPortal from "./ModalPortal";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 import { useNotes } from "../context/NotesContext";
@@ -622,24 +628,7 @@ type AiTab =
 /* -------------------------
   Inline reference regex
 ---------------------------*/
-const BOOK_NAME_PATTERN = (() => {
-  const englishBooks = Object.keys(TELUGU_BOOK_NAMES);
-
-  const teluguBooks = Object.values(TELUGU_BOOK_NAMES);
-
-  const allBooks = [...englishBooks, ...teluguBooks]
-    .map(b => b.replace(/\./g, "\\."))
-    .sort((a, b) => b.length - a.length); // longest first
-
-  return allBooks.join("|");
-})();
-
 const GREEK_WORD_REGEX = /([\u0370-\u03FF\u1F00-\u1FFF]+)/g;
-
-const INLINE_REF_RENDER_REGEX = new RegExp(
-  `((?:${BOOK_NAME_PATTERN})\\s+\\d+:\\d+(?:-\\d+)?)(?=\\s*[.,;:—–)]|\\b)`,
-  "gu"
-);
 
 const showToast = (message: string, duration = 3000) => {
   const toast = document.createElement("div");
@@ -905,9 +894,12 @@ export const VerseTools: React.FC<{
   demoTriggerShare?: boolean;
   demoTriggerHighlight?: boolean;
   onHighlightChange?: (color: string | null) => void;
+  /** One-shot action requested from outside (e.g. home page feature cards). */
+  autoAction?: { type: "explain" | "shareImage"; id: number } | null;
+  onAutoActionHandled?: () => void;
 }> = ({
   verseRef,
-  verseData,
+  verseData: verseDataProp,
   uiLanguage,
   bibleVersion,
   onClose,
@@ -915,8 +907,44 @@ export const VerseTools: React.FC<{
   onHighlightChange,
   demoTriggerShare,
   demoTriggerHighlight,
-  demoTriggerShareImage,   
+  demoTriggerShareImage,
+  autoAction,
+  onAutoActionHandled,
 }) => {
+
+  // The reader may only have loaded the Telugu text (Telugu single-version
+  // mode). Every tool and AI prompt also needs the English text, so fetch the
+  // verse in the English version when it is missing.
+  const [fetchedEnglish, setFetchedEnglish] = useState<{ key: string; text: string } | null>(null);
+  const englishKey = `${verseRef.book}|${verseRef.chapter}|${verseRef.verse}|${bibleVersion}`;
+  const hasEnglish = Boolean(verseDataProp.text[bibleVersion] || verseDataProp.text.KJV);
+
+  useEffect(() => {
+    if (hasEnglish) return;
+    let cancelled = false;
+    fetchChapter(verseRef.book, verseRef.chapter, bibleVersion)
+      .then((chapter) => {
+        if (cancelled) return;
+        const v = chapter.find((x) => x.verse === verseRef.verse);
+        const text = v?.text[bibleVersion] || v?.text.KJV || "";
+        setFetchedEnglish({ key: englishKey, text });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [englishKey, hasEnglish]);
+
+  const verseData = useMemo<Verse>(() => {
+    if (hasEnglish || !fetchedEnglish || fetchedEnglish.key !== englishKey || !fetchedEnglish.text) {
+      return verseDataProp;
+    }
+    return {
+      ...verseDataProp,
+      text: { ...verseDataProp.text, [bibleVersion]: fetchedEnglish.text },
+    };
+  }, [verseDataProp, hasEnglish, fetchedEnglish, englishKey, bibleVersion]);
 
   const { getNoteFor, refreshNoteFor, saveNoteFor } = useNotes();
   const isTeluguVersion = (version?: string) =>
@@ -1445,71 +1473,13 @@ setShareStep("background");
           return refCache.current.get(cacheKey) || "";
         }
 
-        const m = refString.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/u);
-        if (!m) return "";
-       
+        const ref = parseScriptureRef(refString);
+        if (!ref) return "";
 
-        const rawBook = m[1].trim();
-        const chapter = Number(m[2]);
-        const startVerse = Number(m[3]);
-        const endVerse = m[4] ? Number(m[4]) : startVerse;
-
-        let meta = findBookMetadata(rawBook);
-
-        if (!meta) {
-          const numMatch = rawBook.match(/^([1-3])\s*(.+)$/u);
-          if (numMatch) {
-            const bookNum = numMatch[1];
-            const teluguPart = numMatch[2].trim();
-            const englishKey = Object.entries(TELUGU_BOOK_NAMES).find(
-              ([eng, tel]) => {
-                const telNoNum = tel.replace(/^[1-3]\s*/, "").trim();
-                return eng.startsWith(bookNum) && telNoNum === teluguPart;
-              }
-            );
-            if (englishKey) meta = findBookMetadata(englishKey[0]);
-          }
-        }
-
-        if (!meta) {
-          const englishKey = Object.entries(TELUGU_BOOK_NAMES).find(
-            ([, tel]) => {
-              const telNoNum = tel.replace(/^[1-3]\s*/, "").trim();
-              return tel === rawBook || telNoNum === rawBook;
-            }
-          );
-          if (englishKey) meta = findBookMetadata(englishKey[0]);
-        }
-
-        if (!meta) {
-          meta = findBookMetadata(rawBook);
-        }
-
-        if (!meta) return "";
-
-        const chapterData = await fetchChapter(
-          meta.name,
-          chapter,
-          language === "TE" ? "TELUGU_COMMUNITY_V1" : bibleVersion
-
-        );
-        
-        if (!chapterData || !chapterData.length) return "";
-
-        const selected = chapterData.filter(
-          (v) => v.verse >= startVerse && v.verse <= endVerse
-        );
-        if (!selected.length) return "";
-
-        const out = selected
-        .map((v) =>
-          language === "TE"
-            ? v.text.TELUGU_COMMUNITY_V1 || v.text.KJV || ""
-            : v.text[bibleVersion
-            ] || v.text.KJV || ""
-        )
-        
-          .join("\n");
+        const version =
+          language === "TE" ? "TELUGU_COMMUNITY_V1" : bibleVersion;
+        const out = await loadScriptureRefText(ref, version, fetchChapter);
+        if (!out) return "";
 
         refCache.current.set(cacheKey, out);
         return out;
@@ -2126,13 +2096,39 @@ setShareStep("background");
     loadHistoricalContextWithGemini,
     language,
   ]);
-  
+
+  // Actions requested from outside (home page feature cards)
+  const [pendingAutoAction, setPendingAutoAction] =
+    useState<"explain" | "shareImage" | null>(null);
+
+  useEffect(() => {
+    if (!autoAction) return;
+    if (autoAction.type === "explain") setActiveTab("Summary");
+    setPendingAutoAction(autoAction.type);
+    onAutoActionHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAction?.id]);
+
+  useEffect(() => {
+    if (!pendingAutoAction) return;
+    if (pendingAutoAction === "explain") {
+      if (activeTab !== "Summary" || loading) return;
+      setPendingAutoAction(null);
+      void handleGenerateClick();
+    } else {
+      setPendingAutoAction(null);
+      void handleShareAsImageClick();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoAction, activeTab, loading, handleGenerateClick]);
+
   
   
 
   const handleClickReference = useCallback(
     async (reference: string) => {
-      setPreviewRef(reference);
+      const parsed = parseScriptureRef(reference);
+      setPreviewRef(parsed ? formatScriptureRef(parsed) : reference);
       const text = await loadReferenceText(reference);
       setPreviewText(text);
       setIsPreviewOpen(true);
@@ -2147,19 +2143,17 @@ setShareStep("background");
       // ✅ STRING — run regex
       if (typeof node === "string") {
         const parts: React.ReactNode[] = [];
-        const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
-  
         let lastIndex = 0;
-        let m: RegExpExecArray | null;
-  
-        while ((m = regex.exec(node)) !== null) {
-          const match = m[1];
-          const start = m.index;
-  
+
+        for (const found of findScriptureRefs(node)) {
+          const { start, end, text: match } = found;
+          // Full reference incl. book (follow-ons like "; 6:23" lack it)
+          const fullRef = formatScriptureRef(found.ref);
+
           if (start > lastIndex) {
             parts.push(node.slice(lastIndex, start));
           }
-  
+
           parts.push(
             <span
               key={`ref-${start}-${match}`}
@@ -2168,25 +2162,19 @@ setShareStep("background");
               className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
-                handleClickReference(
-                  match.replace(/[—–:-]\s*$/, "")
-                );
-                
+                handleClickReference(fullRef);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleClickReference(
-                  match.replace(/[.,;:—–)\]]\s*$/, "")
-                );
-                
+                if (e.key === "Enter") handleClickReference(fullRef);
               }}
             >
               {match}
             </span>
           );
-  
-          lastIndex = start + match.length;
+
+          lastIndex = end;
         }
-  
+
         if (lastIndex < node.length) {
           parts.push(node.slice(lastIndex));
         }
@@ -2274,7 +2262,7 @@ setShareStep("background");
       nodes.push(
         <span
           key={`${greek}-${idx}`}
-          className="font-serif font-semibold px-1 rounded bg-gray-100 dark:bg-gray-800"
+          className="font-serif font-semibold px-1 rounded bg-gray-100 dark:bg-slate-800"
 
         >
           {greek}
@@ -2410,7 +2398,10 @@ if (cached) {
         await saveNoteFor(verseRef, val);
         await refreshNoteFor(verseRef);
       } catch (e) {
-        console.error("Failed to save note", e);
+        // Auto-save on blur: signed-out users get told when they press Save
+        if (!/not logged in/i.test(String((e as Error)?.message))) {
+          console.error("Failed to save note", e);
+        }
       }
     },
     [saveNoteFor, refreshNoteFor, verseRef]
@@ -2462,7 +2453,7 @@ if (cached) {
 
     bg-gradient-to-r
     from-slate-900 via-slate-800 to-slate-900
-    dark:from-black dark:via-slate-900 dark:to-black
+    dark:from-slate-800 dark:via-slate-900 dark:to-slate-800
 
     border-b border-white/10
 
@@ -2976,7 +2967,9 @@ window.dispatchEvent(
   `}
 >
 
-    {displayVerseText ? `"${displayVerseText}"` : ""}
+    {displayVerseText
+      ? `“${displayVerseText.replace(/^[\s"“‘']+|[\s"”’']+$/g, "")}”`
+      : ""}
   </p>
 
   {!expanded && isLongVerse && (
@@ -3186,9 +3179,20 @@ backdrop-blur-xl
         try {
           await saveNoteFor(verseRef, noteText);
           await refreshNoteFor(verseRef);
+          showToast(language === "TE" ? "గమనిక సేవ్ అయింది" : "Note saved");
           onClose?.();
         } catch (err) {
-          console.error("Failed to save note", err);
+          const notLoggedIn = /not logged in/i.test(String((err as Error)?.message));
+          showToast(
+            notLoggedIn
+              ? language === "TE"
+                ? "గమనికలు సేవ్ చేయడానికి సైన్ ఇన్ చేయండి"
+                : "Please sign in to save notes"
+              : language === "TE"
+              ? "గమనిక సేవ్ కాలేదు. మళ్ళీ ప్రయత్నించండి."
+              : "Couldn't save the note. Please try again."
+          );
+          if (!notLoggedIn) console.error("Failed to save note", err);
         }
       }}
       className="self-start px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:bg-blue-700 text-white rounded-md"
@@ -3443,7 +3447,7 @@ transition-colors
 ${
 activeWordIndex === idx
 ? "border-blue-500/60 bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-500/20"
-: "bg-white dark:bg-gray-900"
+: "bg-white dark:bg-slate-900"
 }
 `}
 >

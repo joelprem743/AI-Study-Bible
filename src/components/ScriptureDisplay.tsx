@@ -43,9 +43,9 @@ interface ScriptureDisplayProps {
 const VerseSkeleton: React.FC = () => (
   <div className="p-3 rounded-lg animate-pulse">
     <div className="space-y-1">
-      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-32" />
-      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-full" />
-      <div className="h-4 bg-gray-300 dark:bg-[#1A1D21] rounded w-3/4" />
+      <div className="h-4 bg-gray-300 dark:bg-slate-800 rounded w-32" />
+      <div className="h-4 bg-gray-300 dark:bg-slate-800 rounded w-full" />
+      <div className="h-4 bg-gray-300 dark:bg-slate-800 rounded w-3/4" />
     </div>
   </div>
 );
@@ -807,7 +807,7 @@ const handleAddToNotes = useCallback(() => {
 
   if (isLoading) {
     return (
-<div className="flex-grow overflow-y-auto p-4 bg-slate-50 dark:bg-[#0B0F14]">
+<div className="flex-grow overflow-y-auto p-4 bg-slate-50 dark:bg-[#0b1220]">
 
         {[...Array(10)].map((_, i) => (
           <VerseSkeleton key={i} />
@@ -816,9 +816,46 @@ const handleAddToNotes = useCallback(() => {
     );
   }
 
+  // Chapter not available in this version (e.g. a New-Testament-only
+  // translation opened on an Old Testament book) — say so instead of a blank page
+  if (!error && verses.length === 0 && bookName && chapterNum) {
+    const label = (v?: string) =>
+      ({
+        TELUGU_COMMUNITY_V1: "the Telugu Bible",
+        ESV: "the ESV",
+        NIV: "the NIV",
+        KJV: "the KJV",
+        NKJV: "the NKJV",
+        GNB: "the Good News Bible",
+        ARAMAIC_PLAIN_EN: "the Aramaic Bible (New Testament only)",
+        NLT: "the NLT",
+        NASB: "the NASB",
+      } as Record<string, string>)[v ?? ""] ?? v ?? "";
+    const missingVersion =
+      studyMode === "single"
+        ? label(englishVersion)
+        : `${label(leftVersion)} / ${label(rightVersion)}`;
+    return (
+      <div className="flex items-center justify-center h-full px-6 bg-slate-50 dark:bg-[#0b1220]">
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl shadow-xl p-8 text-center">
+          <div className="mx-auto mb-5 w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <i className="fas fa-book-open text-blue-600 dark:text-blue-400 text-xl" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
+            Not available in this version
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            {bookName} {chapterNum} isn’t included in {missingVersion}. Choose another
+            version from the settings button next to the chapter name.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full px-6 bg-slate-50 dark:bg-[#0B0F14]">
+      <div className="flex items-center justify-center h-full px-6 bg-slate-50 dark:bg-[#0b1220]">
         
         <div className="w-full max-w-md bg-white dark:bg-slate-900 
                         border border-slate-200 dark:border-white/10
@@ -865,7 +902,7 @@ const handleAddToNotes = useCallback(() => {
   relative h-full w-full overflow-y-auto overflow-x-hidden
   p-2 md:p-3
   pb-12 md:pb-8
-  bg-slate-50 dark:bg-[#0B0F14]
+  bg-slate-50 dark:bg-[#0b1220]
 "
 
  onScroll={(e) => {
@@ -980,7 +1017,7 @@ opacity-70 hover:opacity-100
         <div
         className="
           max-w-3xl mx-auto space-y-[1px]
-          bg-white dark:bg-gray-900
+          bg-white dark:bg-slate-900
           border border-slate-200 dark:border-white/10
           rounded-[2rem]
           shadow-sm

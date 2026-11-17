@@ -40,7 +40,7 @@ export function VersePreviewModal({
               style={{ backgroundImage: `url(${backgroundUrl})` }}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-black" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-950" />
           )}
 
           {/* Overlay */}

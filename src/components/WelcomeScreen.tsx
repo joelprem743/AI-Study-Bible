@@ -504,12 +504,12 @@ try {
 relative
 bg-gradient-to-br
 from-white/80 via-slate-50/70 to-slate-100/60
-dark:from-slate-900 dark:via-slate-900 dark:to-slate-950
+dark:from-[#0f1a2e] dark:via-[#0b1220] dark:to-[#0b1220]
 backdrop-blur-2xl
 rounded-[2.5rem]
 shadow-[0_35px_100px_-20px_rgba(0,0,0,0.6)]
 dark:shadow-[0_50px_140px_-20px_rgba(0,0,0,0.95)]
-border border-white/40 dark:border-gray/10
+border border-white/40 dark:border-white/10
 flex flex-col
 max-w-2xl w-full h-[90vh]
 overflow-hidden
@@ -524,7 +524,7 @@ overflow-hidden
 
   bg-gradient-to-r
   from-slate-900 via-slate-800 to-slate-900
-  dark:from-black dark:via-slate-900 dark:to-black
+  dark:from-[#1a2a44] dark:via-[#142033] dark:to-[#0f1a2e]
 
   text-white
 
@@ -615,7 +615,8 @@ overflow-y-auto
 
 bg-gradient-to-br
 from-white/30 via-slate-100/20 to-slate-200/30
-dark:bg-white/[0.02]
+dark:from-transparent dark:via-transparent dark:to-transparent
+dark:bg-[#0b1220]
 
 backdrop-blur-xl
 space-y-4
@@ -712,13 +713,13 @@ border border-white/70
 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.25)]
 
 /* GLASS STYLE — DARK MODE */
-dark:bg-white/[0.06]
+dark:bg-slate-800/60
 dark:border-white/10
 dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
 
 transition-all duration-300">
 
-  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
+  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 dark:opacity-0 pointer-events-none" />
             <h3
   className={`
     text-xs font-bold uppercase tracking-widest
@@ -760,13 +761,13 @@ border border-white/70
 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.25)]
 
 /* GLASS STYLE — DARK MODE */
-dark:bg-white/[0.06]
+dark:bg-slate-800/60
 dark:border-white/10
 dark:shadow-[0_12px_45px_-12px_rgba(0,0,0,0.6)]
 
 transition-all duration-300">
 
-  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 pointer-events-none" />
+  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-70 dark:opacity-0 pointer-events-none" />
   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
     {language === "TE" ? "ఈ రోజు ఆచరణ" : "Live it today"}
   </h3>
@@ -821,12 +822,12 @@ transition-all duration-300">
       disabled={!verseRow}
       className="
         w-full px-8 py-4
-        bg-white/80 dark:bg-white/[0.04]
+        bg-white/80 dark:bg-slate-800/60
 backdrop-blur-md
         text-slate-900 dark:text-white
         font-semibold rounded-2xl
-        border border-slate-200 dark:border-slate-700
-        hover:bg-slate-50 dark:hover:bg-slate-800
+        border border-slate-200 dark:border-blue-500/40
+        hover:bg-slate-50 dark:hover:bg-slate-700/70
         transition
         disabled:opacity-50 disabled:cursor-not-allowed
       "

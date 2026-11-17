@@ -36,6 +36,21 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(0,0,0,0.3) transparent;
     }
+
+    /* Dark theme: light thumb so it stays visible on navy */
+    .dark ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      background-clip: padding-box;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.4);
+      background-clip: padding-box;
+    }
+
+    .dark * {
+      scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+    }
   }
   
   /* -------------------------------------------

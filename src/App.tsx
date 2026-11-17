@@ -1,6 +1,7 @@
       // src/App.tsx
       import React, { useState, useEffect, useCallback, FormEvent } from "react";
-      import { useAudio } from "./context/AudioContext";
+      import { useAudio, PlaybackCancelled } from "./context/AudioContext";
+      import { describeTtsError } from "./lib/speech";
       import NavigationPane from "./components/NavigationPane";
       import { ScriptureDisplay } from "./components/ScriptureDisplay";
       import { VerseTools } from "./components/VerseTools";
@@ -134,14 +135,25 @@
           "TELUGU_COMMUNITY_V1"
         );
 
+        // New chapter loaded while reading aloud:
+        //  - continuous play → carry on from verse 1 of the new chapter
+        //  - otherwise       → stop, so we never keep reading the old chapter
         useEffect(() => {
-          if (!continuousPlay) return;
           if (!isPlayingRef.current) return;
           if (!verses.length) return;
-        
-          // 🔥 DO NOT kill playback here
-          playVerseSequence(0);
-        
+
+          if (continuousPlay) {
+            playVerseSequence(0);
+            return;
+          }
+
+          playbackIdRef.current++;
+          stop();
+          setIsPlaying(false);
+          setIsPausedUI(false);
+          isPlayingRef.current = false;
+          setCurrentVerseIndex(0);
+          // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [verses]);
 
         useEffect(() => {
@@ -622,6 +634,11 @@
 
         const englishVersionForLogic = getEnglishVersionForLogic();
 
+        // Verse tools follow the language being read: Telugu single-version
+        // mode opens the tools (and AI explanations) in Telugu.
+        const toolsLanguage: "EN" | "TE" =
+          studyMode === "single" && singleVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN";
+
 
         const handleNextChapter = useCallback(() => {
           const meta = BIBLE_META.find((b) => b.name === selectedBook);
@@ -655,6 +672,24 @@
       // 🔥 PLAYBACK ENGINE
       // ============================
 
+      // Version actually being read: the single version, or the left column
+      // in parallel mode.
+      const readAloudVersion = studyMode === "single" ? singleVersion : leftVersion;
+
+      const getReadAloudText = (verse: Verse | undefined) => {
+        if (!verse) return "";
+        return (
+          verse.text[readAloudVersion] ??
+          Object.values(verse.text).find((t) => t && t.trim()) ??
+          ""
+        );
+      };
+
+      const readAloudLang = (text: string): "EN" | "TE" =>
+        readAloudVersion === "TELUGU_COMMUNITY_V1" || /[ఀ-౿]/.test(text)
+          ? "TE"
+          : "EN";
+
       const playVerseSequence = useCallback(async (startIndex = 0) => {
         if (!verses.length) {
           setIsPlaying(false);
@@ -662,81 +697,69 @@
           return;
         }
 
-      
         playbackIdRef.current += 1;
         const id = playbackIdRef.current;
-      
+        const isCurrent = () => id === playbackIdRef.current;
+
         setIsPlaying(true);
+        setIsPausedUI(false);
         isPlayingRef.current = true;
-      
-        for (let i = startIndex; i < verses.length; i++) {
-          // 🔥 HARD INTERRUPT CHECK
-          if (id !== playbackIdRef.current) return;
-      
-          const verse = verses[i];
-      
-          const text =
-            verse.text[singleVersion] ??
-            Object.values(verse.text).find(t => t && t.trim());
-      
+
+        let failed: unknown = null;
+
+        for (let i = Math.max(0, startIndex); i < verses.length; i++) {
+          if (!isCurrent()) return;
+
+          const text = getReadAloudText(verses[i]);
           if (!text) continue;
-      
+
           setCurrentVerseIndex(i);
-      
+
+          // Fetch the next verse's audio while this one plays
+          const nextText = getReadAloudText(verses[i + 1]);
+          if (nextText) void preload({ text: nextText, lang: readAloudLang(nextText) });
+
           try {
-            // 🔥 PRELOAD NEXT
-            const nextVerse = verses[i + 1];
-            if (nextVerse) {
-              const nextText =
-                nextVerse.text[singleVersion] ??
-                Object.values(nextVerse.text).find(t => t && t.trim());
-      
-              if (nextText) {
-                preload({
-                  text: nextText,
-                  lang: singleVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN",
-                });
-              }
-            }
-      
-            await play({
-              text,
-              lang: singleVersion === "TELUGU_COMMUNITY_V1" ? "TE" : "EN",
-            });
-            
-            // 🔥 INTERRUPT CHECK BEFORE GAP
-            if (id !== playbackIdRef.current) return;
-            
-            // 🔥 SMART GAP
-            const words = text.split(/\s+/).length;
-            const gapMs =
-  words < 8
-    ? 900
-    : Math.max(700, Math.min(1600, words * 40));
-            
-            await new Promise((r) => setTimeout(r, gapMs));
-            
-            // 🔥 INTERRUPT CHECK AFTER GAP
-            if (id !== playbackIdRef.current) return;
-      
-          } catch {
+            await play({ text, lang: readAloudLang(text) });
+          } catch (err) {
+            // Stopped / skipped by the user, or replaced by a newer playback
+            if (err instanceof PlaybackCancelled || !isCurrent()) return;
+            console.error("Read aloud failed", err);
+            failed = err ?? new Error("Read aloud failed");
             break;
           }
+
+          if (!isCurrent()) return;
+
+          // Natural pause between verses, scaled to verse length
+          const words = text.split(/\s+/).length;
+          const gapMs = words < 8 ? 900 : Math.max(700, Math.min(1600, words * 40));
+          await new Promise((r) => setTimeout(r, gapMs));
         }
-      
-        // 🔥 CONTINUOUS PLAY FIXED
-        if (continuousPlay && id === playbackIdRef.current) {
-          handleNextChapter();
+
+        if (!isCurrent()) return;
+
+        if (failed) {
+          toast.error(describeTtsError(failed, readAloudLang(getReadAloudText(verses[0]))), {
+            duration: 6000,
+          });
+        } else if (continuousPlay && !isLastChapter) {
+          // The [verses] effect restarts playback once the next chapter loads
           setCurrentVerseIndex(0);
-          return; // 🔥 STOP HERE — do NOT trigger playback yet
+          handleNextChapter();
+          return;
         } else {
-          setIsPlaying(false);
-          isPlayingRef.current = false;
+          // Finished the chapter: next Play starts again from verse 1
+          setCurrentVerseIndex(0);
         }
-      
+
+        setIsPlaying(false);
+        setIsPausedUI(false);
+        isPlayingRef.current = false;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [
         verses,
-        singleVersion,
+        readAloudVersion,
         play,
         preload,
         continuousPlay,
@@ -754,8 +777,28 @@
           return;
         }
       
-        playVerseSequence(currentVerseIndex);
-      }, [isPlaying, currentVerseIndex, playVerseSequence, stop]);
+        // Start from the selected verse if the user picked one in this chapter
+        let start = currentVerseIndex;
+        if (
+          currentVerseIndex === 0 &&
+          selectedVerseRef &&
+          selectedVerseRef.book === selectedBook &&
+          selectedVerseRef.chapter === selectedChapter
+        ) {
+          const idx = verses.findIndex((v) => v.verse === selectedVerseRef.verse);
+          if (idx > 0) start = idx;
+        }
+        playVerseSequence(start);
+      }, [
+        isPlaying,
+        currentVerseIndex,
+        playVerseSequence,
+        stop,
+        selectedVerseRef,
+        selectedBook,
+        selectedChapter,
+        verses,
+      ]);
 
 
       const handleStop = () => {
@@ -896,6 +939,7 @@
             );
 
             if (parsedRefs.length > 1) {
+              setIsHomePage(false);
               const res = await fetchVersesByReferences(parsedRefs);
 
               if (res.length === 0) {
@@ -912,6 +956,11 @@
             if (parsedRefs.length === 1) {
               const ref = parsedRefs[0];
               setIsSearchView(false);
+              if (isHomePage) {
+                // Leave the home page: the hash listener loads the reference
+                window.location.hash = `#/${encodeURIComponent(ref.book)}/${ref.chapter}${ref.startVerse ? `/${ref.startVerse}` : ""}`;
+                return;
+              }
               setSelectedBook(ref.book);
               setSelectedChapter(ref.chapter);
               setSelectedVerseRef(
@@ -922,7 +971,8 @@
               return;
             }
 
-            // 2) Keyword search
+            // 2) Keyword search \u2014 results replace the home page
+            setIsHomePage(false);
             const hasTelugu = /[\u0C00-\u0C7F]/.test(query);
             let results: FullVerse[] = [];
 
@@ -1022,18 +1072,75 @@
           }
         }, []);
 
-        const handleStartDemo = useCallback(() => {
-          const tour = createGuidedTour({
-            navigateTo,
-            setStudyMode,
-            setIsChatOpen,
-            setSearchOpen,
-            onTourEnd: () => {
-              console.log("Tour finished");
-            },
-          });
+        // Home page feature cards
+        const [homeAutoAction, setHomeAutoAction] = useState<{
+          type: "explain" | "shareImage";
+          id: number;
+          target: "panel" | "modal";
+        } | null>(null);
 
-          tour.drive();
+        const handleHomeFeature = (
+          feature: "explain" | "parallel" | "shareImage" | "search"
+        ) => {
+          if (feature === "search") {
+            setSearchOpen(true);
+            return;
+          }
+
+          if (feature === "parallel") {
+            setStudyMode("parallel");
+            window.location.hash = "#/John/3";
+            return;
+          }
+
+          // AI Explanation / Share Verse Image → open John 3:16 with verse tools
+          const isMobile = window.innerWidth < 768;
+          suppressHash.current = true; // keep the tools modal open on mobile
+          window.location.hash = "#/John/3/16";
+          navigateTo("John", 3, 16, { openTools: isMobile });
+          setIsChatOpen(false);
+          setHomeAutoAction({
+            type: feature,
+            id: Date.now(),
+            target: isMobile ? "modal" : "panel",
+          });
+        };
+
+        const handleStartDemo = useCallback(() => {
+          const startTour = () => {
+            const tour = createGuidedTour({
+              navigateTo,
+              setStudyMode,
+              setIsChatOpen,
+              setSearchOpen,
+              onTourEnd: () => {},
+            });
+            tour.drive();
+          };
+
+          // The tour highlights reader controls (book picker, versions,
+          // verses). From the home page, open John 3 first and start once
+          // the reader is on screen — otherwise every step points at nothing.
+          if (document.getElementById("tour-book-selector")) {
+            startTour();
+            return;
+          }
+
+          window.location.hash = "#/John/3";
+          const startedAt = Date.now();
+          const waitForReader = () => {
+            if (
+              document.getElementById("tour-book-selector") &&
+              document.getElementById("tour-scripture-area")
+            ) {
+              setTimeout(startTour, 300); // let verses paint
+            } else if (Date.now() - startedAt < 8000) {
+              setTimeout(waitForReader, 100);
+            } else {
+              startTour(); // fall back rather than do nothing
+            }
+          };
+          waitForReader();
         }, [navigateTo, setStudyMode, setIsChatOpen, setSearchOpen]);
 
 
@@ -1091,7 +1198,7 @@
         const currentVerse = verses[currentVerseIndex];
 
         const verseText =
-          currentVerse?.text?.[singleVersion] ??
+          currentVerse?.text?.[readAloudVersion] ??
           Object.values(currentVerse?.text || {}).find(t => t && t.trim());
 
           const progressPercent =
@@ -1154,7 +1261,7 @@
   bg-gradient-to-b from-[#1a2a44] via-[#142033] to-[#0b1220]
   px-3 py-2 md:px-4 md:py-3
   shadow-md z-40
-  border-b border-[#d4af37]/40
+  border-b border-blue-500/30
   flex items-center justify-between
 ">
 
@@ -1185,12 +1292,12 @@
 
                     <span className="
   text-base md:text-2xl font-bold text-white leading-none
-  hover:text-[#ffd700]transition-colors
+  hover:text-blue-300 transition-colors
 ">
                         Bible Companion
                       </span>
 
-                      <span className="hidden sm:inline text-xs md:text-sm text-[#d4af37]/80">
+                      <span className="hidden sm:inline text-xs md:text-sm text-[#d4af37]">
                         by Joel Prem
                       </span>
 
@@ -1237,7 +1344,7 @@
         shadow-sm
         hover:bg-white/15
         hover:border-white/15
-        hover:shadow-[0_0_10px_rgba(212,175,55,0.4)]
+        hover:shadow-[0_0_10px_rgba(59,130,246,0.45)]
         transition-all duration-150
       "
 
@@ -1283,7 +1390,7 @@
                               className="
         w-10 h-10 flex items-center justify-center
         rounded-2xl
-        bg-gradient-to-r from-[#d4af37] to-[#b8962e]
+        bg-gradient-to-r from-blue-600 to-indigo-600
         text-white
         shadow-md
         hover:shadow-[0_0_12px_rgba(59,130,246,0.45)]
@@ -1361,7 +1468,7 @@
                               type="submit"
                               className="
         w-10 h-10 flex items-center justify-center rounded-lg 
-        bg-gradient-to-r from-[#d4af37] to-[#b8962e] text-white shadow-md
+        bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md
         hover:shadow-[0_0_6px_rgba(59,130,246,0.45)]
         dark:hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]
       "
@@ -1398,7 +1505,7 @@
                 </header>
 
                 {/* MAIN */}
-                <main className="flex-1 flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0B0F14] min-h-0">
+                <main className="flex-1 flex flex-col md:flex-row overflow-x-hidden bg-slate-50 dark:bg-[#0b1220] min-h-0">
 
 
 
@@ -1512,77 +1619,42 @@
                       {/* Feature highlights */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl text-sm">
 
-                        {/* Box 1 */}
-                        <div className="
+                        {([
+                          { key: "explain", title: "AI Explanation", sub: "Understand instantly", icon: "fa-robot" },
+                          { key: "parallel", title: "Telugu + English", sub: "Side-by-side study", icon: "fa-columns" },
+                          { key: "shareImage", title: "Share Verse Images", sub: "Beautiful & ready", icon: "fa-image" },
+                          { key: "search", title: "Smart Search", sub: "Find anything fast", icon: "fa-search" },
+                        ] as const).map((f) => (
+                          <button
+                            key={f.key}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleHomeFeature(f.key);
+                            }}
+                            className="
+          text-left cursor-pointer
           bg-white dark:bg-slate-900
           border border-slate-200 dark:border-slate-700
           rounded-xl p-4
           shadow-sm
           hover:shadow-md
+          hover:border-blue-400 dark:hover:border-blue-500
           hover:scale-[1.02]
+          active:scale-[0.98]
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
           transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            AI Explanation
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Understand instantly
-                          </div>
-                        </div>
-
-                        {/* Box 2 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Telugu + English
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Side-by-side study
-                          </div>
-                        </div>
-
-                        {/* Box 3 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Share Verse Images
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Beautiful & ready
-                          </div>
-                        </div>
-
-                        {/* Box 4 */}
-                        <div className="
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-700
-          rounded-xl p-4
-          shadow-sm
-          hover:shadow-md
-          hover:scale-[1.02]
-          transition-all duration-200
-        ">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            Smart Search
-                          </div>
-                          <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
-                            Find anything fast
-                          </div>
-                        </div>
+        "
+                          >
+                            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                              <i className={`fas ${f.icon} text-blue-500 text-xs`} />
+                              {f.title}
+                            </div>
+                            <div className="text-slate-600 dark:text-slate-400 text-xs mt-1">
+                              {f.sub}
+                            </div>
+                          </button>
+                        ))}
 
                       </div>
 
@@ -1666,7 +1738,7 @@
 
       <div className="w-full max-w-md h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
         <div
-          className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8962e] transition-all duration-200"
+          className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-200"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
@@ -1701,7 +1773,7 @@
             w-10 h-10
             flex items-center justify-center
             rounded-full
-            bg-gradient-to-r from-[#d4af37] to-[#b8962e]
+            bg-gradient-to-r from-blue-600 to-indigo-600
             text-white
             shadow-lg
             hover:scale-105 
@@ -1772,7 +1844,7 @@
                           <VerseTools
                             verseRef={selectedVerseRef}
                             verseData={selectedVerseData}
-                            uiLanguage="EN"
+                            uiLanguage={toolsLanguage}
                             bibleVersion={englishVersionForLogic}
                             currentHighlight={highlights[selectedVerseRef.verse] || null}
                             onHighlightChange={(color) => {
@@ -1782,7 +1854,8 @@
                               }
                               toggleHighlight(selectedVerseRef.verse, color);
                             }}
-
+                            autoAction={homeAutoAction?.target === "panel" ? homeAutoAction : null}
+                            onAutoActionHandled={() => setHomeAutoAction(null)}
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
@@ -1797,11 +1870,11 @@
                 {/* Mobile tools modal */}
                 {isToolsModalOpen && selectedVerseRef && selectedVerseData && (
                   <div className="fixed inset-0 z-[1000] md:hidden bg-black/60" onClick={() => setIsToolsModalOpen(false)}>
-                    <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-gray-900 rounded-t-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white dark:bg-slate-900 rounded-t-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
                       <VerseTools
                         verseRef={selectedVerseRef}
                         verseData={selectedVerseData}
-                        uiLanguage="EN"
+                        uiLanguage={toolsLanguage}
                         bibleVersion={englishVersionForLogic}
                         currentHighlight={highlights[selectedVerseRef.verse] || null}
                         onHighlightChange={(color) => {
@@ -1811,7 +1884,8 @@
                           }
                           toggleHighlight(selectedVerseRef.verse, color);
                         }}
-
+                        autoAction={homeAutoAction?.target === "modal" ? homeAutoAction : null}
+                        onAutoActionHandled={() => setHomeAutoAction(null)}
                         onClose={() => setIsToolsModalOpen(false)}
                       />
                     </div>
@@ -1833,7 +1907,7 @@
                     onClick={() => setFiltersOpen(false)}
                   >
                     <div
-                      className="bg-white dark:bg-gray-900 rounded-xl p-6 w-[90%] max-w-md"
+                      className="bg-white dark:bg-slate-900 rounded-xl p-6 w-[90%] max-w-md"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <h2 className="text-xl font-bold mb-4">Filter Search Results</h2>
@@ -1851,7 +1925,7 @@
                                 : undefined,
                             }))
                           }
-                          className="w-full p-2 rounded border dark:bg-gray-800"
+                          className="w-full p-2 rounded border dark:bg-slate-800"
                         >
                           <option value="">All</option>
                           <option value="OLD">Old Testament</option>
@@ -1862,7 +1936,7 @@
                       {/* Multi-book selection */}
                       <div className="mb-4">
                         <label className="block text-sm mb-2">Books</label>
-                        <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1 dark:bg-gray-800">
+                        <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1 dark:bg-slate-800">
                           {BIBLE_META.map(b => {
                             const checked = searchFilters.books?.includes(b.name) ?? false;
                             return (
@@ -1898,7 +1972,7 @@
                                 chapterFrom: e.target.value ? Number(e.target.value) : undefined,
                               }))
                             }
-                            className="w-full p-2 rounded border dark:bg-gray-800"
+                            className="w-full p-2 rounded border dark:bg-slate-800"
                           />
                         </div>
 
@@ -1913,7 +1987,7 @@
                                 chapterTo: e.target.value ? Number(e.target.value) : undefined,
                               }))
                             }
-                            className="w-full p-2 rounded border dark:bg-gray-800"
+                            className="w-full p-2 rounded border dark:bg-slate-800"
                           />
                         </div>
                       </div>
@@ -1963,7 +2037,7 @@
 
 
                 <footer className="
-        bg-slate-100 dark:bg-slate-950
+        bg-slate-100 dark:bg-[#0b1220]
         text-center p-2 text-xs
         text-slate-600 dark:text-slate-400
         border-t border-slate-200 dark:border-white/10

@@ -28,14 +28,45 @@
     opacity: 1;
   }
 }
+/* Native controls (inputs, selects, scrollbars) follow the app theme,
+   not the OS theme. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-select,
-input,
-textarea {
-  color-scheme: light dark;
+/* ---------------------------------------------------------------
+   DARK THEME — one navy surface scale (see tailwind.config.js)
+     950  #060a13  overlays / deepest wells
+     900  #0b1220  app background
+     800  #121b2d  cards, panels, sheets
+     700  #1c273b  raised: inputs, hover, chips
+     600  #2a374f  strong borders, dividers
+   Accent: Tailwind blue (500/600), text: slate 100–400.
+   --------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --slate-950: 6 10 19;
+  --slate-900: 11 18 32;
+  --slate-800: 18 27 45;
+  --slate-700: 28 39 59;
+  --slate-600: 42 55 79;
+
+  --gray-950: 6 10 19;
+  --gray-900: 11 18 32;
+  --gray-800: 18 27 45;
+  --gray-700: 28 39 59;
+  --gray-600: 42 55 79;
+}
+
+.dark body {
+  background-color: #0b1220;
+  color: #e2e8f0;
+}
+
+.dark ::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: #fff;
 }
 @font-face {
   font-family: 'Gurajada';

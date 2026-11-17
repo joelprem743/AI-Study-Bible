@@ -167,18 +167,29 @@
           await (navigator as any).share({
             files: [file],
           });
-          
+
           onClose();
           return;
-        } catch {}
+        } catch (err) {
+          // User closed the share sheet: don't download behind their back
+          if ((err as Error)?.name === "AbortError") return;
+        }
       }
-    
+
+      // No system share sheet (desktop / some browsers): save the image instead
       const a = document.createElement("a");
       a.href = previewUrl;
       a.download = "daily-verse.png";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+
+      setToast({
+        message:
+          language === "TE" ? "చిత్రం డౌన్‌లోడ్ అయ్యింది" : "Image downloaded",
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 2500);
     };
     
     return (

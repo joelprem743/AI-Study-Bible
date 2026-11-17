@@ -10,10 +10,28 @@ import {
 
 import { sendMessageToLlama } from "../services/geminiService";
 import { apiUrl } from "../lib/platform";
+import {
+  describeSttError,
+  describeTtsError,
+  fetchServerTts,
+  getSpeechRecognition,
+  hasBrowserTts,
+  isServerTtsDown,
+  langForText,
+  speakWithBrowser,
+  type BrowserSpeechHandle,
+} from "../lib/speech";
 
 
 import ModalPortal from "./ModalPortal";
 import { findBookMetadata, fetchChapter } from "../services/bibleService";
+import {
+  findScriptureRefs,
+  formatScriptureRef,
+  loadScriptureRefText,
+  parseScriptureRef,
+  speakScriptureRef,
+} from "../utils/scriptureRefs";
 import { TELUGU_BOOK_NAMES } from "../data/teluguBookNames";
 
 
@@ -304,10 +322,7 @@ const UserMessage: React.FC<{ message: string }> = ({ message }) => (
 );
 
 
-const INLINE_REF_RENDER_REGEX = new RegExp(
-  `((?:[1-3]?\\s*)?(?:[A-Za-z\\.]+|[\\u0C00-\\u0C7F]+(?:\\s+[\\u0C00-\\u0C7F]+)*)\\s+\\d+:\\d+(?:-\\d+)?)`,
-  "gu"
-);
+
 
 
 // // ===== DOMAIN FILTER (STRICT) =====
@@ -462,51 +477,85 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   //   }
   // }, []);
 
+  // Latest handleSend, so a voice result never uses a stale closure
+  // (old messages, old selected verse / scope).
+  const handleSendRef = useRef<
+    (text?: string, source?: "voice" | "text") => void
+  >(() => {});
+
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-  
-    if (!SpeechRecognition) return;
-  
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      recognitionRef.current = null;
+      return;
+    }
+
     const recognition = new SpeechRecognition();
-    recognition.lang = language === "TE" ? "te-IN" : "en-US";
+    recognition.lang = language === "TE" ? "te-IN" : "en-IN";
     recognition.continuous = false;
-    recognition.interimResults = false;
-  
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let finalText = "";
+
     recognition.onstart = () => {
+      finalText = "";
       setIsListening(true);
     };
-  
-    recognition.onend = () => {
-      setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      // live transcript in the input box
+      setInput((finalText + interim).trim());
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: any) => {
       setIsListening(false);
+      if (event?.error && event.error !== "aborted") {
+        showToast(describeSttError(event.error, languageRef.current));
+      }
     };
-  
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-    
-      recognition.stop();
+
+    recognition.onend = () => {
       setIsListening(false);
-    
-      handleSend(transcript, "voice");
+      const text = finalText.trim();
+      finalText = "";
+      if (text) {
+        setInput("");
+        handleSendRef.current(text, "voice");
+      }
     };
-  
+
     recognitionRef.current = recognition;
+
+    return () => {
+      recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
+      try {
+        recognition.abort();
+      } catch {
+        /* not started */
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
   const startListening = () => {
-    if (!recognitionRef.current) return;
-  
+    if (!recognitionRef.current) {
+      showToast(describeSttError("unsupported", languageRef.current));
+      return;
+    }
+
     stopSpeaking();
-  
+
     try {
       recognitionRef.current.start();
     } catch {
-      // prevents "already started" crash
+      // already started - ignore
     }
   };
 
@@ -519,12 +568,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   };
 
   const stopListening = () => {
-    if (!recognitionRef.current) return;
-  
-    recognitionRef.current.stop(); // ✅ allow transcript to finish
-  
-    // fallback safety (in case onend is delayed)
-    setIsListening(false);
+    // stop() (not abort) so onend still sends what was heard
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      /* not started */
+    }
   };
   
   const extractSpeechWithScriptures = async (answer: ChatbotAnswer) => {
@@ -644,74 +693,108 @@ export const Chatbot: React.FC<ChatbotProps> = ({
   };
   
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  
+  const browserSpeechRef = useRef<BrowserSpeechHandle | null>(null);
+  const speakRunRef = useRef(0);
+  const settleAudioRef = useRef<(() => void) | null>(null);
+
   const stopSpeaking = () => {
-    isCancelledRef.current = true;
-  
+    speakRunRef.current++;
+
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
-  
+    settleAudioRef.current?.(); // release the awaiting loop
+    settleAudioRef.current = null;
+
+    browserSpeechRef.current?.cancel();
+    browserSpeechRef.current = null;
+
     setIsSpeaking(false);
   };
 
-  const isCancelledRef = useRef(false);
-
-
-  
-  const speak = async (text: string) => {
-    if (!text) return;
-  
-    stopSpeaking();
-    isCancelledRef.current = false;
-  
-    const chunks = chunkText(text, 300);
-    setIsSpeaking(true);
-  
-    try {
-      // ✅ STEP 1: fetch all audio first
-      const audioUrls: string[] = [];
-  
-      for (const chunk of chunks) {
-        const res = await fetch(apiUrl("/api/google-tts"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text: chunk,
-            lang: modelLanguageRef.current === "TE" ? "te-IN" : "en-US",
-          }),
-        });
-  
-        if (!res.ok) throw new Error("TTS failed");
-  
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        audioUrls.push(url);
-      }
-  
-      // ✅ STEP 2: play without gaps
-      for (const url of audioUrls) {
-        if (isCancelledRef.current) break;
-  
-        const audio = new Audio(url);
-        currentAudioRef.current = audio;
-  
-        await new Promise<void>((resolve, reject) => {
-          audio.onended = () => resolve();   // ✅ FIX
-          audio.onerror = () => reject();    // ✅ FIX
-          audio.play().catch(reject);
-        });
-  
+  const playBlob = (blob: Blob, run: number) =>
+    new Promise<void>((resolve, reject) => {
+      if (run !== speakRunRef.current) return resolve();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudioRef.current = audio;
+      const finish = () => {
         URL.revokeObjectURL(url);
+        settleAudioRef.current = null;
+        resolve();
+      };
+      settleAudioRef.current = finish;
+      audio.onended = finish;
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        settleAudioRef.current = null;
+        reject(new Error("Audio playback failed"));
+      };
+      audio.play().catch(reject);
+    });
+
+  /**
+   * Read text aloud. Streams chunk by chunk (the first chunk starts playing
+   * while the rest download) and falls back to the browser voice if the
+   * server voice is unavailable.
+   */
+  const speak = async (text: string) => {
+    if (!text?.trim()) return;
+
+    stopSpeaking();
+    const run = speakRunRef.current;
+    const isCurrent = () => run === speakRunRef.current;
+
+    const lang = langForText(text, modelLanguageRef.current);
+    setIsSpeaking(true);
+
+    try {
+      const chunks = chunkText(text, 300);
+      let useBrowser = isServerTtsDown();
+
+      // Kick off the first download; each iteration prefetches the next
+      let nextBlob: Promise<Blob> | null = useBrowser
+        ? null
+        : fetchServerTts(chunks[0], lang);
+      nextBlob?.catch(() => {});
+
+      for (let i = 0; i < chunks.length && isCurrent(); i++) {
+        if (!useBrowser && nextBlob) {
+          const current = nextBlob;
+          nextBlob =
+            i + 1 < chunks.length ? fetchServerTts(chunks[i + 1], lang) : null;
+          nextBlob?.catch(() => {}); // handled when awaited
+
+          try {
+            const blob = await current;
+            if (!isCurrent()) break;
+            await playBlob(blob, run);
+            continue;
+          } catch {
+            if (!isCurrent()) break;
+            useBrowser = true; // server failed: browser voice from here on
+          }
+        }
+
+        if (!hasBrowserTts()) throw new Error("No voice available");
+        const rest = chunks.slice(i).join(" ");
+        const handle = speakWithBrowser(rest, lang);
+        browserSpeechRef.current = handle;
+        await handle.done;
+        break;
       }
-  
     } catch (err) {
-      console.error(err);
+      console.error("Speak failed", err);
+      if (isCurrent()) {
+        showToast(describeTtsError(err, languageRef.current));
+      }
     } finally {
-      setIsSpeaking(false);
+      if (isCurrent()) {
+        currentAudioRef.current = null;
+        browserSpeechRef.current = null;
+        setIsSpeaking(false);
+      }
     }
   };
 
@@ -1152,44 +1235,15 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
   const loadReferenceText = async (refStringRaw: string) => {
     try {
-      const refString = refStringRaw
-        .replace(/[–—]/g, "-")
-        .replace(/\(.*?\)/g, "")
-        .trim();
-
-      const m = refString.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
-      if (!m) return "";
-
-      const rawBook = m[1].trim();
-      const chapter = Number(m[2]);
-      const startVerse = Number(m[3]);
-      const endVerse = m[4] ? Number(m[4]) : startVerse;
-
-      let meta = findBookMetadata(rawBook);
-
-      if (!meta) {
-        const eng = Object.entries(TELUGU_BOOK_NAMES).find(
-          ([, tel]) => tel === rawBook
-        );
-        if (eng) meta = findBookMetadata(eng[0]);
-      }
-
-      if (!meta) return "";
+      const ref = parseScriptureRef(refStringRaw);
+      if (!ref) return "";
 
       const version =
         languageRef.current === "TE"
           ? "TELUGU_COMMUNITY_V1"
           : effectiveEnglishVersion;
 
-
-      const chapterData = await fetchChapter(meta.name, chapter, version);
-      if (!chapterData?.length) return "";
-
-      return chapterData
-        .filter(v => v.verse >= startVerse && v.verse <= endVerse)
-        .map(v => v.text[version] ?? "")
-        .filter(Boolean)
-        .join("\n");
+      return await loadScriptureRefText(ref, version, fetchChapter);
     } catch {
       return "";
     }
@@ -1265,10 +1319,10 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
 
   const handleClickReference = async (reference: string) => {
-    const meta = findBookMetadata(reference.split(/\s+\d+:/)[0]);
-    if (!meta) return; // ignore garbage matches
+    const parsed = parseScriptureRef(reference);
+    if (!parsed) return; // ignore garbage matches
 
-    setPreviewRef(reference);
+    setPreviewRef(formatScriptureRef(parsed));
     const text = await loadReferenceText(reference);
     setPreviewText(text);
     setIsPreviewOpen(true);
@@ -1279,14 +1333,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
     if (typeof node === "string") {
       const parts: React.ReactNode[] = [];
-      const regex = new RegExp(INLINE_REF_RENDER_REGEX.source, "gu");
-
       let lastIndex = 0;
-      let m: RegExpExecArray | null;
 
-      while ((m = regex.exec(node)) !== null) {
-        const match = m[1];
-        const start = m.index;
+      for (const found of findScriptureRefs(node)) {
+        const { start, end, text: match } = found;
+        // Full reference incl. book (follow-ons like "; 6:23" lack it)
+        const fullRef = formatScriptureRef(found.ref);
 
         if (start > lastIndex) {
           parts.push(node.slice(lastIndex, start));
@@ -1295,17 +1347,22 @@ export const Chatbot: React.FC<ChatbotProps> = ({
         parts.push(
           <span
             key={`${match}-${start}`}
+            role="button"
+            tabIndex={0}
             className="text-blue-600 dark:text-blue-400 underline cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
-              handleClickReference(match);
+              handleClickReference(fullRef);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleClickReference(fullRef);
             }}
           >
             {match}
           </span>
         );
 
-        lastIndex = start + match.length;
+        lastIndex = end;
       }
 
       if (lastIndex < node.length) {
@@ -1347,20 +1404,8 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
 
   const formatReferenceForSpeech = (ref: string) => {
-    const match = ref.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
-  
-    if (!match) return ref;
-  
-    const book = match[1];
-    const chapter = match[2];
-    const verseStart = match[3];
-    const verseEnd = match[4];
-  
-    if (verseEnd) {
-      return `${book} chapter ${chapter} verses ${verseStart} to ${verseEnd}`;
-    }
-  
-    return `${book} chapter ${chapter} verse ${verseStart}`;
+    const parsed = parseScriptureRef(ref);
+    return parsed ? speakScriptureRef(parsed) : ref;
   };
 
 
@@ -1413,6 +1458,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({
 
 
   // SEND MESSAGE
+  // (assigned to handleSendRef below so voice input uses the latest version)
   const handleSend = async (
     forcedInput?: string,
     source: "voice" | "text" = "text"
@@ -1656,6 +1702,8 @@ setMessages(prev => [...prev, botMessage].slice(-50));
     setFollowUpQs([]);
   };
 
+  // Voice input always sends through the latest handleSend
+  handleSendRef.current = handleSend;
 
   return (
     <>
@@ -1962,19 +2010,9 @@ ${
 )} */}
               {/* 🎤 Voice Button */}
               <button
-onClick={() => {
-  if (isListening) {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  } else {
-    stopSpeaking();
-
-    try {
-      recognitionRef.current?.start();
-      setIsListening(true);
-    } catch {}
-  }
-}}
+onClick={() => (isListening ? stopListening() : startListening())}
+aria-label={isListening ? "Stop listening" : "Ask by voice"}
+title={isListening ? "Stop listening" : "Ask by voice"}
   disabled={isLoading}
 className={`
   relative flex items-center justify-center

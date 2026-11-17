@@ -599,7 +599,7 @@ function AuthModal({
   <div
     className="
       w-full max-w-sm rounded-xl 
-      bg-white dark:bg-[#0F1623]
+      bg-white dark:bg-slate-900
       border border-gray-200 dark:border-slate-700 
       p-6 shadow-2xl
     "
